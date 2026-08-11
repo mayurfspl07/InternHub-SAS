@@ -1,0 +1,1 @@
+"""Idempotent database migrations."""
