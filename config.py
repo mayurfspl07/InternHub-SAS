@@ -70,14 +70,60 @@ class Config:
         return urlunparse(parsed._replace(query=urlencode(query)))
 
     @classmethod
+    def has_explicit_database_config(cls) -> bool:
+        """True when a platform/user-provided DB target is present (not bare localhost defaults)."""
+        if _env("DATABASE_URL", "MYSQL_URL", "MYSQL_PRIVATE_URL", "MYSQL_PUBLIC_URL"):
+            return True
+        # Shared Railway MySQL plugin vars (without a full URL)
+        if _env("MYSQLHOST", "MYSQL_HOST") and _env("MYSQLHOST", "MYSQL_HOST") not in (
+            "localhost",
+            "127.0.0.1",
+        ):
+            return True
+        return False
+
+    @classmethod
     def database_url(cls) -> str:
-        if url := _env("DATABASE_URL", "MYSQL_URL", "MYSQL_PRIVATE_URL"):
+        # Prefer private network URL on Railway (faster, no public proxy).
+        if url := _env("DATABASE_URL", "MYSQL_PRIVATE_URL", "MYSQL_URL", "MYSQL_PUBLIC_URL"):
             return cls._normalize_database_url(url)
         pwd = quote_plus(cls.MYSQL_PASSWORD) if cls.MYSQL_PASSWORD else ""
         auth = f"{quote_plus(cls.MYSQL_USER)}:{pwd}" if pwd else quote_plus(cls.MYSQL_USER)
         return (
             f"mysql+pymysql://{auth}@{cls.MYSQL_HOST}:{cls.MYSQL_PORT}"
             f"/{cls.MYSQL_DATABASE}?charset=utf8mb4"
+        )
+
+    @classmethod
+    def database_target_summary(cls) -> str:
+        """Host/db summary safe to log (never includes password)."""
+        url = cls.database_url()
+        try:
+            parsed = urlparse(url)
+            db = (parsed.path or "/").lstrip("/") or "?"
+            return f"{parsed.hostname}:{parsed.port or 3306}/{db}"
+        except Exception:
+            return f"{cls.MYSQL_HOST}:{cls.MYSQL_PORT}/{cls.MYSQL_DATABASE}"
+
+    @classmethod
+    def validate_database_config(cls) -> None:
+        """Fail fast on Railway/production when MySQL was never wired to this service."""
+        if not cls.IS_PRODUCTION:
+            return
+        if cls.has_explicit_database_config():
+            return
+        raise RuntimeError(
+            "MySQL is not configured for this Railway service — the app fell back to "
+            "localhost and cannot start.\n\n"
+            "Fix (Railway dashboard → your web service → Variables):\n"
+            "  1. Add a MySQL database to the same project (New → Database → MySQL).\n"
+            "  2. On the web service, add:\n"
+            "       DATABASE_URL=${{MySQL.MYSQL_URL}}\n"
+            "     (replace 'MySQL' with your MySQL service name if different),\n"
+            "     OR click Variable → Add Reference and select MYSQL_URL / MYSQLHOST.\n"
+            "  3. Also set SECRET_KEY to a long random string.\n"
+            "  4. Redeploy.\n"
+            "See RAILWAY.md for the full checklist."
         )
 
     @classmethod

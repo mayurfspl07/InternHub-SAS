@@ -23,10 +23,18 @@ class DatabaseUrlNormalizationTests(unittest.TestCase):
 
     def test_port_prefers_railway_port(self):
         with mock.patch.dict(os.environ, {"PORT": "8080", "APP_PORT": "3001"}, clear=False):
-            # Re-read via the same helper Config uses
             from config import _env
 
             self.assertEqual(int(_env("PORT", "APP_PORT", default="3001")), 8080)
+
+    def test_validate_fails_without_db_on_railway(self):
+        from config import Config
+
+        with mock.patch.object(Config, "IS_PRODUCTION", True):
+            with mock.patch.object(Config, "has_explicit_database_config", return_value=False):
+                with self.assertRaises(RuntimeError) as ctx:
+                    Config.validate_database_config()
+                self.assertIn("DATABASE_URL", str(ctx.exception))
 
 
 if __name__ == "__main__":

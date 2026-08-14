@@ -164,6 +164,15 @@ def _stop_attendance_scheduler() -> None:
 async def lifespan(app: FastAPI):
     app_logger = setup_terminal_logging()
 
+    # Catch the common Railway misconfig (no MySQL vars → localhost) before a long traceback.
+    try:
+        Config.validate_database_config()
+    except RuntimeError as exc:
+        app_logger.error("%s", exc)
+        raise
+
+    app_logger.info("Database target: %s", Config.database_target_summary())
+
     from database import SessionLocal
     from models import User
     from migrate_db import sync_schema
@@ -172,14 +181,23 @@ async def lifespan(app: FastAPI):
     try:
         await asyncio.to_thread(sync_schema)
     except Exception as exc:
-        app_logger.warning(f"Schema sync failed (run migrate_db.py manually): {exc}")
+        app_logger.error(
+            "Schema sync failed (cannot reach MySQL at %s): %s",
+            Config.database_target_summary(),
+            exc,
+        )
+        raise RuntimeError(
+            f"Cannot connect to MySQL at {Config.database_target_summary()}. "
+            "On Railway, set DATABASE_URL=${{MySQL.MYSQL_URL}} on the web service "
+            "(see RAILWAY.md)."
+        ) from exc
 
     await asyncio.to_thread(_ensure_bootstrap_admin)
 
     db = SessionLocal()
     try:
         if db.query(User).count() == 0:
-            app_logger.warning("No users in DB. Run: .venv\\Scripts\\python.exe seed.py")
+            app_logger.warning("No users in DB. Bootstrap admin should have been created.")
     finally:
         db.close()
 
