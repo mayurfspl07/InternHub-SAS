@@ -9,7 +9,7 @@ from dependencies import get_optional_user
 from models import Notification
 from utils import isoformat_utc, unread_notification_count
 
-router = APIRouter(prefix="/api/notifications", tags=["api-notifications"])
+router = APIRouter(prefix="/api/notifications", tags=["Notifications"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 PAGE_SIZE = 20

@@ -9,39 +9,55 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from scalar_fastapi import get_scalar_api_reference
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from config import Config
-from dependencies import SESSION_COOKIE_NAME, csrf_token_valid, get_token_from_header
+from dependencies import (
+    SESSION_COOKIE_NAME,
+    CSRF_COOKIE_NAME,
+    csrf_token_valid,
+    get_token_from_header,
+    get_optional_user,
+    require_login,
+    require_roles,
+    require_admin,
+    require_mentor,
+    require_intern,
+    CurrentUser,
+    AdminUser,
+    MentorOrAdmin,
+    InternUser,
+)
 from log_files import setup_terminal_logging
 from routes.api import (
     admin, announcements, attendance, audit, auth,
-    cohorts, dashboard, leave, notifications, profile,
+    cohorts, dashboard, leave, notifications, org, platform, profile,
     projects, reviews, search, standup, users,
 )
+from routes.api.openapi_docs import build_custom_openapi
+from app.api.router import api_router
 
 BACKEND_DIR = os.path.abspath(os.path.dirname(__file__))
 FRONTEND_DIST_DIR = Config.FRONTEND_DIST_DIR
 BOOTSTRAP_ADMIN_EMAIL = os.environ.get("BOOTSTRAP_ADMIN_EMAIL", "admin@internhub.dev")
-BOOTSTRAP_ADMIN_PASSWORD = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD", "Imp@pune1")
+BOOTSTRAP_ADMIN_PASSWORD = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD")
 BOOTSTRAP_ADMIN_NAME = os.environ.get("BOOTSTRAP_ADMIN_NAME", "Admin")
+if not BOOTSTRAP_ADMIN_PASSWORD:
+    raise RuntimeError(
+        "BOOTSTRAP_ADMIN_PASSWORD must be set. "
+        "Set it via the BOOTSTRAP_ADMIN_PASSWORD environment variable."
+    )
+_DEFAULT_BOOTSTRAP_PASSWORD = None
 _attendance_scheduler = BackgroundScheduler()
-_DEFAULT_BOOTSTRAP_PASSWORD = "Imp@pune1"
 
 
 def _ensure_bootstrap_admin() -> None:
     """Create the local bootstrap admin account if it is missing."""
     from database import SessionLocal
     from models import User, UserRole
-
-    if Config.IS_PRODUCTION and BOOTSTRAP_ADMIN_PASSWORD == _DEFAULT_BOOTSTRAP_PASSWORD:
-        print(
-            "[WARNING] BOOTSTRAP_ADMIN_PASSWORD is still the insecure default. "
-            "Set a strong BOOTSTRAP_ADMIN_PASSWORD (and change it after first login) "
-            "before exposing this deployment publicly."
-        )
 
     db = SessionLocal()
     try:
@@ -55,6 +71,9 @@ def _ensure_bootstrap_admin() -> None:
             if not user.is_active:
                 user.is_active = True
                 changed = True
+            if not user.is_platform_admin:
+                user.is_platform_admin = True
+                changed = True
             if changed:
                 db.commit()
             return
@@ -64,6 +83,7 @@ def _ensure_bootstrap_admin() -> None:
             email=email,
             role=UserRole.ADMIN,
             is_active=True,
+            is_platform_admin=True,
         )
         admin.set_password(BOOTSTRAP_ADMIN_PASSWORD)
         admin.session_version = 1
@@ -212,7 +232,8 @@ async def lifespan(app: FastAPI):
         await asyncio.to_thread(_stop_attendance_scheduler)
 
 
-app = FastAPI(title="InternHub", docs_url="/api/docs", redoc_url=None, lifespan=lifespan)
+app = FastAPI(title="InternHub API", docs_url=None, redoc_url=None, openapi_url="/openapi.json", lifespan=lifespan)
+app.openapi = lambda: build_custom_openapi(app)
 
 # Railway (and most PaaS) terminate TLS at the edge and forward X-Forwarded-Proto.
 # Without this, request.url.scheme stays "http" and Secure cookies / redirects break.
@@ -252,13 +273,11 @@ async def csrf_guard(request: Request, call_next):
 # server-side authorization, etc., which remain the primary controls).
 _CSP = (
     "default-src 'self'; "
-    "script-src 'self'; "
-    # 'unsafe-inline' is required for Radix UI's inline positioning styles on
-    # dialogs/popovers/tooltips; there is no inline <script> usage in this app.
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-    "font-src 'self' https://fonts.gstatic.com; "
-    "img-src 'self' data:; "
-    "connect-src 'self'; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+    "font-src 'self' https://fonts.gstatic.com data:; "
+    "img-src 'self' data: https://fastapi.tiangolo.com https://cdn.jsdelivr.net; "
+    "connect-src 'self' https://cdn.jsdelivr.net; "
     "base-uri 'self'; "
     "form-action 'self'; "
     "frame-ancestors 'none'"
@@ -292,14 +311,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for _router in (
-    auth.router, admin.router, attendance.router, audit.router,
-    announcements.router, cohorts.router, dashboard.router,
-    leave.router, notifications.router, profile.router,
-    projects.router, projects.task_router, reviews.router, search.router, standup.router,
-    users.router,
-):
-    app.include_router(_router)
+app.include_router(api_router)
+
+
+@app.get("/docs", include_in_schema=False)
+@app.get("/api/docs", include_in_schema=False)
+async def scalar_docs():
+    """Scalar Interactive API Documentation."""
+    return get_scalar_api_reference(
+        openapi_url=app.openapi_url,
+        title=app.title + " - Scalar API Reference",
+    )
 
 
 @app.get("/api/health", include_in_schema=False)
@@ -344,7 +366,7 @@ async def serve_frontend(path: str):
     return HTMLResponse(
         "<html><body><h2>InternHub API is running.</h2>"
         "<p>The React UI build was not found at this deployment. "
-        "API docs: <a href=\"/api/docs\">/api/docs</a></p></body></html>",
+        "API docs: <a href=\"/docs\">/docs</a></p></body></html>",
         status_code=200,
     )
 

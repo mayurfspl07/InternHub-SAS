@@ -9,7 +9,7 @@ from starlette.requests import Request
 
 from database import Base
 from dependencies import generate_token
-from models import Attendance, AttendanceStatus, User, UserRole
+from models import Attendance, AttendanceStatus, User, UserRole, Organization, OrganizationMembership, OrganizationType
 from routes.api.dashboard import dashboard
 from routes.api.users import user_overview
 
@@ -34,7 +34,7 @@ def make_request(user: User, path: str = "/") -> Request:
             "path": path,
             "raw_path": path.encode(),
             "query_string": b"",
-            "headers": [(b"authorization", f"Bearer {token}".encode())],
+            "headers": [(b"authorization", f"Bearer {token}".encode()), (b"x-organization-id", b"1")],
             "client": ("127.0.0.1", 12345),
             "server": ("testserver", 80),
         },
@@ -52,9 +52,19 @@ class AttendanceWindow30DayTests(unittest.IsolatedAsyncioTestCase):
         Base.metadata.create_all(self.engine)
         self.db = sessionmaker(bind=self.engine)()
 
+        self.org = Organization(id=1, slug="window-test-org", name="Window Test Org", type=OrganizationType.BUSINESS)
+        self.db.add(self.org)
+        self.db.flush()
+
         self.admin = self._user("Admin", "admin@window.test", UserRole.ADMIN)
         self.intern = self._user("Intern", "intern@window.test", UserRole.INTERN)
         self.other = self._user("Other", "other@window.test", UserRole.INTERN)
+
+        self.db.add_all([
+            OrganizationMembership(organization_id=self.org.id, user_id=self.admin.id, role=UserRole.ADMIN),
+            OrganizationMembership(organization_id=self.org.id, user_id=self.intern.id, role=UserRole.INTERN),
+            OrganizationMembership(organization_id=self.org.id, user_id=self.other.id, role=UserRole.INTERN),
+        ])
         self.db.commit()
 
         self.today = date.today()

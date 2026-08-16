@@ -323,7 +323,7 @@ def notify_overdue_tasks(db: "Session") -> int:
     from models import Task, TaskStatus
 
     today = local_today()
-    done_statuses = (TaskStatus.DONE, TaskStatus.COMPLETED)
+    done_statuses = (TaskStatus.DONE,)
     overdue_tasks = (
         db.query(Task)
         .filter(
@@ -534,13 +534,15 @@ def get_user_project_ids(db: "Session", user) -> list[int]:
     ]
 
 
-def scoped_audit_query(db: "Session", user):
-    """Return an AuditLog query filtered by role."""
+def scoped_audit_query(db: "Session", user, org_id: int | None = None):
+    """Return an AuditLog query filtered by role and organization."""
     from sqlalchemy import or_
-
     from models import AuditLog
 
     q = db.query(AuditLog)
+    if org_id is not None:
+        q = q.filter(AuditLog.organization_id == org_id)
+
     if user.is_admin:
         return q
 
@@ -548,6 +550,13 @@ def scoped_audit_query(db: "Session", user):
 
     if user.is_mentor:
         intern_ids = get_mentor_intern_ids(db, user.id) or [-1]
+        # Filter by organization if org_id is available
+        if org_id is not None:
+            org_intern_ids = [
+                m.user_id for m in db.query(OrganizationMembership.user_id)
+                .filter_by(organization_id=org_id, role="intern", is_active=True).all()
+            ]
+            intern_ids = [uid for uid in intern_ids if uid in org_intern_ids] or [-1]
         return q.filter(
             or_(
                 AuditLog.project_id.in_(project_ids),
@@ -557,6 +566,13 @@ def scoped_audit_query(db: "Session", user):
         )
 
     # Intern: activity on projects they belong to.
+    if org_id is not None:
+        return q.filter(
+            or_(
+                AuditLog.project_id.in_(project_ids),
+                AuditLog.organization_id == org_id,
+            )
+        )
     return q.filter(AuditLog.project_id.in_(project_ids))
 
 
@@ -579,25 +595,18 @@ def validate_csrf_token(request, submitted_token: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Login rate limiting (in-memory, resets on restart)
+# Login rate limiting (distributed via RedisService with in-memory fallback)
 # ---------------------------------------------------------------------------
-
-_login_attempts: dict[str, list[float]] = defaultdict(list)
-
 
 def check_login_rate_limit(ip: str, max_attempts: int, window: int) -> bool:
     """Returns True if the IP is allowed, False if rate-limited."""
-    now = _time_module.time()
-    attempts = [t for t in _login_attempts[ip] if now - t < window]
-    _login_attempts[ip] = attempts
-    if len(attempts) >= max_attempts:
-        return False
-    _login_attempts[ip].append(now)
-    return True
+    from services.redis_service import RedisService
+    return not RedisService.is_rate_limited(f"rate_limit:login:{ip}", limit=max_attempts, window_seconds=window)
 
 
 def reset_login_attempts(ip: str) -> None:
-    _login_attempts.pop(ip, None)
+    from services.redis_service import RedisService
+    RedisService.delete(f"rate_limit:login:{ip}")
 
 
 # ---------------------------------------------------------------------------

@@ -2,16 +2,18 @@
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
 from dependencies import get_optional_user
 from models import Announcement, Project, ProjectAssignment, ProjectMentorAssignment, BinEntityType
 from recycle_bin import move_to_bin
-from utils import push_notification, record_audit, isoformat_utc
+from routes.api.schemas import AnnouncementCreatePayload, AnnouncementUpdatePayload, get_payload
+from utils import record_audit, isoformat_utc
 
-router = APIRouter(prefix="/api/announcements", tags=["api-announcements"])
+router = APIRouter(prefix="/api/announcements", tags=["Announcements"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
@@ -21,10 +23,11 @@ def _ann_dict(a: Announcement) -> dict:
         "title": a.title,
         "body": a.body,
         "is_pinned": a.is_pinned,
-        "project_id": a.project_id,
-        "project_name": a.project.name if a.project else None,
         "author_id": a.author_id,
         "author_name": a.author.name if a.author else None,
+        "author_role": a.author.role if a.author else None,
+        "project_id": a.project_id,
+        "project_name": a.project.name if a.project else None,
         "created_at": isoformat_utc(a.created_at),
     }
 
@@ -35,27 +38,23 @@ async def list_announcements(request: Request, db: DbSession):
     if not user:
         raise HTTPException(status_code=401)
 
-    q = db.query(Announcement).options(
-        joinedload(Announcement.author),
-        joinedload(Announcement.project),
-    ).filter(Announcement.is_deleted == False)
+    q = (
+        db.query(Announcement)
+        .options(joinedload(Announcement.author), joinedload(Announcement.project))
+        .filter(Announcement.is_deleted == False)
+    )
 
     if user.is_intern:
-        # Interns see global announcements and those for their projects
-        assigned_ids = [
-            r[0] for r in db.query(ProjectAssignment.project_id).filter_by(user_id=user.id).all()
+        intern_project_ids = [
+            a.project_id
+            for a in db.query(ProjectAssignment.project_id).filter_by(user_id=user.id).all()
         ]
-        q = q.filter((Announcement.project_id == None) | (Announcement.project_id.in_(assigned_ids)))
-    elif user.is_mentor:
-        mentor_proj_ids = {
-            r[0] for r in db.query(Project.id).filter_by(mentor_id=user.id).all()
-        }
-        # Include projects where this mentor is a co-mentor
-        mentor_proj_ids.update(
-            r[0]
-            for r in db.query(ProjectMentorAssignment.project_id).filter_by(user_id=user.id).all()
+        q = q.filter(
+            or_(
+                Announcement.project_id.is_(None),
+                Announcement.project_id.in_(intern_project_ids),
+            )
         )
-        q = q.filter((Announcement.project_id == None) | (Announcement.project_id.in_(mentor_proj_ids)))
 
     project_id = request.query_params.get("project_id")
     if project_id:
@@ -69,19 +68,19 @@ async def list_announcements(request: Request, db: DbSession):
 
 
 @router.post("")
-async def create_announcement(request: Request, db: DbSession):
+async def create_announcement(request: Request, db: DbSession, data: AnnouncementCreatePayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user or user.is_intern:
         raise HTTPException(status_code=403)
 
-    data = await request.json()
-    title = str(data.get("title", "")).strip()
-    body = str(data.get("body", "")).strip()
+    payload = await get_payload(request, data)
+    title = str(payload.get("title", "")).strip()
+    body = str(payload.get("body", "")).strip()
     if not title or not body:
         raise HTTPException(status_code=422, detail="Title and body are required.")
 
-    is_pinned = bool(data.get("is_pinned", False))
-    project_id = data.get("project_id")
+    is_pinned = bool(payload.get("is_pinned", False))
+    project_id = payload.get("project_id")
     if project_id:
         try:
             project_id = int(project_id)
@@ -138,7 +137,7 @@ async def create_announcement(request: Request, db: DbSession):
 
 
 @router.put("/{ann_id}")
-async def update_announcement(ann_id: int, request: Request, db: DbSession):
+async def update_announcement(ann_id: int, request: Request, db: DbSession, data: AnnouncementUpdatePayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user or user.is_intern:
         raise HTTPException(status_code=403)
@@ -148,17 +147,17 @@ async def update_announcement(ann_id: int, request: Request, db: DbSession):
     if not user.is_admin and ann.author_id != user.id:
         raise HTTPException(status_code=403)
 
-    data = await request.json()
+    payload = await get_payload(request, data)
     content_changed = False
-    if "title" in data:
-        ann.title = str(data["title"]).strip()
+    if "title" in payload and payload["title"] is not None:
+        ann.title = str(payload["title"]).strip()
         content_changed = True
-    if "body" in data:
-        ann.body = str(data["body"]).strip()
+    if "body" in payload and payload["body"] is not None:
+        ann.body = str(payload["body"]).strip()
         content_changed = True
     pinned_changed = False
-    if "is_pinned" in data:
-        new_pinned = bool(data["is_pinned"])
+    if "is_pinned" in payload and payload["is_pinned"] is not None:
+        new_pinned = bool(payload["is_pinned"])
         pinned_changed = new_pinned != ann.is_pinned
         ann.is_pinned = new_pinned
 

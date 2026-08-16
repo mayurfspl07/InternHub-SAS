@@ -2,7 +2,7 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
@@ -11,7 +11,9 @@ from models import StandupLog, User, BinEntityType
 from recycle_bin import move_to_bin
 from utils import get_mentor_intern_ids, record_audit, isoformat_utc, local_today
 
-router = APIRouter(prefix="/api/standup", tags=["api-standup"])
+from routes.api.schemas import StandupCreatePayload, StandupUpdatePayload, get_payload
+
+router = APIRouter(prefix="/api/standup", tags=["Daily Standups"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 MOOD_OPTIONS = ["great", "good", "okay", "tired", "stressed"]
@@ -97,16 +99,16 @@ async def today_standup(request: Request, db: DbSession):
 
 
 @router.post("")
-async def submit_standup(request: Request, db: DbSession):
+async def submit_standup(request: Request, db: DbSession, data: StandupCreatePayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
-    data = await request.json()
 
-    did = str(data.get("did", "")).strip()
-    plan = str(data.get("plan", "")).strip()
-    blockers = str(data.get("blockers", "")).strip() or None
-    mood = str(data.get("mood", "")).strip()
+    payload = await get_payload(request, data)
+    did = str(payload.get("did", "")).strip()
+    plan = str(payload.get("plan", "")).strip()
+    blockers = str(payload.get("blockers") or "").strip() or None
+    mood = str(payload.get("mood") or "").strip()
     if mood not in MOOD_OPTIONS:
         mood = None
 
@@ -114,7 +116,7 @@ async def submit_standup(request: Request, db: DbSession):
         raise HTTPException(status_code=422, detail="Both 'did' and 'plan' are required.")
 
     try:
-        log_date = date.fromisoformat(str(data.get("date", local_today().isoformat())))
+        log_date = date.fromisoformat(str(payload.get("date") or local_today().isoformat()))
     except ValueError:
         log_date = local_today()
 
@@ -142,7 +144,7 @@ async def submit_standup(request: Request, db: DbSession):
 
 
 @router.put("/{log_id}")
-async def update_standup(log_id: int, request: Request, db: DbSession):
+async def update_standup(log_id: int, request: Request, db: DbSession, data: StandupUpdatePayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
@@ -153,15 +155,15 @@ async def update_standup(log_id: int, request: Request, db: DbSession):
     if log.user_id != user.id and not user.is_admin:
         raise HTTPException(status_code=403)
 
-    data = await request.json()
-    if "did" in data:
-        log.did = str(data["did"]).strip()
-    if "plan" in data:
-        log.plan = str(data["plan"]).strip()
-    if "blockers" in data:
-        log.blockers = str(data["blockers"]).strip() or None
-    if "mood" in data:
-        mood = str(data["mood"]).strip()
+    payload = await get_payload(request, data)
+    if "did" in payload and payload["did"] is not None:
+        log.did = str(payload["did"]).strip()
+    if "plan" in payload and payload["plan"] is not None:
+        log.plan = str(payload["plan"]).strip()
+    if "blockers" in payload:
+        log.blockers = str(payload["blockers"]).strip() or None if payload["blockers"] is not None else None
+    if "mood" in payload and payload["mood"] is not None:
+        mood = str(payload["mood"]).strip()
         log.mood = mood if mood in MOOD_OPTIONS else None
     record_audit(db, user, "standup.update", "updated standup", log.date.isoformat())
     db.commit()

@@ -2,7 +2,7 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -18,7 +18,15 @@ from dependencies import (
 from models import InternInviteLink, User, UserRole, _utcnow
 from utils import check_login_rate_limit, reset_login_attempts, record_audit, push_notification, isoformat_utc
 
-router = APIRouter(prefix="/api/auth", tags=["api-auth"])
+from routes.api.schemas import (
+    LoginRequest,
+    RegisterRequest,
+    InviteRegisterRequest,
+    UserProfileResponse,
+    get_payload,
+)
+
+router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 DbSession = Annotated[Session, Depends(get_db)]
 
@@ -51,11 +59,11 @@ async def me(request: Request, db: DbSession):
 
 
 @router.post("/login")
-async def login(request: Request, response: Response, db: DbSession):
-    data = await request.json()
-    email = str(data.get("email", "")).strip().lower()
-    password = str(data.get("password", ""))
-    remember = bool(data.get("remember", False))
+async def login(request: Request, response: Response, db: DbSession, data: LoginRequest | None = Body(None)):
+    payload = await get_payload(request, data)
+    email = str(payload.get("email", "")).strip().lower()
+    password = str(payload.get("password", ""))
+    remember = bool(payload.get("remember", False))
 
     client_ip = request.client.host if request.client else "unknown"
     if not check_login_rate_limit(client_ip, Config.LOGIN_MAX_ATTEMPTS, Config.LOGIN_WINDOW_SECONDS):
@@ -110,7 +118,7 @@ async def logout(request: Request, response: Response):
 
 
 @router.post("/register")
-async def register(request: Request, db: DbSession):
+async def register(request: Request, db: DbSession, data: RegisterRequest | None = Body(None)):
     client_ip = request.client.host if request.client else "unknown"
     if not check_login_rate_limit(client_ip, Config.LOGIN_MAX_ATTEMPTS, Config.LOGIN_WINDOW_SECONDS):
         raise HTTPException(
@@ -119,12 +127,12 @@ async def register(request: Request, db: DbSession):
             headers={"Retry-After": str(Config.LOGIN_WINDOW_SECONDS)},
         )
 
-    data = await request.json()
-    name = str(data.get("name", "")).strip()
-    email = str(data.get("email", "")).strip().lower()
-    password = str(data.get("password", ""))
-    confirm = str(data.get("confirm_password", data.get("confirm", "")))
-    role = str(data.get("role", UserRole.INTERN)).strip().lower()
+    payload = await get_payload(request, data)
+    name = str(payload.get("name", "")).strip()
+    email = str(payload.get("email", "")).strip().lower()
+    password = str(payload.get("password", ""))
+    confirm = str(payload.get("confirm_password", payload.get("confirm", "")))
+    role = str(payload.get("role", UserRole.INTERN)).strip().lower()
 
     errors = []
     if not (name and email and password):
@@ -195,20 +203,20 @@ async def get_invite_info(token: str, db: DbSession):
 
 
 @router.post("/invite/{token}/register")
-async def register_via_invite(token: str, request: Request, db: DbSession):
+async def register_via_invite(token: str, request: Request, db: DbSession, data: InviteRegisterRequest | None = Body(None)):
     link = _get_active_invite(db, token)
     if not link:
         raise HTTPException(status_code=404, detail="This invite link is invalid or has expired.")
 
-    data = await request.json()
-    name = str(data.get("name", "")).strip()
-    email = str(data.get("email", "")).strip().lower()
-    password = str(data.get("password", ""))
-    confirm = str(data.get("confirm_password", data.get("confirm", "")))
-    phone = str(data.get("phone", "")).strip()
-    department = str(data.get("department", "")).strip()
-    job_title = str(data.get("job_title", "")).strip()
-    joining_date_str = str(data.get("joining_date", "")).strip()
+    payload = await get_payload(request, data)
+    name = str(payload.get("name", "")).strip()
+    email = str(payload.get("email", "")).strip().lower()
+    password = str(payload.get("password", ""))
+    confirm = str(payload.get("confirm_password", payload.get("confirm", "")))
+    phone = str(payload.get("phone", "")).strip()
+    department = str(payload.get("department", "")).strip()
+    job_title = str(payload.get("job_title", "")).strip()
+    joining_date_str = str(payload.get("joining_date", "")).strip().strip()
 
     errors = []
     if not (name and email and password and phone and department and job_title and joining_date_str):

@@ -10,7 +10,7 @@ from dependencies import get_optional_user
 from models import Attendance, LeaveRequest, LeaveStatus, Project, ProjectAssignment, Task, User
 from utils import get_leave_balance, isoformat_utc, local_today
 
-router = APIRouter(prefix="/api/users", tags=["api-users"])
+router = APIRouter(prefix="/api/users", tags=["Users"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 

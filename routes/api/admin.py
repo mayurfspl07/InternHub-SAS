@@ -3,7 +3,7 @@ import secrets
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -22,7 +22,17 @@ from recycle_bin import (
 from models import BinEntityType
 from utils import clear_all_database_data, push_notification, record_audit, isoformat_utc
 
-router = APIRouter(prefix="/api/admin", tags=["api-admin"])
+from routes.api.schemas import (
+    AdminCreateUserRequest,
+    AdminUpdateUserRequest,
+    AdminRoleUpdateRequest,
+    AdminInviteLinkCreateRequest,
+    AdminInviteLinkActionRequest,
+    ClearDataRequest,
+    get_payload,
+)
+
+router = APIRouter(prefix="/api/admin", tags=["Administration"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
@@ -223,18 +233,18 @@ async def intern_assignments(request: Request, db: DbSession):
 
 
 @router.post("/users")
-async def create_user(request: Request, db: DbSession):
+async def create_user(request: Request, db: DbSession, data: AdminCreateUserRequest | None = Body(None)):
     user = get_optional_user(request, db)
     if not user or user.role not in ("admin", "mentor"):
         raise HTTPException(status_code=403)
-    data = await request.json()
-    name = str(data.get("name", "")).strip()
-    email = str(data.get("email", "")).strip().lower()
-    password = str(data.get("password", ""))
-    role = str(data.get("role", "intern"))
-    phone = str(data.get("phone", "")).strip()
-    job_title = str(data.get("job_title", "")).strip()
-    department = str(data.get("department", "")).strip()
+    payload = await get_payload(request, data)
+    name = str(payload.get("name", "")).strip()
+    email = str(payload.get("email", "")).strip().lower()
+    password = str(payload.get("password", ""))
+    role = str(payload.get("role", "intern"))
+    phone = str(payload.get("phone", "")).strip()
+    job_title = str(payload.get("job_title", "")).strip()
+    department = str(payload.get("department", "")).strip()
 
     if not name or not email or not password:
         raise HTTPException(status_code=422, detail="Name, email, and password are required.")
@@ -248,7 +258,7 @@ async def create_user(request: Request, db: DbSession):
     if db.query(User).filter_by(email=email).first():
         raise HTTPException(status_code=409, detail="Email already registered.")
 
-    mentor_id = data.get("mentor_id")
+    mentor_id = payload.get("mentor_id")
     resolved_mentor_id: int | None = None
     if role == UserRole.INTERN and mentor_id not in (None, "", 0, "0"):
         resolved_mentor_id = int(mentor_id)
@@ -284,7 +294,7 @@ async def create_user(request: Request, db: DbSession):
 
 
 @router.put("/users/{user_id}")
-async def update_user(user_id: int, request: Request, response: Response, db: DbSession):
+async def update_user(user_id: int, request: Request, response: Response, db: DbSession, data: AdminUpdateUserRequest | None = Body(None)):
     user = get_optional_user(request, db)
     if not user or user.role not in ("admin", "mentor"):
         raise HTTPException(status_code=403)
@@ -294,24 +304,24 @@ async def update_user(user_id: int, request: Request, response: Response, db: Db
     # Mentors can only edit their own directly assigned interns
     if user.is_mentor and (target.role != UserRole.INTERN or target.mentor_id != user.id):
         raise HTTPException(status_code=403, detail="Mentors can only edit their own assigned interns.")
-    data = await request.json()
 
-    if "name" in data:
-        target.name = str(data["name"]).strip()
-    if "email" in data:
-        new_email = str(data["email"]).strip().lower()
+    payload = await get_payload(request, data)
+    if "name" in payload and payload["name"] is not None:
+        target.name = str(payload["name"]).strip()
+    if "email" in payload and payload["email"] is not None:
+        new_email = str(payload["email"]).strip().lower()
         existing = db.query(User).filter(User.email == new_email, User.id != user_id).first()
         if existing:
             raise HTTPException(status_code=409, detail="Email already in use.")
         target.email = new_email
-    if "phone" in data:
-        target.phone = str(data["phone"]).strip() or None
-    if "job_title" in data:
-        target.job_title = str(data["job_title"]).strip() or None
-    if "department" in data:
-        target.department = str(data["department"]).strip() or None
-    if "joining_date" in data:
-        raw_joining_date = data.get("joining_date")
+    if "phone" in payload:
+        target.phone = str(payload["phone"]).strip() or None if payload["phone"] is not None else None
+    if "job_title" in payload:
+        target.job_title = str(payload["job_title"]).strip() or None if payload["job_title"] is not None else None
+    if "department" in payload:
+        target.department = str(payload["department"]).strip() or None if payload["department"] is not None else None
+    if "joining_date" in payload and payload["joining_date"] is not None:
+        raw_joining_date = payload["joining_date"]
         if raw_joining_date:
             try:
                 target.joining_date = date.fromisoformat(str(raw_joining_date).strip())
@@ -319,24 +329,8 @@ async def update_user(user_id: int, request: Request, response: Response, db: Db
                 raise HTTPException(status_code=422, detail="Invalid joining date format. Use YYYY-MM-DD.")
         else:
             target.joining_date = None
-    password_changed_self = False
-    if "password" in data and data["password"]:
-        pw = str(data["password"])
-        if len(pw) < 8:
-            raise HTTPException(status_code=422, detail="Password must be at least 8 characters.")
-        target.set_password(pw)
-        if target.id == user.id:
-            password_changed_self = True
-    if user.is_admin and "role" in data:
-        new_role = str(data["role"])
-        if new_role not in UserRole.ALL or new_role == UserRole.ADMIN:
-            raise HTTPException(status_code=422, detail="Invalid role.")
-        if target.id != user.id:
-            target.role = new_role
-            if new_role != UserRole.INTERN:
-                target.mentor_id = None
-    if user.role in ("admin", "mentor") and "mentor_id" in data and target.role == UserRole.INTERN:
-        raw_mentor = data.get("mentor_id")
+    if user.role in ("admin", "mentor") and "mentor_id" in payload and payload["mentor_id"] is not None and target.role == UserRole.INTERN:
+        raw_mentor = payload["mentor_id"]
         if raw_mentor in (None, "", 0, "0"):
             target.mentor_id = None
         else:
@@ -351,11 +345,7 @@ async def update_user(user_id: int, request: Request, response: Response, db: Db
     record_audit(db, user, "user.update", "updated account for", target.name, affected_user_id=target.id)
     db.commit()
     mentor_names = _mentor_names(db)
-    res = _user_dict(target, mentor_names)
-    if password_changed_self:
-        token = generate_token(target.id, target.session_version, remember=True)
-        issue_session_cookies(request, response, token, remember=True)
-    return res
+    return _user_dict(target, mentor_names)
 
 
 @router.post("/users/{user_id}/toggle")
@@ -384,7 +374,7 @@ async def toggle_active(user_id: int, request: Request, db: DbSession):
 
 
 @router.post("/users/{user_id}/role")
-async def change_role(user_id: int, request: Request, db: DbSession):
+async def change_role(user_id: int, request: Request, db: DbSession, data: AdminRoleUpdateRequest | None = Body(None)):
     user = get_optional_user(request, db)
     if not user or not user.is_admin:
         raise HTTPException(status_code=403)
@@ -393,8 +383,8 @@ async def change_role(user_id: int, request: Request, db: DbSession):
         raise HTTPException(status_code=404)
     if target.id == user.id:
         raise HTTPException(status_code=400, detail="Cannot change your own role.")
-    data = await request.json()
-    new_role = str(data.get("role", ""))
+    payload = await get_payload(request, data)
+    new_role = str(payload.get("role", ""))
     if new_role not in UserRole.ALL:
         raise HTTPException(status_code=422, detail="Invalid role.")
     old_role = target.role
@@ -477,19 +467,14 @@ async def get_invite_link(request: Request, db: DbSession):
 
 
 @router.post("/invite-link")
-async def create_invite_link(request: Request, db: DbSession):
+async def create_invite_link(request: Request, db: DbSession, data: AdminInviteLinkCreateRequest | None = Body(None)):
     user = get_optional_user(request, db)
     if not user or user.role not in ("admin", "mentor"):
         raise HTTPException(status_code=403)
 
-    data = {}
-    if request.headers.get("content-type", "").startswith("application/json"):
-        try:
-            data = await request.json()
-        except Exception:
-            data = {}
-    label = str(data.get("label", "")).strip() or "Intern onboarding link"
-    mentor_id = data.get("mentor_id")
+    payload = await get_payload(request, data)
+    label = str(payload.get("label", "")).strip() or "Intern onboarding link"
+    mentor_id = payload.get("mentor_id")
     resolved_mentor_id: int | None = None
     if user.is_mentor:
         resolved_mentor_id = user.id
@@ -550,15 +535,19 @@ def _mentor_link_ids_for_user(db: Session, user: User) -> list[int]:
     return [row[0] for row in rows]
 
 
-def _can_review_intern_signup(db: Session, reviewer: User, intern: User) -> bool:
+def _can_review_intern_signup(db: Session, reviewer: User, intern: User, org_id: int | None = None) -> bool:
     if not intern.signup_invite_link_id:
         return False
     link = db.get(InternInviteLink, intern.signup_invite_link_id)
     if not link:
         return False
     if reviewer.is_admin:
+        if org_id is not None and link.organization_id != org_id:
+            return False
         return True
     if reviewer.is_mentor:
+        if org_id is not None and link.organization_id != org_id:
+            return False
         return link.created_by_id == reviewer.id or link.mentor_id == reviewer.id
     return False
 
@@ -625,12 +614,20 @@ async def review_intern_signup_request(user_id: int, request: Request, db: DbSes
     if not user or user.role not in ("admin", "mentor"):
         raise HTTPException(status_code=403)
 
+    # Resolve organization context
+    org_header = request.headers.get("X-Organization-Id")
+    org_id = int(org_header) if org_header and str(org_header).isdigit() else None
+    if org_id is None:
+        from models import OrganizationMembership
+        mem = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True, is_deleted=False).first()
+        org_id = mem.organization_id if mem else None
+
     intern = db.get(User, user_id)
     if not intern or intern.role != UserRole.INTERN or intern.is_active:
         raise HTTPException(status_code=404, detail="Signup request not found.")
     if not intern.signup_invite_link_id:
         raise HTTPException(status_code=404, detail="Signup request not found.")
-    if not _can_review_intern_signup(db, user, intern):
+    if not _can_review_intern_signup(db, user, intern, org_id):
         raise HTTPException(status_code=403, detail="You cannot review this signup request.")
 
     data = await request.json()
@@ -839,19 +836,22 @@ async def clear_recycle_bin(request: Request, db: DbSession):
 
 
 @router.post("/clear-database")
-async def clear_database(request: Request, db: DbSession):
+async def clear_database(request: Request, db: DbSession, data: ClearDataRequest | None = Body(None)):
     user = get_optional_user(request, db)
     if not user or not user.is_admin:
         raise HTTPException(status_code=403, detail="Only admins can clear the database.")
 
-    try:
-        data = await request.json()
-    except Exception:
-        data = {}
+    if not getattr(user, "is_platform_admin", False) and not Config.IS_LOCAL:
+        raise HTTPException(
+            status_code=403,
+            detail="Only Platform Super Admins can execute a global database wipe in development.",
+        )
+
+    payload = await get_payload(request, data)
 
     if not Config.DB_CLEAR_PASSWORD:
         raise HTTPException(status_code=503, detail="Database clear is not configured on this server.")
-    password = str(data.get("password", ""))
+    password = str(payload.get("password", ""))
     if not secrets.compare_digest(password, Config.DB_CLEAR_PASSWORD):
         raise HTTPException(status_code=403, detail="Incorrect database clear password.")
 

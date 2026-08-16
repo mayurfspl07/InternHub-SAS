@@ -2,7 +2,7 @@
 from datetime import date, datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import case, func, select
 
@@ -25,17 +25,28 @@ from models import (
 )
 from recycle_bin import move_to_bin
 from utils import push_notification, record_audit, isoformat_utc
+from routes.api.schemas import (
+    ProjectCreatePayload,
+    ProjectUpdatePayload,
+    ProjectAssignPayload,
+    TaskCreatePayload,
+    TaskUpdatePayload,
+    TaskStatusPayload,
+    TaskCommentPayload,
+    ProjectBoardCommentPayload,
+    ProjectLinkPayload,
+    get_payload,
+)
 
-router = APIRouter(prefix="/api/projects", tags=["api-projects"])
-task_router = APIRouter(prefix="/api/tasks", tags=["api-tasks"])
+router = APIRouter(prefix="/api/projects", tags=["Projects"])
+task_router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
 DbSession = Annotated[Session, Depends(get_db)]
 PAGE_SIZE = 12
 
 _STATUS_LABELS = {
     "todo": "to do",
     "in_progress": "in progress",
-    "completed": "completed",
-    "done": "completed",
+    "done": "done",
 }
 
 
@@ -147,7 +158,7 @@ def _task_stats_for_projects(db: Session, project_ids: list[int]) -> dict[int, t
     """Return {project_id: (done_count, total_count)} without loading full task rows."""
     if not project_ids:
         return {}
-    done_statuses = (TaskStatus.DONE, TaskStatus.COMPLETED)
+    done_statuses = (TaskStatus.DONE,)
     rows = (
         db.query(
             Task.project_id,
@@ -308,13 +319,22 @@ def _visible_projects_query(db, user):
     if user.is_admin:
         return db.query(Project).filter_by(is_deleted=False)
     if user.is_mentor:
-        mentor_project_ids = db.query(ProjectMentorAssignment.project_id).filter_by(user_id=user.id).subquery()
+        mentor_project_ids = db.query(ProjectMentorAssignment.project_id).filter_by(user_id=user.id).scalar_subquery()
         return db.query(Project).filter(
             (Project.mentor_id == user.id) | (Project.id.in_(mentor_project_ids)),
             Project.is_deleted == False,
         )
-    assigned_ids = db.query(ProjectAssignment.project_id).filter_by(user_id=user.id).subquery()
+    assigned_ids = db.query(ProjectAssignment.project_id).filter_by(user_id=user.id).scalar_subquery()
     return db.query(Project).filter(Project.id.in_(assigned_ids), Project.is_deleted == False)
+
+
+def _resolve_request_org_id(request: Request, user: User, db: Session) -> int | None:
+    header_val = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+    if header_val and str(header_val).isdigit():
+        return int(header_val)
+    from models import OrganizationMembership
+    mem = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True, is_deleted=False).first()
+    return mem.organization_id if mem else None
 
 
 def _can_edit(user, project):
@@ -430,33 +450,33 @@ async def list_projects(request: Request, db: DbSession):
 
 
 @router.post("")
-async def create_project(request: Request, db: DbSession):
+async def create_project(request: Request, db: DbSession, data: ProjectCreatePayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user or user.role not in ("admin", "mentor"):
         raise HTTPException(status_code=403)
-    data = await request.json()
-    name = str(data.get("name", "")).strip()
+    payload = await get_payload(request, data)
+    name = str(payload.get("name", "")).strip()
     if not name:
         raise HTTPException(status_code=422, detail="Project name is required.")
     start = None
-    if data.get("start_date"):
+    if payload.get("start_date"):
         try:
-            start = date.fromisoformat(str(data["start_date"]))
+            start = date.fromisoformat(str(payload["start_date"]))
         except ValueError:
             raise HTTPException(status_code=422, detail="Invalid start date.")
     end = None
-    if data.get("end_date"):
+    if payload.get("end_date"):
         try:
-            end = date.fromisoformat(str(data["end_date"]))
+            end = date.fromisoformat(str(payload["end_date"]))
         except ValueError:
             pass
-    mentor_ids = _resolve_mentor_ids(db, data, user=user, required=True)
-    status = str(data.get("status", "planning"))
+    mentor_ids = _resolve_mentor_ids(db, payload, user=user, required=True)
+    status = str(payload.get("status", "planning"))
     if status not in ProjectStatus.ALL:
         status = ProjectStatus.PLANNING
     project = Project(
         name=name,
-        description=str(data.get("description", "")).strip(),
+        description=str(payload.get("description", "")).strip(),
         start_date=start,
         end_date=end,
         status=status,
@@ -469,7 +489,7 @@ async def create_project(request: Request, db: DbSession):
     db.commit()
     record_audit(db, user, "project.create", "created project", name, project_id=project.id)
     # Support both intern_ids and member_ids key names from the frontend
-    intern_ids = data.get("intern_ids") or data.get("member_ids") or []
+    intern_ids = payload.get("intern_ids") or payload.get("member_ids") or []
     for intern_id in intern_ids:
         try:
             uid = int(intern_id)
@@ -500,11 +520,14 @@ async def get_project(project_id: int, request: Request, db: DbSession):
     ).filter_by(id=project_id, is_deleted=False).first()
     if not project:
         raise HTTPException(status_code=404)
+    org_id = _resolve_request_org_id(request, user, db)
+    if org_id is not None and project.organization_id is not None and project.organization_id != org_id:
+        raise HTTPException(status_code=404, detail="Project not found.")
     if not _is_project_member(db, user, project):
         raise HTTPException(status_code=403)
     active_tasks = [t for t in project.tasks if not t.is_deleted]
     done_count = sum(
-        1 for t in active_tasks if t.status in (TaskStatus.DONE, TaskStatus.COMPLETED)
+        1 for t in active_tasks if t.status in (TaskStatus.DONE,)
     )
     return {
         **_project_dict(project, task_done=done_count, task_total=len(active_tasks)),
@@ -572,7 +595,7 @@ async def export_project(project_id: int, request: Request, db: DbSession):
 
 
 @router.put("/{project_id}")
-async def update_project(project_id: int, request: Request, db: DbSession):
+async def update_project(project_id: int, request: Request, db: DbSession, data: ProjectUpdatePayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user or user.role not in ("admin", "mentor"):
         raise HTTPException(status_code=403)
@@ -581,19 +604,20 @@ async def update_project(project_id: int, request: Request, db: DbSession):
         raise HTTPException(status_code=404)
     if not _can_edit(user, project):
         raise HTTPException(status_code=403)
-    data = await request.json()
-    name = str(data.get("name", "")).strip()
+
+    payload = await get_payload(request, data)
+    name = str(payload.get("name", "")).strip()
     if not name:
         raise HTTPException(status_code=422, detail="Project name is required.")
     project.name = name
-    project.description = str(data.get("description", "")).strip()
-    if data.get("start_date"):
+    project.description = str(payload.get("description", "")).strip()
+    if payload.get("start_date"):
         try:
-            project.start_date = date.fromisoformat(str(data["start_date"]))
+            project.start_date = date.fromisoformat(str(payload["start_date"]))
         except ValueError:
             pass
-    if "end_date" in data:
-        raw_end = data["end_date"]
+    if "end_date" in payload:
+        raw_end = payload["end_date"]
         if raw_end:
             try:
                 project.end_date = date.fromisoformat(str(raw_end))
@@ -601,22 +625,22 @@ async def update_project(project_id: int, request: Request, db: DbSession):
                 pass  # keep existing end_date on parse error
         else:
             project.end_date = None  # explicit null/empty clears it
-    if data.get("status"):
-        status = str(data["status"])
+    if payload.get("status"):
+        status = str(payload["status"])
         if status in ProjectStatus.ALL:
             project.status = status
-    if "mentor_ids" in data or "mentor_id" in data:
+    if "mentor_ids" in payload or "mentor_id" in payload:
         mentor_ids = _resolve_mentor_ids(
             db,
-            data,
+            payload,
             user=user,
             project=project,
             required=True,
         )
         _apply_project_mentors(db, project, mentor_ids)
-    intern_ids = data.get("intern_ids")
+    intern_ids = payload.get("intern_ids")
     if intern_ids is None:
-        intern_ids = data.get("member_ids")
+        intern_ids = payload.get("member_ids")
     if intern_ids is not None:
         target_ids = set()
         for i in intern_ids:
@@ -669,7 +693,7 @@ async def delete_project(project_id: int, request: Request, db: DbSession):
 
 
 @router.post("/{project_id}/assign")
-async def assign_intern(project_id: int, request: Request, db: DbSession):
+async def assign_intern(project_id: int, request: Request, db: DbSession, data: ProjectAssignPayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user or user.role not in ("admin", "mentor"):
         raise HTTPException(status_code=403)
@@ -678,9 +702,9 @@ async def assign_intern(project_id: int, request: Request, db: DbSession):
         raise HTTPException(status_code=404)
     if not _can_edit(user, project):
         raise HTTPException(status_code=403)
-    data = await request.json()
+    payload = await get_payload(request, data)
     try:
-        intern_id = int(data.get("user_id", 0))
+        intern_id = int(payload.get("user_id", 0))
     except (TypeError, ValueError):
         raise HTTPException(status_code=422, detail="Invalid user_id.")
     if not intern_id:
@@ -734,7 +758,7 @@ async def unassign_intern(project_id: int, user_id: int, request: Request, db: D
 # ---------------------------------------------------------------------------
 
 @router.post("/{project_id}/tasks")
-async def create_task(project_id: int, request: Request, db: DbSession):
+async def create_task(project_id: int, request: Request, db: DbSession, data: TaskCreatePayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
@@ -745,18 +769,19 @@ async def create_task(project_id: int, request: Request, db: DbSession):
         is_assigned = db.query(ProjectAssignment).filter_by(project_id=project.id, user_id=user.id).first()
         if not is_assigned:
             raise HTTPException(status_code=403)
-    data = await request.json()
-    title = str(data.get("title", "")).strip()
+
+    payload = await get_payload(request, data)
+    title = str(payload.get("title", "")).strip()
     if not title:
         raise HTTPException(status_code=422, detail="Task title is required.")
     deadline = None
-    deadline_raw = data.get("due_date") or data.get("deadline")
+    deadline_raw = payload.get("due_date") or payload.get("deadline")
     if deadline_raw:
         try:
             deadline = date.fromisoformat(str(deadline_raw))
         except ValueError:
             pass
-    assigned_to_raw = data.get("assigned_to")
+    assigned_to_raw = payload.get("assigned_to")
     if assigned_to_raw in (None, "", 0, "0"):
         # Interns' tasks default to themselves; staff may leave a task unassigned
         assigned_to = user.id if user.is_intern else None
@@ -767,17 +792,17 @@ async def create_task(project_id: int, request: Request, db: DbSession):
             raise HTTPException(status_code=422, detail="Invalid assignee.")
         if not db.get(User, assigned_to):
             raise HTTPException(status_code=422, detail="Assignee not found.")
-    priority = str(data.get("priority", TaskPriority.MEDIUM))
+    priority = str(payload.get("priority", TaskPriority.MEDIUM))
     if priority not in (TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH):
         priority = TaskPriority.MEDIUM
     task = Task(
         project_id=project.id,
         created_by_id=user.id,
         title=title,
-        description=str(data.get("description", "")).strip(),
+        description=str(payload.get("description", "")).strip(),
         assigned_to=assigned_to,
         deadline=deadline,
-        status=str(data.get("status", TaskStatus.TODO)),
+        status=str(payload.get("status", TaskStatus.TODO)),
         priority=priority,
     )
     db.add(task)
@@ -790,7 +815,7 @@ async def create_task(project_id: int, request: Request, db: DbSession):
 
 
 @router.put("/tasks/{task_id}")
-async def update_task(task_id: int, request: Request, db: DbSession):
+async def update_task(task_id: int, request: Request, db: DbSession, data: TaskUpdatePayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
@@ -798,18 +823,20 @@ async def update_task(task_id: int, request: Request, db: DbSession):
     if not task:
         raise HTTPException(status_code=404)
     project = task.project
-    data = await request.json()
     if not _can_move_task(user, project, task, db):
         raise HTTPException(status_code=403)
+    
+    payload_dict = await get_payload(request, data)
     if user.is_intern and task.assigned_to != user.id and not _can_edit(user, project):
-        if set(data.keys()) - {"status"}:
+        if set(payload_dict.keys()) - {"status"}:
             raise HTTPException(status_code=403, detail="You can only update status on this task.")
-    title = str(data.get("title", task.title)).strip()
+
+    title = str(payload_dict.get("title", task.title) if payload_dict.get("title") is not None else task.title).strip()
     if not title:
         raise HTTPException(status_code=422, detail="Task title is required.")
     old_assignee = task.assigned_to
-    if "assigned_to" in data:
-        raw_assignee = data["assigned_to"]
+    if "assigned_to" in payload_dict and payload_dict["assigned_to"] is not None:
+        raw_assignee = payload_dict["assigned_to"]
         if raw_assignee in (None, "", 0, "0"):
             assigned_to = None  # explicit unassign
         else:
@@ -822,26 +849,28 @@ async def update_task(task_id: int, request: Request, db: DbSession):
     else:
         assigned_to = task.assigned_to
     deadline = task.deadline
-    deadline_raw = data.get("due_date") if "due_date" in data else data.get("deadline")
+    deadline_raw = payload_dict.get("due_date") if "due_date" in payload_dict else payload_dict.get("deadline")
     if deadline_raw:  # truthy string value → parse
         try:
             deadline = date.fromisoformat(str(deadline_raw))
         except ValueError:
             pass
-    elif deadline_raw is not None and ("due_date" in data or "deadline" in data):
+    elif "due_date" in payload_dict or "deadline" in payload_dict:
         # Key present but value is None or empty string → clear the deadline
         deadline = None
     old_status = task.status
-    new_status = str(data.get("status", task.status))
-    if new_status == "done":
-        new_status = "completed"
+    new_status = str(payload_dict.get("status", task.status) if payload_dict.get("status") is not None else task.status)
+    if new_status == "completed":
+        new_status = "done"
     if new_status not in TaskStatus.ALL:
         raise HTTPException(status_code=422, detail="Invalid status.")
     task.title = title
-    task.description = str(data.get("description", task.description or "")).strip()
+    if "description" in payload_dict and payload_dict["description"] is not None:
+        task.description = str(payload_dict["description"]).strip()
     task.deadline = deadline
-    new_priority = str(data.get("priority", task.priority))
-    task.priority = new_priority if new_priority in (TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH) else task.priority
+    if "priority" in payload_dict and payload_dict["priority"] is not None:
+        new_priority = str(payload_dict["priority"])
+        task.priority = new_priority if new_priority in (TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH) else task.priority
     task.status = new_status
     task.assigned_to = assigned_to
     if assigned_to and assigned_to != old_assignee:
@@ -862,7 +891,7 @@ async def update_task(task_id: int, request: Request, db: DbSession):
 
 
 @router.patch("/tasks/{task_id}/status")
-async def update_task_status(task_id: int, request: Request, db: DbSession):
+async def update_task_status(task_id: int, request: Request, db: DbSession, data: TaskStatusPayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
@@ -872,11 +901,11 @@ async def update_task_status(task_id: int, request: Request, db: DbSession):
     project = task.project
     if not _can_move_task(user, project, task, db):
         raise HTTPException(status_code=403)
-    data = await request.json()
-    new_status = data.get("status")
-    # Accept "done" as alias for "completed" (legacy compat)
-    if new_status == "done":
-        new_status = "completed"
+    payload = await get_payload(request, data)
+    new_status = payload.get("status")
+    # Accept "completed" as alias for "done"
+    if new_status == "completed":
+        new_status = "done"
     if new_status not in TaskStatus.ALL:
         raise HTTPException(status_code=422, detail="Invalid status.")
     old_status = task.status
@@ -936,7 +965,7 @@ async def get_comments(task_id: int, request: Request, db: DbSession):
 
 
 @router.post("/tasks/{task_id}/comments")
-async def add_comment(task_id: int, request: Request, db: DbSession):
+async def add_comment(task_id: int, request: Request, db: DbSession, data: TaskCommentPayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
@@ -945,8 +974,8 @@ async def add_comment(task_id: int, request: Request, db: DbSession):
         raise HTTPException(status_code=404)
     if not _is_project_member(db, user, task.project):
         raise HTTPException(status_code=403)
-    data = await request.json()
-    body = str(data.get("body", "")).strip()
+    payload = await get_payload(request, data)
+    body = str(payload.get("body", "")).strip()
     if not body:
         raise HTTPException(status_code=422, detail="Comment body is required.")
     if len(body) > 100:
@@ -1042,7 +1071,7 @@ async def get_project_comments(project_id: int, request: Request, db: DbSession)
 
 
 @router.post("/{project_id}/comments-board")
-async def create_project_comment(project_id: int, request: Request, db: DbSession):
+async def create_project_comment(project_id: int, request: Request, db: DbSession, data: ProjectBoardCommentPayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated.")
@@ -1054,12 +1083,8 @@ async def create_project_comment(project_id: int, request: Request, db: DbSessio
     if not (user.is_admin or user.is_mentor or _is_project_member(db, user, project)):
         raise HTTPException(status_code=403, detail="Not authorized.")
 
-    try:
-        data = await request.json()
-    except Exception:
-        raise HTTPException(status_code=422, detail="Invalid JSON format.")
-
-    body = str(data.get("body", "")).strip()
+    payload = await get_payload(request, data)
+    body = str(payload.get("body", "")).strip()
     if not body:
         raise HTTPException(status_code=422, detail="Comment body cannot be empty.")
     if len(body) > 100:
@@ -1184,7 +1209,7 @@ async def get_project_links(project_id: int, request: Request, db: DbSession):
 
 
 @router.post("/{project_id}/links")
-async def create_project_link(project_id: int, request: Request, db: DbSession):
+async def create_project_link(project_id: int, request: Request, db: DbSession, data: ProjectLinkPayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated.")
@@ -1196,13 +1221,9 @@ async def create_project_link(project_id: int, request: Request, db: DbSession):
     if not _is_project_member(db, user, project):
         raise HTTPException(status_code=403, detail="Not authorized.")
 
-    try:
-        data = await request.json()
-    except Exception:
-        raise HTTPException(status_code=422, detail="Invalid JSON format.")
-
-    link_str = str(data.get("link", "")).strip()
-    remark_str = str(data.get("remark", "")).strip()
+    payload = await get_payload(request, data)
+    link_str = str(payload.get("link", "")).strip()
+    remark_str = str(payload.get("remark", "")).strip()
 
     from urllib.parse import urlparse
     try:

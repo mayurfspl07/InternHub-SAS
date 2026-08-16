@@ -27,7 +27,7 @@ from utils import (
 from typing import Annotated
 from sqlalchemy.orm import Session, joinedload
 
-router = APIRouter(prefix="/api/dashboard", tags=["api-dashboard"])
+router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
@@ -36,6 +36,21 @@ async def dashboard(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Resolve active organization scope
+    header_org = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+    org_id: int | None = None
+    if header_org and str(header_org).isdigit():
+        org_id = int(header_org)
+    else:
+        from models import OrganizationMembership
+        mem = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True, is_deleted=False).first()
+        org_id = mem.organization_id if mem else None
+
+    from services.redis_service import RedisService
+    if org_id is None:
+        raise HTTPException(status_code=400, detail="Organization ID is required for dashboard view")
+    cache_key = f"dashboard:{org_id}:{user.id}:{user.role}"
 
     today = local_today()
     # Inclusive window: today + previous 29 days = 30 calendar days.
@@ -46,10 +61,23 @@ async def dashboard(request: Request, db: DbSession):
         intern_ids = [user.id]
     elif user.is_mentor:
         intern_ids = get_mentor_intern_ids(db, user.id) or [-1]
+        # Filter by organization if org_id is available
+        if org_id is not None:
+            org_intern_ids = [
+                m.user_id for m in db.query(OrganizationMembership.user_id)
+                .filter_by(organization_id=org_id, role="intern", is_active=True).all()
+            ]
+            intern_ids = [uid for uid in intern_ids if uid in org_intern_ids] or [-1]
     else:
-        intern_ids = [
-            u.id for u in db.query(User.id).filter_by(role="intern", is_active=True).all()
-        ] or [-1]
+        from models import OrganizationMembership
+        if org_id is not None:
+            intern_ids = [
+                m.user_id for m in db.query(OrganizationMembership.user_id).filter_by(organization_id=org_id, role="intern", is_active=True).all()
+            ] or [-1]
+        else:
+            intern_ids = [
+                u.id for u in db.query(User.id).filter_by(role="intern", is_active=True).all()
+            ] or [-1]
 
     # ------------------------------------------------------------------
     # Projects (role-scoped)
@@ -57,9 +85,6 @@ async def dashboard(request: Request, db: DbSession):
     if user.is_admin:
         proj_q = db.query(Project).filter_by(is_deleted=False)
     elif user.is_mentor:
-        # Includes projects where this mentor is a co-mentor, not just the primary mentor —
-        # must match the scoping used by the Projects list page (see _filter_projects_by_mentor
-        # in routes/api/projects.py) or "active projects" undercounts here vs there.
         mentor_project_ids = get_user_project_ids(db, user) or [-1]
         proj_q = db.query(Project).filter(Project.id.in_(mentor_project_ids), Project.is_deleted == False)
     else:
@@ -67,6 +92,9 @@ async def dashboard(request: Request, db: DbSession):
             db.query(ProjectAssignment.project_id).filter_by(user_id=user.id).scalar_subquery()
         )
         proj_q = db.query(Project).filter(Project.id.in_(assigned_ids), Project.is_deleted == False)
+
+    if org_id is not None:
+        proj_q = proj_q.filter(Project.organization_id == org_id)
 
     proj_rows = proj_q.with_entities(Project.status, func.count(Project.id)).group_by(Project.status).all()
     project_status = {s: c for s, c in proj_rows}
@@ -218,7 +246,7 @@ async def dashboard(request: Request, db: DbSession):
     # Recent activity (role-scoped: intern → their projects, mentor → their projects + interns, admin → all)
     # ------------------------------------------------------------------
     activity_rows = (
-        scoped_audit_query(db, user)
+        scoped_audit_query(db, user, org_id=org_id)
         .order_by(AuditLog.created_at.desc())
         .limit(15)
         .all()

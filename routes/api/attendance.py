@@ -3,11 +3,13 @@ import asyncio
 from datetime import date, datetime, time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy import and_, case, func
 from sqlalchemy.orm import Session, joinedload
 
-from attendance_photos import photo_abs_path, save_attendance_photo
+import os
+from attendance_photos import save_attendance_photo, photo_abs_path
+from utils import local_now, local_today, today_str
 from geocoding import reverse_geocode
 from config import Config
 from database import get_db
@@ -31,8 +33,9 @@ from utils import (
     isoformat_utc,
 )
 from fastapi.responses import FileResponse, Response
+from routes.api.schemas import AttendanceEditRequest, ManualAttendanceRequest, get_payload
 
-router = APIRouter(prefix="/api/attendance", tags=["api-attendance"])
+router = APIRouter(prefix="/api/attendance", tags=["Attendance"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 PAGE_SIZE = 30
@@ -492,8 +495,7 @@ async def trigger_auto_checkout(request: Request, db: DbSession):
 
 
 @router.put("/{record_id}")
-async def update_attendance(record_id: int, request: Request, db: DbSession):
-    """Mentor/admin correction of intern attendance (requires reason)."""
+async def edit_attendance(record_id: int, request: Request, db: DbSession, data: AttendanceEditRequest | None = Body(None)):
     user = get_optional_user(request, db)
     if not user or user.role not in ("admin", "mentor"):
         raise HTTPException(status_code=403)
@@ -509,12 +511,19 @@ async def update_attendance(record_id: int, request: Request, db: DbSession):
     if not _can_edit_attendance(db, user, record):
         raise HTTPException(status_code=403, detail="You cannot edit this intern's attendance.")
 
-    data = await request.json()
-    reason = str(data.get("reason", "")).strip()
+    if data is not None:
+        raw_data = data.model_dump(exclude_unset=True)
+    else:
+        try:
+            raw_data = await request.json()
+        except Exception:
+            raw_data = {}
+
+    reason = str(raw_data.get("reason", "")).strip()
     if not reason:
         raise HTTPException(status_code=422, detail="A reason is required for attendance edits.")
 
-    status_override = data.get("status_override", "__unset__")
+    status_override = raw_data.get("status_override", "__unset__")
     clearing_override = False
     if status_override == "__unset__":
         status_override = None
@@ -537,9 +546,9 @@ async def update_attendance(record_id: int, request: Request, db: DbSession):
     changes: list[tuple[str, str | None, str | None]] = []
     old_status = record.status
 
-    if "check_in" in data and data["check_in"]:
+    if "check_in" in raw_data and raw_data["check_in"]:
         try:
-            new_in = _parse_time_on_date(record.date, str(data["check_in"]))
+            new_in = _parse_time_on_date(record.date, str(raw_data["check_in"]))
         except ValueError:
             raise HTTPException(status_code=422, detail="Invalid check-in time.")
         old = record.check_in.strftime("%H:%M") if record.check_in else None
@@ -548,8 +557,8 @@ async def update_attendance(record_id: int, request: Request, db: DbSession):
             changes.append(("check_in", old, new))
             record.check_in = new_in
 
-    if "check_out" in data:
-        raw = data["check_out"]
+    if "check_out" in raw_data:
+        raw = raw_data["check_out"]
         if raw in (None, "", "clear"):
             if record.check_out:
                 old = record.check_out.strftime("%H:%M")
@@ -681,7 +690,7 @@ async def attendance_audit_log(record_id: int, request: Request, db: DbSession):
 
 
 @router.post("/manual")
-async def create_attendance_manual(request: Request, db: DbSession):
+async def create_attendance_manual(request: Request, db: DbSession, data: ManualAttendanceRequest | None = Body(None)):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated.")
@@ -689,17 +698,13 @@ async def create_attendance_manual(request: Request, db: DbSession):
     if user.role not in (UserRole.ADMIN, UserRole.MENTOR):
         raise HTTPException(status_code=403, detail="Permission denied.")
 
-    try:
-        data = await request.json()
-    except Exception:
-        raise HTTPException(status_code=422, detail="Invalid JSON format.")
-
-    user_id = data.get("user_id")
-    date_str = data.get("date")
-    check_in_str = data.get("check_in")
-    check_out_str = data.get("check_out")
-    status_override = data.get("status_override")
-    reason = data.get("reason")
+    payload = await get_payload(request, data)
+    user_id = payload.get("user_id")
+    date_str = payload.get("date")
+    check_in_str = payload.get("check_in")
+    check_out_str = payload.get("check_out")
+    status_override = payload.get("status_override")
+    reason = payload.get("reason")
 
     if user_id is None:
         raise HTTPException(status_code=422, detail="user_id is required.")

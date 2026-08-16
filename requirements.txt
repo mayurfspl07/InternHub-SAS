@@ -10,3 +10,4 @@ python-dateutil==2.9.0.post0
 itsdangerous==2.2.0
 python-dotenv==1.0.1
 apscheduler==3.10.4
+scalar-fastapi>=1.8.0

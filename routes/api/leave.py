@@ -2,7 +2,7 @@
 from datetime import date, datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
@@ -10,7 +10,9 @@ from dependencies import get_optional_user
 from models import LeaveRequest, LeaveStatus, LeaveType, User
 from utils import get_leave_balance, get_mentor_intern_ids, push_notification, record_audit, _business_days, isoformat_utc, sync_attendance_for_approved_leave, local_today
 
-router = APIRouter(prefix="/api/leave", tags=["api-leave"])
+from routes.api.schemas import LeaveApplyRequest, LeaveReviewRequest, get_payload
+
+router = APIRouter(prefix="/api/leave", tags=["Leave Management"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
@@ -62,29 +64,31 @@ async def my_requests(request: Request, db: DbSession):
 
 
 @router.post("")
-async def request_leave(request: Request, db: DbSession):
+async def apply(request: Request, db: DbSession, data: LeaveApplyRequest | None = Body(None)):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
     if not user.is_intern:
-        raise HTTPException(status_code=403, detail="Only interns can submit leave requests.")
-    data = await request.json()
-    try:
-        start = date.fromisoformat(str(data.get("start_date", "")))
-        end = date.fromisoformat(str(data.get("end_date", "")))
-    except (ValueError, TypeError):
-        raise HTTPException(status_code=422, detail="Invalid date format.")
+        raise HTTPException(status_code=403, detail="Only interns can request leave.")
 
-    if end < start:
-        raise HTTPException(status_code=422, detail="End date must be after start date.")
+    payload = await get_payload(request, data)
+    try:
+        start = date.fromisoformat(str(payload.get("start_date", "")).strip())
+        end = date.fromisoformat(str(payload.get("end_date", "")).strip())
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="Invalid date format. Use YYYY-MM-DD.")
+
+    if start > end:
+        raise HTTPException(status_code=422, detail="End date must be on or after start date.")
+
     if start <= local_today():
         raise HTTPException(status_code=422, detail="Leave must be requested at least one day in advance.")
 
-    reason = str(data.get("reason", "")).strip()
+    reason = str(payload.get("reason", "")).strip()
     if not reason:
         raise HTTPException(status_code=422, detail="Please provide a reason.")
 
-    leave_type = str(data.get("leave_type", LeaveType.CASUAL))
+    leave_type = str(payload.get("leave_type", LeaveType.CASUAL))
     if leave_type not in LeaveType.ALL:
         leave_type = LeaveType.CASUAL
 
@@ -171,20 +175,33 @@ async def manage(request: Request, db: DbSession):
 
 
 @router.post("/{leave_id}/review")
-async def review(leave_id: int, request: Request, db: DbSession):
+async def review(leave_id: int, request: Request, db: DbSession, data: LeaveReviewRequest | None = Body(None)):
     user = get_optional_user(request, db)
     if not user or user.role not in ("admin", "mentor"):
         raise HTTPException(status_code=403)
     lr = db.query(LeaveRequest).options(joinedload(LeaveRequest.user)).filter_by(id=leave_id).first()
     if not lr:
         raise HTTPException(status_code=404)
+    
+    # Check tenant isolation
+    target_org_id = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+    if target_org_id and str(target_org_id).isdigit():
+        req_org_id = int(target_org_id)
+        if lr.organization_id is not None and lr.organization_id != req_org_id:
+            raise HTTPException(status_code=404, detail="Leave request not found.")
+    else:
+        from models import OrganizationMembership
+        mem = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True, is_deleted=False).first()
+        if mem and lr.organization_id is not None and lr.organization_id != mem.organization_id:
+            raise HTTPException(status_code=404, detail="Leave request not found.")
+
     # Mentors can only review leave for their own interns
     if user.is_mentor:
         allowed_ids = get_mentor_intern_ids(db, user.id)
         if lr.user_id not in allowed_ids:
             raise HTTPException(status_code=403, detail="You can only review leave requests for your own interns.")
-    data = await request.json()
-    decision = data.get("decision")
+    payload = await get_payload(request, data)
+    decision = payload.get("decision")
     if decision not in (LeaveStatus.APPROVED, LeaveStatus.REJECTED):
         raise HTTPException(status_code=422, detail="Decision must be 'approved' or 'rejected'.")
     lr.status = str(decision)

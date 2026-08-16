@@ -10,13 +10,18 @@ from config import Config
 _pool_size = int(os.environ.get("DB_POOL_SIZE", "5" if Config.IS_PRODUCTION else "10"))
 _max_overflow = int(os.environ.get("DB_MAX_OVERFLOW", "10" if Config.IS_PRODUCTION else "20"))
 
-engine = create_engine(
-    Config.database_url(),
-    pool_pre_ping=True,
-    pool_recycle=280,  # Railway/MySQL often closes idle connections ~5 min
-    pool_size=_pool_size,
-    max_overflow=_max_overflow,
-)
+db_url = Config.database_url()
+engine_kwargs = {"pool_pre_ping": True}
+if db_url.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    engine_kwargs.update({
+        "pool_recycle": 280,
+        "pool_size": _pool_size,
+        "max_overflow": _max_overflow,
+    })
+
+engine = create_engine(db_url, **engine_kwargs)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

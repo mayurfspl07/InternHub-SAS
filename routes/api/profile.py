@@ -1,7 +1,7 @@
 """JSON profile endpoints."""
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -15,8 +15,9 @@ from dependencies import (
 )
 from models import User
 from utils import record_audit, isoformat_utc
+from routes.api.schemas import ProfileUpdatePayload, ChangePasswordPayload, get_payload
 
-router = APIRouter(prefix="/api/profile", tags=["api-profile"])
+router = APIRouter(prefix="/api/profile", tags=["Profile"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
@@ -46,20 +47,20 @@ async def get_profile(request: Request, db: DbSession):
 
 
 @router.put("")
-async def update_profile(request: Request, db: DbSession):
+async def update_profile(request: Request, db: DbSession, data: ProfileUpdatePayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
-    data = await request.json()
 
-    if "name" in data:
-        name = str(data["name"]).strip()
+    payload = await get_payload(request, data)
+    if "name" in payload and payload["name"] is not None:
+        name = str(payload["name"]).strip()
         if not name:
             raise HTTPException(status_code=422, detail="Name is required.")
         user.name = name
 
-    if "email" in data:
-        email = str(data["email"]).strip().lower()
+    if "email" in payload and payload["email"] is not None:
+        email = str(payload["email"]).strip().lower()
         if not email:
             raise HTTPException(status_code=422, detail="Email is required.")
         existing = db.query(User).filter(User.email == email, User.id != user.id).first()
@@ -67,22 +68,20 @@ async def update_profile(request: Request, db: DbSession):
             raise HTTPException(status_code=409, detail="That email is already in use.")
         user.email = email
 
-    if "bio" in data:
-        user.bio = str(data["bio"]).strip() or None
-    if "department" in data:
-        user.department = str(data["department"]).strip() or None
-    if "phone" in data:
-        user.phone = str(data["phone"]).strip() or None
-    if "job_title" in data:
-        user.job_title = str(data["job_title"]).strip() or None
-    if "skills" in data:
-        skills = data["skills"]
+    if "bio" in payload:
+        user.bio = str(payload["bio"]).strip() or None if payload["bio"] is not None else None
+    if "department" in payload:
+        user.department = str(payload["department"]).strip() or None if payload["department"] is not None else None
+    if "phone" in payload:
+        user.phone = str(payload["phone"]).strip() or None if payload["phone"] is not None else None
+    if "job_title" in payload:
+        user.job_title = str(payload["job_title"]).strip() or None if payload["job_title"] is not None else None
+    if "skills" in payload and payload["skills"] is not None:
+        skills = payload["skills"]
         if isinstance(skills, list):
             user.skills = ", ".join(str(s).strip() for s in skills if str(s).strip())
         else:
             user.skills = str(skills).strip() or None
-    # joining_date is intentionally not editable here — only admins/mentors can set it,
-    # via PUT /api/admin/users/{id}. This endpoint only ever edits the caller's own record.
 
     record_audit(db, user, "profile.update", "updated their profile", user.name)
     db.commit()
@@ -90,36 +89,35 @@ async def update_profile(request: Request, db: DbSession):
 
 
 @router.post("/change-password")
-async def change_password(request: Request, response: Response, db: DbSession):
+async def change_password(request: Request, response: Response, db: DbSession, data: ChangePasswordPayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
-    data = await request.json()
-    current_pw = str(data.get("current_password", ""))
-    new_pw = str(data.get("new_password", ""))
-    confirm_pw = str(data.get("confirm_password", ""))
 
+    payload = await get_payload(request, data)
+    current_pw = str(payload.get("current_password", ""))
+    new_pw = str(payload.get("new_password", ""))
+    confirm_pw = str(payload.get("confirm_password", ""))
+
+    if not current_pw or not new_pw:
+        raise HTTPException(status_code=422, detail="Both current and new password are required.")
     if not user.check_password(current_pw):
-        raise HTTPException(status_code=400, detail="Current password is incorrect.")
-    if len(new_pw) < 8 or not any(c.isdigit() for c in new_pw):
-        raise HTTPException(status_code=422, detail="New password must be at least 8 characters and include a number.")
+        raise HTTPException(status_code=422, detail="Current password is incorrect.")
     if new_pw != confirm_pw:
         raise HTTPException(status_code=422, detail="New passwords do not match.")
+    if len(new_pw) < 8:
+        raise HTTPException(status_code=422, detail="New password must be at least 8 characters.")
+    if not any(c.isdigit() for c in new_pw):
+        raise HTTPException(status_code=422, detail="New password must contain at least one number.")
 
-    current_token = get_token_from_header(request) or request.cookies.get(SESSION_COOKIE_NAME)
-    current_payload = verify_token(current_token) if current_token else None
-    remember = bool(current_payload and current_payload.get("remember"))
-
-    user.set_password(new_pw)  # increments session_version
-    record_audit(
-        db,
-        user,
-        "user.password_change",
-        "changed their password",
-        user.name,
-        affected_user_id=user.id,
-    )
+    user.set_password(new_pw)
+    user.session_version += 1
+    record_audit(db, user, "user.change_password", "changed their password", user.name)
     db.commit()
-    token = generate_token(user.id, user.session_version, remember=remember)
-    issue_session_cookies(request, response, token, remember)
-    return {"ok": True, "message": "Password changed successfully."}
+
+    token_str = get_token_from_header(request) or request.cookies.get(SESSION_COOKIE_NAME)
+    token_data = verify_token(token_str) if token_str else None
+    remember = token_data.get("remember", False) if token_data else False
+    new_token = generate_token(user.id, user.session_version, remember=remember)
+    issue_session_cookies(request, response, new_token, remember=remember)
+    return {"ok": True, "token": new_token, "message": "Password changed successfully."}

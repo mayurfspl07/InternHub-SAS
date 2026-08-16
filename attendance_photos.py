@@ -1,59 +1,64 @@
-"""On-disk storage for attendance check-in/check-out selfies.
-
-Layout: attendance_photos/<date>/<user_id>_<name-slug>/<checkin|checkout>/<HHMMSS>.jpg
-Photos are resized/compressed client-side before upload, so this module just persists
-whatever bytes it's given (capped at MAX_PHOTO_BYTES as a sanity limit) — it does not
-re-encode images, to avoid adding an image-processing dependency for a file that's
-already a small JPEG by the time it reaches here.
-"""
+"""Disk-based attendance selfie persistence and safe path resolver."""
 import os
 import re
-import time as _time
-from datetime import date
-
+from datetime import date, datetime
 from config import Config
 
-# Overridable via ATTENDANCE_PHOTOS_DIR (mount a Railway Volume here in production).
-PHOTOS_DIR = Config.ATTENDANCE_PHOTOS_DIR
 
-# Real captures (resized to a few hundred px wide, JPEG quality ~0.7) are tens of KB —
-# this just guards against a client sending something unexpectedly large.
-MAX_PHOTO_BYTES = 2 * 1024 * 1024
+def _slugify(name: str) -> str:
+    s = re.sub(r"[^\w\s-]", "", name).strip().lower()
+    return re.sub(r"[-\s]+", "_", s) or "user"
 
 
-def _slug(name: str) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-    return slug or "user"
+def save_attendance_photo(
+    user_id: int,
+    user_name: str,
+    day: date,
+    kind: str,
+    content: bytes,
+) -> str:
+    """Validate and persist selfie photo to ATTENDANCE_PHOTOS_DIR.
 
-
-def save_attendance_photo(user_id: int, user_name: str, day: date, kind: str, content: bytes) -> str:
-    """Save a selfie to disk and return its path relative to PHOTOS_DIR (stored in the DB)."""
+    Returns the relative path to be stored in the database.
+    """
     if not content:
-        raise ValueError("Empty photo upload.")
-    if len(content) > MAX_PHOTO_BYTES:
-        raise ValueError("Photo is too large.")
-    if kind not in ("checkin", "checkout"):
-        raise ValueError("Invalid photo kind.")
+        raise ValueError("Photo content cannot be empty.")
+    if len(content) > 10 * 1024 * 1024:  # 10 MB max
+        raise ValueError("Photo file size exceeds 10 MB limit.")
 
-    folder = os.path.join(PHOTOS_DIR, day.isoformat(), f"{user_id}_{_slug(user_name)}", kind)
-    os.makedirs(folder, exist_ok=True)
-    filename = f"{_time.strftime('%H%M%S')}.jpg"
-    abs_path = os.path.join(folder, filename)
+    # Allowed kinds
+    if kind not in ("checkin", "checkout"):
+        raise ValueError(f"Invalid photo kind: {kind}")
+
+    # Build relative directory: <YYYY-MM-DD>/<user_id>_<slug>/<kind>/
+    day_str = day.isoformat()
+    slug = _slugify(user_name)
+    user_dir = f"{user_id}_{slug}"
+    timestamp_name = datetime.now().strftime("%H%M%S") + ".jpg"
+
+    rel_path = os.path.join(day_str, user_dir, kind, timestamp_name)
+    base_dir = os.path.abspath(Config.ATTENDANCE_PHOTOS_DIR)
+    abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
+
+    # Path traversal prevention
+    if not abs_path.startswith(base_dir):
+        raise ValueError("Invalid target path.")
+
+    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
     with open(abs_path, "wb") as f:
         f.write(content)
-    return os.path.relpath(abs_path, PHOTOS_DIR).replace("\\", "/")
+
+    return rel_path.replace("\\", "/")
 
 
 def photo_abs_path(rel_path: str) -> str | None:
-    """Resolve a DB-stored relative photo path to an absolute path.
-
-    Returns None if the resolved path would escape PHOTOS_DIR (defense in depth — the
-    path is always one this module generated itself, never taken from a request) or if
-    the file no longer exists on disk.
-    """
-    abs_path = os.path.abspath(os.path.join(PHOTOS_DIR, rel_path))
-    if os.path.commonpath([PHOTOS_DIR, abs_path]) != PHOTOS_DIR:
+    """Safely resolve a relative photo path to an absolute path on disk."""
+    if not rel_path:
         return None
-    if not os.path.isfile(abs_path):
+    base_dir = os.path.abspath(Config.ATTENDANCE_PHOTOS_DIR)
+    abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
+    if not abs_path.startswith(base_dir):
         return None
-    return abs_path
+    if os.path.isfile(abs_path):
+        return abs_path
+    return None

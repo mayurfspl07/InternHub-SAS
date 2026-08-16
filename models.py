@@ -28,6 +28,20 @@ class UserRole:
     ALL = (ADMIN, MENTOR, INTERN)
 
 
+class OrganizationType:
+    BUSINESS = "business"
+    EDUCATIONAL_INSTITUTE = "educational_institute"
+    ALL = (BUSINESS, EDUCATIONAL_INSTITUTE)
+
+
+class OrganizationStatus:
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    TRIAL = "trial"
+    CANCELLED = "cancelled"
+    ALL = (ACTIVE, SUSPENDED, TRIAL, CANCELLED)
+
+
 class AttendanceStatus:
     PRESENT = "present"
     LATE = "late"
@@ -50,8 +64,7 @@ class TaskStatus:
     IN_PROGRESS = "in_progress"
     TESTING = "testing"
     DONE = "done"
-    COMPLETED = "completed"  # alias used by seeded data
-    ALL = (TODO, IN_PROGRESS, TESTING, DONE, COMPLETED)
+    ALL = (TODO, IN_PROGRESS, TESTING, DONE)
 
 
 class TaskPriority:
@@ -75,16 +88,173 @@ class LeaveType:
 
 
 # ---------------------------------------------------------------------------
-# ORM models
+# Helper functions for datetime handling
 # ---------------------------------------------------------------------------
 
 def _utcnow() -> datetime:
+    """Return naive UTC now - use for timezone-naive DateTime columns."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def _utcnow_aware() -> datetime:
+    """Return aware UTC now - use for DateTime(timezone=True) columns."""
     return datetime.now(timezone.utc)
 
+
+# ---------------------------------------------------------------------------
+# Core SaaS & Tenancy Models
+# ---------------------------------------------------------------------------
+
+class Organization(Base):
+    __tablename__ = "organizations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slug: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    type: Mapped[str] = mapped_column(String(40), nullable=False, default=OrganizationType.BUSINESS)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default=OrganizationStatus.ACTIVE)
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="Asia/Kolkata")
+    logo_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    settings = relationship(
+        "OrganizationSettings",
+        back_populates="organization",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    memberships = relationship(
+        "OrganizationMembership",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "slug": self.slug,
+            "name": self.name,
+            "type": self.type,
+            "status": self.status,
+            "timezone": self.timezone,
+            "logo_url": self.logo_url,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+    def __repr__(self) -> str:
+        return f"<Organization {self.id} {self.slug} ({self.name})>"
+
+
+class OrganizationSettings(Base):
+    __tablename__ = "organization_settings"
+
+    organization_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True
+    )
+    shift_start: Mapped[str] = mapped_column(String(10), nullable=False, default="10:00:00")
+    shift_end: Mapped[str] = mapped_column(String(10), nullable=False, default="19:00:00")
+    late_cutoff: Mapped[str] = mapped_column(String(10), nullable=False, default="10:30:00")
+    noon_cutoff: Mapped[str] = mapped_column(String(10), nullable=False, default="12:00:00")
+    checkin_block: Mapped[str] = mapped_column(String(10), nullable=False, default="20:00:00")
+    full_day_hours: Mapped[float] = mapped_column(Float, nullable=False, default=7.00)
+    half_day_hours: Mapped[float] = mapped_column(Float, nullable=False, default=5.00)
+    leave_quota_days: Mapped[int] = mapped_column(Integer, nullable=False, default=15)
+    advance_leave_days: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    require_attendance_selfie: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    require_attendance_gps: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    auto_checkout_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+
+    organization = relationship("Organization", back_populates="settings")
+
+    def to_dict(self) -> dict:
+        return {
+            "organization_id": self.organization_id,
+            "shift_start": self.shift_start,
+            "shift_end": self.shift_end,
+            "late_cutoff": self.late_cutoff,
+            "noon_cutoff": self.noon_cutoff,
+            "checkin_block": self.checkin_block,
+            "full_day_hours": float(self.full_day_hours),
+            "half_day_hours": float(self.half_day_hours),
+            "leave_quota_days": self.leave_quota_days,
+            "advance_leave_days": self.advance_leave_days,
+            "require_attendance_selfie": self.require_attendance_selfie,
+            "require_attendance_gps": self.require_attendance_gps,
+            "auto_checkout_enabled": self.auto_checkout_enabled,
+        }
+
+
+class OrganizationMembership(Base):
+    __tablename__ = "organization_memberships"
+    __table_args__ = (UniqueConstraint("organization_id", "user_id", name="uq_org_user"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    role: Mapped[str] = mapped_column(String(40), nullable=False, default=UserRole.INTERN)
+    department: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    job_title: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    joining_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    mentor_membership_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organization_memberships.id", ondelete="SET NULL"), nullable=True
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    organization = relationship("Organization", back_populates="memberships")
+    user = relationship("User", back_populates="memberships")
+    mentor = relationship(
+        "OrganizationMembership",
+        remote_side="OrganizationMembership.id",
+        foreign_keys=[mentor_membership_id],
+        back_populates="mentees",
+    )
+    mentees = relationship(
+        "OrganizationMembership",
+        foreign_keys="OrganizationMembership.mentor_membership_id",
+        back_populates="mentor",
+    )
+
+    @property
+    def is_admin(self) -> bool:
+        return self.role == UserRole.ADMIN
+
+    @property
+    def is_mentor(self) -> bool:
+        return self.role == UserRole.MENTOR
+
+    @property
+    def is_intern(self) -> bool:
+        return self.role == UserRole.INTERN
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "organization_id": self.organization_id,
+            "user_id": self.user_id,
+            "role": self.role,
+            "department": self.department,
+            "job_title": self.job_title,
+            "joining_date": self.joining_date.isoformat() if self.joining_date else None,
+            "mentor_membership_id": self.mentor_membership_id,
+            "is_active": self.is_active,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+# ---------------------------------------------------------------------------
+# Core User Model
+# ---------------------------------------------------------------------------
 
 class User(Base):
     __tablename__ = "users"
@@ -95,10 +265,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.INTERN)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    # Set the first time this account is ever activated (at creation if created active, or
-    # on admin/mentor approval otherwise) and never cleared afterward — this is what lets
-    # login distinguish "never approved yet" (activated_at is None) from "was approved,
-    # since deactivated" (activated_at is set) when is_active is False.
+    is_platform_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     activated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -111,6 +278,7 @@ class User(Base):
     job_title: Mapped[str | None] = mapped_column(String(120), nullable=True)
     joining_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     session_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    token_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     mentor_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("users.id"), nullable=True, index=True
     )
@@ -118,6 +286,9 @@ class User(Base):
         Integer, ForeignKey("intern_invite_links.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
+    memberships = relationship(
+        "OrganizationMembership", back_populates="user", cascade="all, delete-orphan"
+    )
     attendance_records = relationship(
         "Attendance", back_populates="user", cascade="all, delete-orphan"
     )
@@ -167,6 +338,7 @@ class User(Base):
     def set_password(self, raw: str) -> None:
         self.password_hash = generate_password_hash(raw)
         self.session_version = (self.session_version or 1) + 1
+        self.token_version = (self.token_version or 1) + 1
 
     def check_password(self, raw: str) -> bool:
         return check_password_hash(self.password_hash, raw)
@@ -202,13 +374,21 @@ class GuestUser:
     is_admin = False
     is_mentor = False
     is_intern = False
+    is_platform_admin = False
 
+
+# ---------------------------------------------------------------------------
+# Attendance Models
+# ---------------------------------------------------------------------------
 
 class Attendance(Base):
     __tablename__ = "attendance"
     __table_args__ = (UniqueConstraint("user_id", "date", name="uq_user_date"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True, default=1
+    )
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -221,10 +401,6 @@ class Attendance(Base):
     checkout_missed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     hours_worked: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    # GPS coordinates and a selfie captured client-side at the moment of check-in/out —
-    # photo is a path relative to attendance_photos.PHOTOS_DIR, not the raw image.
-    # address is a best-effort reverse-geocoded place name — may be null if the geocoding
-    # lookup failed/timed out, in which case callers fall back to showing lat/lng.
     check_in_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
     check_in_lng: Mapped[float | None] = mapped_column(Float, nullable=True)
     check_in_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
@@ -234,6 +410,7 @@ class Attendance(Base):
     check_out_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
     check_out_photo: Mapped[str | None] = mapped_column(String(300), nullable=True)
 
+    organization = relationship("Organization", foreign_keys=[organization_id])
     user = relationship("User", back_populates="attendance_records")
     audit_entries = relationship(
         "AttendanceAuditLog",
@@ -277,10 +454,17 @@ class AttendanceAuditLog(Base):
     editor = relationship("User", foreign_keys=[editor_id])
 
 
+# ---------------------------------------------------------------------------
+# Project & Task Models
+# ---------------------------------------------------------------------------
+
 class Project(Base):
     __tablename__ = "projects"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True, default=1
+    )
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     start_date: Mapped[date] = mapped_column(Date, nullable=False, default=date.today)
@@ -292,6 +476,7 @@ class Project(Base):
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    organization = relationship("Organization", foreign_keys=[organization_id])
     mentor = relationship("User", back_populates="projects_as_mentor", foreign_keys=[mentor_id])
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
     assignments = relationship(
@@ -316,7 +501,7 @@ class Project(Base):
         active = self.active_tasks
         if not active:
             return 0
-        done = sum(1 for t in active if t.status in (TaskStatus.DONE, TaskStatus.COMPLETED))
+        done = sum(1 for t in active if t.status in (TaskStatus.DONE,))
         return int(done * 100 / len(active))
 
     @property
@@ -362,6 +547,9 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True, default=1
+    )
     project_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -378,11 +566,9 @@ class Task(Base):
 
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    # Set once an overdue reminder has been sent for this task, so the daily sweep
-    # doesn't re-notify the same missed deadline every day. Cleared if the deadline
-    # changes, so a rescheduled task can be flagged again if it goes overdue anew.
     overdue_notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    organization = relationship("Organization", foreign_keys=[organization_id])
     project = relationship("Project", back_populates="tasks")
     creator = relationship("User", back_populates="tasks_created", foreign_keys=[created_by_id])
     assignee = relationship("User", back_populates="tasks_assigned", foreign_keys=[assigned_to])
@@ -392,7 +578,7 @@ class Task(Base):
     def is_overdue(self) -> bool:
         return (
             self.deadline is not None
-            and self.status not in (TaskStatus.DONE, TaskStatus.COMPLETED)
+            and self.status not in (TaskStatus.DONE,)
             and self.deadline < date.today()
         )
 
@@ -401,6 +587,9 @@ class LeaveRequest(Base):
     __tablename__ = "leave_requests"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True, default=1
+    )
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -417,6 +606,7 @@ class LeaveRequest(Base):
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    organization = relationship("Organization", foreign_keys=[organization_id])
     user = relationship("User", back_populates="leave_requests", foreign_keys=[user_id])
     reviewer = relationship("User", foreign_keys=[reviewed_by])
 
@@ -436,6 +626,9 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True, default=1
+    )
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -444,6 +637,7 @@ class Notification(Base):
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 
+    organization = relationship("Organization", foreign_keys=[organization_id])
     user = relationship("User", back_populates="notifications")
 
 
@@ -475,6 +669,9 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True, default=1
+    )
     actor_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     actor_name: Mapped[str] = mapped_column(String(120), nullable=False, default="")
     action: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
@@ -490,12 +687,17 @@ class AuditLog(Base):
         index=True,
     )
 
+    organization = relationship("Organization", foreign_keys=[organization_id])
+
 
 class StandupLog(Base):
     __tablename__ = "standup_logs"
     __table_args__ = (UniqueConstraint("user_id", "date", name="uq_standup_user_date"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True, default=1
+    )
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -508,6 +710,7 @@ class StandupLog(Base):
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    organization = relationship("Organization", foreign_keys=[organization_id])
     user = relationship("User", foreign_keys=[user_id])
 
 
@@ -529,6 +732,9 @@ class BinItem(Base):
     __tablename__ = "bin_items"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True, default=1
+    )
     entity_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -543,6 +749,7 @@ class BinItem(Base):
     restored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     snapshot_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    organization = relationship("Organization", foreign_keys=[organization_id])
     deleted_by = relationship("User", foreign_keys=[deleted_by_id])
 
 
@@ -550,6 +757,9 @@ class Announcement(Base):
     __tablename__ = "announcements"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True, default=1
+    )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     is_pinned: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -559,6 +769,7 @@ class Announcement(Base):
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    organization = relationship("Organization", foreign_keys=[organization_id])
     project = relationship("Project", foreign_keys=[project_id])
     author = relationship("User", foreign_keys=[author_id])
 
@@ -570,6 +781,9 @@ class PerformanceReview(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True, default=1
+    )
     intern_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -589,6 +803,7 @@ class PerformanceReview(Base):
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    organization = relationship("Organization", foreign_keys=[organization_id])
     intern = relationship("User", foreign_keys=[intern_id])
     reviewer = relationship("User", foreign_keys=[reviewer_id])
     project = relationship("Project", foreign_keys=[project_id])
@@ -598,6 +813,9 @@ class Cohort(Base):
     __tablename__ = "cohorts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True, default=1
+    )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -610,6 +828,7 @@ class Cohort(Base):
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
+    organization = relationship("Organization", foreign_keys=[organization_id])
     members = relationship("CohortMember", back_populates="cohort", cascade="all, delete-orphan")
     created_by = relationship("User", foreign_keys=[created_by_id])
 
@@ -637,6 +856,9 @@ class InternInviteLink(Base):
     __tablename__ = "intern_invite_links"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True, default=1
+    )
     token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     label: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_by_id: Mapped[int | None] = mapped_column(
@@ -649,6 +871,7 @@ class InternInviteLink(Base):
     usage_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 
+    organization = relationship("Organization", foreign_keys=[organization_id])
     created_by = relationship("User", foreign_keys=[created_by_id])
     mentor = relationship("User", foreign_keys=[mentor_id])
 

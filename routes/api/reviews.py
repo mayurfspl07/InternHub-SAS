@@ -1,7 +1,6 @@
-"""JSON performance review endpoints."""
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -10,8 +9,9 @@ from dependencies import get_optional_user
 from models import PerformanceReview, Project, User, BinEntityType
 from recycle_bin import move_to_bin
 from utils import push_notification, record_audit, isoformat_utc
+from routes.api.schemas import ReviewCreatePayload, ReviewUpdatePayload, get_payload
 
-router = APIRouter(prefix="/api/reviews", tags=["api-reviews"])
+router = APIRouter(prefix="/api/reviews", tags=["Performance Reviews"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
@@ -55,13 +55,13 @@ async def list_reviews(request: Request, db: DbSession):
 
 
 @router.post("")
-async def create_review(request: Request, db: DbSession):
+async def create_review(request: Request, db: DbSession, data: ReviewCreatePayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user or user.is_intern:
         raise HTTPException(status_code=403)
-    data = await request.json()
 
-    intern_id = data.get("intern_id")
+    payload = await get_payload(request, data)
+    intern_id = payload.get("intern_id")
     if not intern_id:
         raise HTTPException(status_code=422, detail="intern_id is required.")
     try:
@@ -73,14 +73,13 @@ async def create_review(request: Request, db: DbSession):
         raise HTTPException(status_code=404, detail="Intern not found.")
 
     try:
-        rating = int(data.get("rating", 0))
+        rating = int(payload.get("rating", 0))
     except (TypeError, ValueError):
         raise HTTPException(status_code=422, detail="Rating must be a number.")
     if rating < 1 or rating > 5:
         raise HTTPException(status_code=422, detail="Overall rating must be 1–5.")
 
-    def _rating(key: str) -> int | None:
-        val = data.get(key)
+    def _rating(val: Any) -> int | None:
         if val is None:
             return None
         try:
@@ -89,7 +88,7 @@ async def create_review(request: Request, db: DbSession):
             return None
         return v if 1 <= v <= 5 else None
 
-    project_id = data.get("project_id")
+    project_id = payload.get("project_id")
     if project_id:
         try:
             project_id = int(project_id)
@@ -98,7 +97,7 @@ async def create_review(request: Request, db: DbSession):
         if project_id and not db.get(Project, project_id):
             project_id = None
 
-    period = str(data.get("period", "")).strip() or None
+    period = str(payload.get("period") or "").strip() or None
     # One review per intern/reviewer/period (mirrors the DB unique constraint)
     if period:
         duplicate = db.query(PerformanceReview).filter_by(
@@ -116,12 +115,12 @@ async def create_review(request: Request, db: DbSession):
         project_id=project_id,
         period=period,
         rating=rating,
-        technical_rating=_rating("technical_rating"),
-        communication_rating=_rating("communication_rating"),
-        initiative_rating=_rating("initiative_rating"),
-        feedback=str(data.get("feedback", "")).strip() or None,
-        strengths=str(data.get("strengths", "")).strip() or None,
-        improvements=str(data.get("improvements", "")).strip() or None,
+        technical_rating=_rating(payload.get("technical_rating")),
+        communication_rating=_rating(payload.get("communication_rating")),
+        initiative_rating=_rating(payload.get("initiative_rating")),
+        feedback=str(payload.get("feedback") or "").strip() or None,
+        strengths=str(payload.get("strengths") or "").strip() or None,
+        improvements=str(payload.get("improvements") or "").strip() or None,
     )
     db.add(review)
     push_notification(db, intern.id, f"You received a performance review from {user.name}.", link="/reviews")
@@ -161,7 +160,7 @@ async def get_review(review_id: int, request: Request, db: DbSession):
 
 
 @router.put("/{review_id}")
-async def update_review(review_id: int, request: Request, db: DbSession):
+async def update_review(review_id: int, request: Request, db: DbSession, data: ReviewUpdatePayload | None = Body(None)):
     user = get_optional_user(request, db)
     if not user or user.is_intern:
         raise HTTPException(status_code=403)
@@ -171,25 +170,41 @@ async def update_review(review_id: int, request: Request, db: DbSession):
     if not user.is_admin and review.reviewer_id != user.id:
         raise HTTPException(status_code=403)
 
-    data = await request.json()
-    if "rating" in data:
+    payload = await get_payload(request, data)
+    if "rating" in payload and payload["rating"] is not None:
         try:
-            r = int(data["rating"])
+            r = int(payload["rating"])
         except (TypeError, ValueError):
             raise HTTPException(status_code=422, detail="Rating must be a number.")
         if r < 1 or r > 5:
             raise HTTPException(status_code=422, detail="Rating must be 1–5.")
         review.rating = r
-    for key in ("technical_rating", "communication_rating", "initiative_rating"):
-        if key in data and data[key] is not None:
-            try:
-                v = int(data[key])
-            except (TypeError, ValueError):
-                continue
-            setattr(review, key, v if 1 <= v <= 5 else None)
-    for key in ("period", "feedback", "strengths", "improvements"):
-        if key in data:
-            setattr(review, key, str(data[key]).strip() or None)
+    if "technical_rating" in payload:
+        try:
+            v = int(payload["technical_rating"])
+            review.technical_rating = v if 1 <= v <= 5 else None
+        except (TypeError, ValueError):
+            pass
+    if "communication_rating" in payload:
+        try:
+            v = int(payload["communication_rating"])
+            review.communication_rating = v if 1 <= v <= 5 else None
+        except (TypeError, ValueError):
+            pass
+    if "initiative_rating" in payload:
+        try:
+            v = int(payload["initiative_rating"])
+            review.initiative_rating = v if 1 <= v <= 5 else None
+        except (TypeError, ValueError):
+            pass
+    if "period" in payload:
+        review.period = str(payload["period"]).strip() or None if payload["period"] is not None else None
+    if "feedback" in payload:
+        review.feedback = str(payload["feedback"]).strip() or None if payload["feedback"] is not None else None
+    if "strengths" in payload:
+        review.strengths = str(payload["strengths"]).strip() or None if payload["strengths"] is not None else None
+    if "improvements" in payload:
+        review.improvements = str(payload["improvements"]).strip() or None if payload["improvements"] is not None else None
 
     intern = db.get(User, review.intern_id)
     record_audit(db, user, "review.update", "updated performance review for", intern.name if intern else str(review.intern_id))

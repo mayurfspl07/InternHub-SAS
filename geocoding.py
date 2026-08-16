@@ -10,13 +10,21 @@ import json
 import urllib.parse
 import urllib.request
 
+from services.redis_service import RedisService
+
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
 USER_AGENT = "InternHub-Attendance/1.0 (self-hosted intern management app)"
 TIMEOUT_SECONDS = 5
 
 
 def reverse_geocode(lat: float, lng: float) -> str | None:
-    """Blocking network call — run via asyncio.to_thread from async route handlers."""
+    """Reverse geocode coordinates to human-readable address with spatial caching."""
+    # Round to 3 decimal places (~110m radius) for caching
+    cache_key = f"geocode:{round(lat, 3)}:{round(lng, 3)}"
+    cached_address = RedisService.get(cache_key)
+    if cached_address:
+        return cached_address
+
     try:
         params = urllib.parse.urlencode({
             "format": "jsonv2",
@@ -32,6 +40,11 @@ def reverse_geocode(lat: float, lng: float) -> str | None:
         with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
             data = json.loads(response.read().decode("utf-8"))
         name = data.get("display_name")
-        return name.strip() if isinstance(name, str) and name.strip() else None
+        if isinstance(name, str) and name.strip():
+            address = name.strip()
+            # Cache coordinate address for 7 days
+            RedisService.set(cache_key, address, ttl_seconds=604800)
+            return address
+        return None
     except Exception:
         return None

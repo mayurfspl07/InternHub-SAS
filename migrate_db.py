@@ -43,6 +43,10 @@ def sync_schema() -> None:
         "migrations.20260805_backfill_user_activated_at"
     )
     activated_at_migration.upgrade(engine)
+    multi_tenant_migration = importlib.import_module(
+        "migrations.20260815_multi_tenant_saas"
+    )
+    multi_tenant_migration.upgrade(engine)
     print("[OK] Schema sync complete.")
 
 

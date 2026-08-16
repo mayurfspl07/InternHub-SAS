@@ -10,7 +10,7 @@ from dependencies import get_optional_user
 from models import AuditLog
 from utils import APP_TZ, isoformat_utc, scoped_audit_query
 
-router = APIRouter(prefix="/api/audit", tags=["api-audit"])
+router = APIRouter(prefix="/api/audit", tags=["Audit Logs"])
 DbSession = Annotated[Session, Depends(get_db)]
 PAGE_SIZE = 30
 
@@ -56,7 +56,17 @@ async def list_audit_logs(request: Request, db: DbSession):
     except ValueError:
         page = 1
 
-    q = scoped_audit_query(db, user)
+    # Resolve active organization scope
+    header_org = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+    org_id: int | None = None
+    if header_org and str(header_org).isdigit():
+        org_id = int(header_org)
+    else:
+        from models import OrganizationMembership
+        mem = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True, is_deleted=False).first()
+        org_id = mem.organization_id if mem else None
+
+    q = scoped_audit_query(db, user, org_id=org_id)
 
     action_filter = request.query_params.get("action")
     if action_filter and action_filter not in ("undefined", "null", "all"):

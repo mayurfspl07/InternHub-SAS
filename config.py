@@ -22,6 +22,39 @@ def _env(*names: str, default: str = "") -> str:
     return default
 
 
+def _validate_production_config() -> None:
+    """Fail fast on insecure defaults when running in production environment."""
+    environment = (
+        os.environ.get("ENVIRONMENT")
+        or os.environ.get("RAILWAY_ENVIRONMENT")
+        or "development"
+    ).strip().lower()
+    is_production = environment in ("production", "prod") or bool(
+        os.environ.get("RAILWAY_ENVIRONMENT")
+    )
+
+    if is_production:
+        # SECRET_KEY must be set and not be the insecure default
+        secret_key = os.environ.get("SECRET_KEY", "")
+        if not secret_key or secret_key == "dev-secret-change-me-in-prod":
+            raise RuntimeError(
+                "Secure SECRET_KEY is required in production. "
+                "Set it via the SECRET_KEY environment variable."
+            )
+
+        # BOOTSTRAP_ADMIN_PASSWORD must be set and not be the insecure default
+        bootstrap_password = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD", "")
+        if not bootstrap_password or bootstrap_password == "Imp@pune1":
+            raise RuntimeError(
+                "BOOTSTRAP_ADMIN_PASSWORD must be changed from the insecure default 'Imp@pune1'. "
+                "Set a strong password via the BOOTSTRAP_ADMIN_PASSWORD environment variable."
+            )
+
+
+# Run validation at import time
+_validate_production_config()
+
+
 class Config:
     # Railway sets RAILWAY_ENVIRONMENT; also honor a generic ENVIRONMENT flag.
     ENVIRONMENT: str = (
@@ -53,16 +86,16 @@ class Config:
 
     @staticmethod
     def _normalize_database_url(url: str) -> str:
-        """Make platform-provided MySQL URLs work with SQLAlchemy + PyMySQL.
-
-        Railway often injects ``mysql://…`` or ``MYSQL_URL`` without the
-        ``+pymysql`` driver suffix and sometimes without ``charset=utf8mb4``.
-        """
+        """Make platform-provided MySQL URLs work with SQLAlchemy + PyMySQL."""
         url = url.strip().strip('"').strip("'")
+        if url.startswith("sqlite"):
+            return url
         if url.startswith("mysql://"):
             url = "mysql+pymysql://" + url[len("mysql://"):]
         elif url.startswith("mariadb://"):
             url = "mysql+pymysql://" + url[len("mariadb://"):]
+        elif not url.startswith("mysql+"):
+            return url
 
         parsed = urlparse(url)
         query = dict(parse_qsl(parsed.query, keep_blank_values=True))
@@ -160,7 +193,13 @@ class Config:
 
     # Password required to wipe all application data from the admin panel.
     # Must be set via DB_CLEAR_PASSWORD env var — no default is provided.
-    DB_CLEAR_PASSWORD: str | None = os.environ.get("DB_CLEAR_PASSWORD") or None
+    # Raises RuntimeError if not set in production.
+    DB_CLEAR_PASSWORD: str | None = os.environ.get("DB_CLEAR_PASSWORD")
+    if IS_PRODUCTION and not DB_CLEAR_PASSWORD:
+        raise RuntimeError(
+            "DB_CLEAR_PASSWORD must be set in production. "
+            "Set it via the DB_CLEAR_PASSWORD environment variable."
+        )
 
     # FastAPI bind address — use 0.0.0.0 to accept public/external connections.
     # Railway injects PORT dynamically; prefer it over APP_PORT.

@@ -25,32 +25,52 @@ def upgrade(engine: Engine) -> None:
 
     if not inspector.has_table("bin_items"):
         with engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    CREATE TABLE `bin_items` (
-                        `id` INTEGER NOT NULL AUTO_INCREMENT,
-                        `entity_type` VARCHAR(40) NOT NULL,
-                        `entity_id` INTEGER NOT NULL,
-                        `title` VARCHAR(200) NOT NULL,
-                        `deleted_by_id` INTEGER NULL,
-                        `deleted_by_name` VARCHAR(120) NOT NULL DEFAULT '',
-                        `deleted_at` DATETIME NOT NULL,
-                        `expires_at` DATETIME NOT NULL,
-                        `restored_at` DATETIME NULL,
-                        `snapshot_json` TEXT NULL,
-                        PRIMARY KEY (`id`),
-                        INDEX `ix_bin_items_entity_type` (`entity_type`),
-                        INDEX `ix_bin_items_entity_id` (`entity_id`),
-                        INDEX `ix_bin_items_deleted_at` (`deleted_at`),
-                        INDEX `ix_bin_items_expires_at` (`expires_at`),
-                        CONSTRAINT `fk_bin_items_deleted_by_id_users`
-                            FOREIGN KEY (`deleted_by_id`) REFERENCES `users` (`id`)
-                            ON DELETE SET NULL
+            if engine.dialect.name == "sqlite":
+                connection.execute(
+                    text(
+                        """
+                        CREATE TABLE `bin_items` (
+                            `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                            `entity_type` VARCHAR(40) NOT NULL,
+                            `entity_id` INTEGER NOT NULL,
+                            `title` VARCHAR(200) NOT NULL,
+                            `deleted_by_id` INTEGER NULL,
+                            `deleted_by_name` VARCHAR(120) NOT NULL DEFAULT '',
+                            `deleted_at` DATETIME NOT NULL,
+                            `expires_at` DATETIME NOT NULL,
+                            `restored_at` DATETIME NULL,
+                            `snapshot_json` TEXT NULL
+                        )
+                        """
                     )
-                    """
                 )
-            )
+            else:
+                connection.execute(
+                    text(
+                        """
+                        CREATE TABLE `bin_items` (
+                            `id` INTEGER NOT NULL AUTO_INCREMENT,
+                            `entity_type` VARCHAR(40) NOT NULL,
+                            `entity_id` INTEGER NOT NULL,
+                            `title` VARCHAR(200) NOT NULL,
+                            `deleted_by_id` INTEGER NULL,
+                            `deleted_by_name` VARCHAR(120) NOT NULL DEFAULT '',
+                            `deleted_at` DATETIME NOT NULL,
+                            `expires_at` DATETIME NOT NULL,
+                            `restored_at` DATETIME NULL,
+                            `snapshot_json` TEXT NULL,
+                            PRIMARY KEY (`id`),
+                            INDEX `ix_bin_items_entity_type` (`entity_type`),
+                            INDEX `ix_bin_items_entity_id` (`entity_id`),
+                            INDEX `ix_bin_items_deleted_at` (`deleted_at`),
+                            INDEX `ix_bin_items_expires_at` (`expires_at`),
+                            CONSTRAINT `fk_bin_items_deleted_by_id_users`
+                                FOREIGN KEY (`deleted_by_id`) REFERENCES `users` (`id`)
+                                ON DELETE SET NULL
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                        """
+                    )
+                )
 
     for table, columns in SOFT_DELETE_TABLES:
         if not inspector.has_table(table):

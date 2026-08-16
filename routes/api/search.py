@@ -10,7 +10,7 @@ from dependencies import get_optional_user
 from models import Project, ProjectAssignment, Task, User
 from utils import get_user_project_ids
 
-router = APIRouter(prefix="/api/search", tags=["api-search"])
+router = APIRouter(prefix="/api/search", tags=["Global Search"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
@@ -24,6 +24,16 @@ async def search(request: Request, db: DbSession):
 
     if q and len(q) >= 2:
         pattern = f"%{q}%"
+
+        # Resolve organization context
+        org_header = request.headers.get("X-Organization-Id")
+        org_id = int(org_header) if org_header and str(org_header).isdigit() else None
+        if org_id is None:
+            from models import OrganizationMembership
+            mem = db.query(OrganizationMembership).filter_by(
+                user_id=user.id, is_active=True, is_deleted=False
+            ).first()
+            org_id = mem.organization_id if mem else None
 
         if user.is_admin or user.is_mentor:
             user_rows = db.query(User).filter(
@@ -40,10 +50,16 @@ async def search(request: Request, db: DbSession):
         elif user.is_mentor:
             # Includes co-mentored projects, not just ones where this mentor is primary.
             mentor_project_ids = get_user_project_ids(db, user) or [-1]
-            proj_q = db.query(Project).filter(Project.id.in_(mentor_project_ids), Project.is_deleted == False)
+            proj_q = db.query(Project).filter(
+                Project.id.in_(mentor_project_ids), Project.is_deleted == False
+            )
         else:
-            assigned_ids = db.query(ProjectAssignment.project_id).filter_by(user_id=user.id).subquery()
+            assigned_ids = db.query(ProjectAssignment.project_id).filter_by(user_id=user.id).scalar_subquery()
             proj_q = db.query(Project).filter(Project.id.in_(assigned_ids), Project.is_deleted == False)
+
+        # Add organization filtering if org_id is available
+        if org_id is not None:
+            proj_q = proj_q.filter(Project.organization_id == org_id)
 
         results["projects"] = [
             {"id": p.id, "name": p.name, "status": p.status, "description": p.description}
@@ -56,7 +72,11 @@ async def search(request: Request, db: DbSession):
         if user.is_intern:
             task_q = task_q.filter(Task.assigned_to == user.id)
         elif user.is_mentor:
-            task_q = task_q.filter(Project.id.in_(mentor_project_ids))
+            task_q = task_q.filter(Project.id.in_(get_user_project_ids(db, user) or [-1]))
+        # Add organization filtering for tasks if org_id is available
+        if org_id is not None:
+            task_q = task_q.filter(Project.organization_id == org_id)
+
         results["tasks"] = [
             {
                 "id": t.id,
