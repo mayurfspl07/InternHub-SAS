@@ -46,11 +46,11 @@ async def dashboard(request: Request, db: DbSession):
         from models import OrganizationMembership
         mem = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True, is_deleted=False).first()
         org_id = mem.organization_id if mem else None
-
-    from services.redis_service import RedisService
-    if org_id is None:
-        raise HTTPException(status_code=400, detail="Organization ID is required for dashboard view")
-    cache_key = f"dashboard:{org_id}:{user.id}:{user.role}"
+        if org_id is None:
+            from models import Organization
+            first_org = db.query(Organization).filter_by(is_deleted=False, status="active").order_by(Organization.id.asc()).first()
+            if first_org:
+                org_id = first_org.id
 
     today = local_today()
     # Inclusive window: today + previous 29 days = 30 calendar days.
