@@ -725,10 +725,10 @@ def clear_all_database_data(db: "Session", *, preserve_admin_users: bool = True)
 
     if preserve_admin_users:
         counts[User.__tablename__] = (
-            db.query(User).filter(User.role != UserRole.ADMIN).delete(synchronize_session=False)
+            db.query(User).filter(~User.role.in_([UserRole.ADMIN, UserRole.SUPERADMIN])).delete(synchronize_session=False)
         )
         counts["admins_preserved"] = (
-            db.query(User).filter(User.role == UserRole.ADMIN).count()
+            db.query(User).filter(User.role.in_([UserRole.ADMIN, UserRole.SUPERADMIN])).count()
         )
     else:
         counts[User.__tablename__] = db.query(User).delete(synchronize_session=False)

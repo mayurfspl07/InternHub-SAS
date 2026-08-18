@@ -695,7 +695,7 @@ async def create_attendance_manual(request: Request, db: DbSession, data: Manual
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated.")
     
-    if user.role not in (UserRole.ADMIN, UserRole.MENTOR):
+    if user.role not in (UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.MENTOR) and not user.is_platform_admin:
         raise HTTPException(status_code=403, detail="Permission denied.")
 
     payload = await get_payload(request, data)

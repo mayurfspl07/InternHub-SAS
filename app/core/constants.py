@@ -2,10 +2,11 @@
 
 
 class UserRole:
+    SUPERADMIN = "superadmin"
     ADMIN = "admin"
     MENTOR = "mentor"
     INTERN = "intern"
-    ALL = (ADMIN, MENTOR, INTERN)
+    ALL = (SUPERADMIN, ADMIN, MENTOR, INTERN)
 
 
 class OrganizationType:

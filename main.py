@@ -44,7 +44,7 @@ BACKEND_DIR = os.path.abspath(os.path.dirname(__file__))
 FRONTEND_DIST_DIR = Config.FRONTEND_DIST_DIR
 BOOTSTRAP_ADMIN_EMAIL = os.environ.get("BOOTSTRAP_ADMIN_EMAIL", "admin@internhub.dev")
 BOOTSTRAP_ADMIN_PASSWORD = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD")
-BOOTSTRAP_ADMIN_NAME = os.environ.get("BOOTSTRAP_ADMIN_NAME", "Admin")
+BOOTSTRAP_ADMIN_NAME = os.environ.get("BOOTSTRAP_ADMIN_NAME", "Super Admin")
 if not BOOTSTRAP_ADMIN_PASSWORD:
     raise RuntimeError(
         "BOOTSTRAP_ADMIN_PASSWORD must be set. "
@@ -65,8 +65,11 @@ def _ensure_bootstrap_admin() -> None:
         user = db.query(User).filter_by(email=email).first()
         if user:
             changed = False
-            if user.role != UserRole.ADMIN:
-                user.role = UserRole.ADMIN
+            if user.role != UserRole.SUPERADMIN:
+                user.role = UserRole.SUPERADMIN
+                changed = True
+            if user.name != BOOTSTRAP_ADMIN_NAME and BOOTSTRAP_ADMIN_NAME:
+                user.name = BOOTSTRAP_ADMIN_NAME
                 changed = True
             if not user.is_active:
                 user.is_active = True
@@ -81,7 +84,7 @@ def _ensure_bootstrap_admin() -> None:
         admin = User(
             name=BOOTSTRAP_ADMIN_NAME,
             email=email,
-            role=UserRole.ADMIN,
+            role=UserRole.SUPERADMIN,
             is_active=True,
             is_platform_admin=True,
         )

@@ -37,6 +37,8 @@ def _user_dict(user: User) -> dict:
         "name": user.name,
         "email": user.email,
         "role": user.role,
+        "is_platform_admin": user.is_platform_admin,
+        "is_superadmin": user.is_superadmin,
         "is_active": user.is_active,
         "bio": user.bio,
         "department": user.department,
@@ -295,7 +297,7 @@ async def register_via_invite(token: str, request: Request, db: DbSession, data:
     assigned_mentor = db.get(User, mentor_id) if mentor_id else None
     mentor_label = assigned_mentor.name if assigned_mentor else "Unassigned"
 
-    for admin in db.query(User).filter_by(role=UserRole.ADMIN, is_active=True).all():
+    for admin in db.query(User).filter(User.role.in_([UserRole.ADMIN, UserRole.SUPERADMIN]), User.is_active.is_(True)).all():
         push_notification(
             db,
             admin.id,

@@ -109,8 +109,8 @@ def require_platform_admin(request: Request, db: DbSession) -> User:
     return user
 
 
-require_admin = require_roles("admin")
-require_mentor = require_roles("admin", "mentor")
+require_admin = require_roles("admin", "superadmin")
+require_mentor = require_roles("admin", "superadmin", "mentor")
 require_intern = require_roles("intern")
 
 CurrentUser = Annotated[User, Depends(require_login)]
@@ -136,11 +136,15 @@ class RequestContext:
 
     @property
     def is_platform_admin(self) -> bool:
-        return self.user.is_platform_admin
+        return self.user.is_platform_admin or self.role == UserRole.SUPERADMIN
+
+    @property
+    def is_superadmin(self) -> bool:
+        return self.role == UserRole.SUPERADMIN or self.user.is_platform_admin
 
     @property
     def is_admin(self) -> bool:
-        return self.role in (UserRole.ADMIN, "org_admin")
+        return self.role in (UserRole.ADMIN, UserRole.SUPERADMIN, "org_admin") or self.user.is_platform_admin
 
     @property
     def is_mentor(self) -> bool:

@@ -73,13 +73,14 @@ def seed():
         print("\n[INFO] Seeding System Admin...")
         admin_email = os.environ.get("BOOTSTRAP_ADMIN_EMAIL", "admin@internhub.dev").strip().lower()
         admin_password = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD", "Imp@pune1")
-        admin_name = os.environ.get("BOOTSTRAP_ADMIN_NAME", "Admin")
+        admin_name = os.environ.get("BOOTSTRAP_ADMIN_NAME", "Super Admin")
 
         admin = User(
             name=admin_name,
             email=admin_email,
-            role=UserRole.ADMIN,
+            role=UserRole.SUPERADMIN,
             is_active=True,
+            is_platform_admin=True,
             department="Operations",
             job_title="Operations Lead"
         )

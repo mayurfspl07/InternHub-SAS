@@ -22,10 +22,11 @@ from database import Base
 # Status constants — use these instead of raw strings throughout the codebase
 # ---------------------------------------------------------------------------
 class UserRole:
+    SUPERADMIN = "superadmin"
     ADMIN = "admin"
     MENTOR = "mentor"
     INTERN = "intern"
-    ALL = (ADMIN, MENTOR, INTERN)
+    ALL = (SUPERADMIN, ADMIN, MENTOR, INTERN)
 
 
 class OrganizationType:
@@ -226,8 +227,12 @@ class OrganizationMembership(Base):
     )
 
     @property
+    def is_superadmin(self) -> bool:
+        return self.role == UserRole.SUPERADMIN
+
+    @property
     def is_admin(self) -> bool:
-        return self.role == UserRole.ADMIN
+        return self.role in (UserRole.ADMIN, UserRole.SUPERADMIN)
 
     @property
     def is_mentor(self) -> bool:
@@ -349,8 +354,12 @@ class User(Base):
         return [s.strip() for s in self.skills.split(",") if s.strip()]
 
     @property
+    def is_superadmin(self) -> bool:
+        return self.role == UserRole.SUPERADMIN or self.is_platform_admin
+
+    @property
     def is_admin(self) -> bool:
-        return self.role == UserRole.ADMIN
+        return self.role in (UserRole.ADMIN, UserRole.SUPERADMIN) or self.is_platform_admin
 
     @property
     def is_mentor(self) -> bool:

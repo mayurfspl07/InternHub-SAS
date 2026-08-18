@@ -24,11 +24,15 @@ class CurrentContext:
 
     @property
     def is_platform_admin(self) -> bool:
-        return bool(getattr(self.user, "is_platform_admin", False))
+        return bool(getattr(self.user, "is_platform_admin", False)) or self.role == UserRole.SUPERADMIN
+
+    @property
+    def is_superadmin(self) -> bool:
+        return self.role == UserRole.SUPERADMIN or self.is_platform_admin
 
     @property
     def is_admin(self) -> bool:
-        return self.role == UserRole.ADMIN or self.is_platform_admin
+        return self.role in (UserRole.ADMIN, UserRole.SUPERADMIN) or self.is_platform_admin
 
     @property
     def is_mentor(self) -> bool:
@@ -39,7 +43,7 @@ class CurrentContext:
         return self.role == UserRole.INTERN
 
     def has_permission(self, permission: str) -> bool:
-        if self.is_platform_admin or self.role == UserRole.ADMIN:
+        if self.is_platform_admin or self.role in (UserRole.ADMIN, UserRole.SUPERADMIN):
             return True
         return permission in self.permissions
 

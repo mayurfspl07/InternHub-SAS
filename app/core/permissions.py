@@ -3,6 +3,22 @@ from app.core.constants import UserRole
 
 # Standard Permission Grants by Role
 ROLE_PERMISSIONS: dict[str, set[str]] = {
+    UserRole.SUPERADMIN: {
+        "org.manage",
+        "members.manage",
+        "attendance.view_all",
+        "attendance.manage_all",
+        "leave.view_all",
+        "leave.review",
+        "projects.manage_all",
+        "tasks.manage_all",
+        "cohorts.manage",
+        "reviews.manage",
+        "announcements.manage",
+        "audit.view",
+        "bin.manage",
+        "platform.manage",
+    },
     UserRole.ADMIN: {
         "org.manage",
         "members.manage",
