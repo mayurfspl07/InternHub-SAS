@@ -223,7 +223,7 @@ async def list_students(request: Request, db: DbSession):
 
     sort = params.get("sort", "name").strip().lower()
     if sort == "joining_date":
-        q = q.order_by(User.joining_date.desc().nullslast(), User.name)
+        q = q.order_by(case((User.joining_date.is_(None), 1), else_=0), User.joining_date.desc(), User.name)
     else:
         q = q.order_by(User.name)
 
