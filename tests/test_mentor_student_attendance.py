@@ -260,6 +260,19 @@ class MentorStudentAttendanceTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Intern Alpha", csv_content)
         self.assertIn("Intern Beta", csv_content)
 
+    # -----------------------------------------------------------------------
+    # 6. GET /api/attendance/my/export (Intern My Attendance Export)
+    # -----------------------------------------------------------------------
+    async def test_export_my_attendance_intern(self):
+        from routes.api.attendance import export_my_attendance
+        req = make_request(self.intern_a, path="/api/attendance/my/export")
+        res = await export_my_attendance(req, self.db)
+        csv_content = res.body.decode("utf-8")
+        self.assertIn("Intern Alpha", csv_content)
+        self.assertNotIn("Intern Beta", csv_content)
+        self.assertIn("Content-Disposition", res.headers)
+        self.assertIn("my_attendance_InternAlpha", res.headers["Content-Disposition"])
+
 
 if __name__ == "__main__":
     unittest.main()

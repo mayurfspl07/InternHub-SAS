@@ -453,12 +453,18 @@ async def report(request: Request, db: DbSession):
 
 @router.get("/my/export")
 @router.get("/my/export.csv")
+@router.get("/my-attendance/export")
+@router.get("/my-attendance/export.csv")
+@router.get("/me/export")
+@router.get("/me/export.csv")
 @router.get("/export/me")
+@router.get("/export/my")
+@router.get("/export/my.csv")
 async def export_my_attendance(request: Request, db: DbSession):
     """Export attendance for currently logged-in user (intern, mentor, admin)."""
     user = get_optional_user(request, db)
     if not user:
-        raise HTTPException(status_code=401)
+        raise HTTPException(status_code=401, detail="Authentication required.")
 
     params = request.query_params
     start_s = params.get("from_date") or params.get("start") or params.get("from")
