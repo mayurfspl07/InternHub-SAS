@@ -256,15 +256,17 @@ def compute_streak(db: "Session", user_id: int) -> int:
 def export_attendance_csv(records) -> str:
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["Date", "Name", "Email", "Check In", "Check Out", "Hours", "Status", "Missed Checkout"])
+    writer.writerow(["Date", "Name", "Email", "Department", "Check In", "Check Out", "Hours", "Status", "Missed Checkout"])
     for r in records:
         checkout_display = ""
         if r.check_out and not r.checkout_missed:
             checkout_display = r.check_out.strftime("%H:%M")
+        dept = (r.user.department or "") if r.user else ""
         writer.writerow([
             r.date.isoformat(),
             r.user.name if r.user else "",
             r.user.email if r.user else "",
+            dept,
             r.check_in.strftime("%H:%M") if r.check_in else "",
             checkout_display,
             r.hours_worked if r.hours_worked is not None else 0,

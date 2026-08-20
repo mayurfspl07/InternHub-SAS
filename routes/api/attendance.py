@@ -451,40 +451,133 @@ async def report(request: Request, db: DbSession):
     }
 
 
+@router.get("/my/export")
+@router.get("/my/export.csv")
+@router.get("/export/me")
+async def export_my_attendance(request: Request, db: DbSession):
+    """Export attendance for currently logged-in user (intern, mentor, admin)."""
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+
+    params = request.query_params
+    start_s = params.get("from_date") or params.get("start") or params.get("from")
+    end_s = params.get("to_date") or params.get("end") or params.get("to")
+    month_s = params.get("month")
+
+    if month_s:
+        try:
+            yr, mo = int(month_s[:4]), int(month_s[5:7])
+            start_date, end_date = month_range(yr, mo)
+        except (ValueError, IndexError):
+            raise HTTPException(status_code=422, detail="Invalid month format. Use YYYY-MM.")
+    else:
+        start_date = None
+        end_date = None
+        if start_s:
+            try:
+                start_date = date.fromisoformat(start_s)
+            except ValueError:
+                raise HTTPException(status_code=422, detail="Invalid start/from_date. Use YYYY-MM-DD.")
+        if end_s:
+            try:
+                end_date = date.fromisoformat(end_s)
+            except ValueError:
+                raise HTTPException(status_code=422, detail="Invalid end/to_date. Use YYYY-MM-DD.")
+
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(status_code=422, detail="from_date/start must be on or before to_date/end.")
+
+    q = (
+        db.query(Attendance)
+        .options(joinedload(Attendance.user))
+        .filter(Attendance.user_id == user.id)
+    )
+    if start_date:
+        q = q.filter(Attendance.date >= start_date)
+    if end_date:
+        q = q.filter(Attendance.date <= end_date)
+
+    status_filter = params.get("status")
+    if status_filter:
+        q = q.filter(Attendance.status == status_filter)
+
+    records = q.order_by(Attendance.date.desc()).all()
+    csv_text = export_attendance_csv(records)
+    safe_name = "".join(c for c in (user.name or "user") if c.isalnum() or c in ("-", "_")).strip()
+    s_label = start_date.isoformat() if start_date else "all"
+    e_label = end_date.isoformat() if end_date else "latest"
+    filename = f"my_attendance_{safe_name}_{s_label}_to_{e_label}.csv"
+    return Response(
+        content=csv_text,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.get("/export")
 @router.get("/export.csv")
 async def export_csv(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
     params = request.query_params
-    intern_id = params.get("intern_id")
+    intern_id = params.get("intern_id") or params.get("user_id") or params.get("student_id")
     intern_id = int(intern_id) if intern_id and intern_id.isdigit() else None
-    start_s = params.get("start")
-    end_s = params.get("end")
+    start_s = params.get("from_date") or params.get("start") or params.get("from")
+    end_s = params.get("to_date") or params.get("end") or params.get("to")
+    month_s = params.get("month")
+
+    if month_s:
+        try:
+            yr, mo = int(month_s[:4]), int(month_s[5:7])
+            start_date, end_date = month_range(yr, mo)
+        except (ValueError, IndexError):
+            raise HTTPException(status_code=422, detail="Invalid month format. Use YYYY-MM.")
+    else:
+        start_date = None
+        end_date = None
+        if start_s:
+            try:
+                start_date = date.fromisoformat(start_s)
+            except ValueError:
+                raise HTTPException(status_code=422, detail="Invalid start/from_date. Use YYYY-MM-DD.")
+        if end_s:
+            try:
+                end_date = date.fromisoformat(end_s)
+            except ValueError:
+                raise HTTPException(status_code=422, detail="Invalid end/to_date. Use YYYY-MM-DD.")
+
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(status_code=422, detail="from_date/start must be on or before to_date/end.")
+
     q = db.query(Attendance).options(joinedload(Attendance.user))
     if user.is_intern:
         q = q.filter(Attendance.user_id == user.id)
     elif intern_id:
         q = q.filter(Attendance.user_id == intern_id)
-    if start_s:
-        try:
-            q = q.filter(Attendance.date >= date.fromisoformat(start_s))
-        except ValueError:
-            pass
-    if end_s:
-        try:
-            q = q.filter(Attendance.date <= date.fromisoformat(end_s))
-        except ValueError:
-            pass
+
+    if start_date:
+        q = q.filter(Attendance.date >= start_date)
+    if end_date:
+        q = q.filter(Attendance.date <= end_date)
+
     if user.is_mentor:
         ids = get_mentor_intern_ids(db, user.id) or [-1]
         # Enforce access: mentor may not export another mentor's intern
         if intern_id is not None and intern_id not in ids:
             raise HTTPException(status_code=403, detail="You can only export attendance for your own interns.")
         q = q.filter(Attendance.user_id.in_(ids))
+
+    status_filter = params.get("status")
+    if status_filter:
+        q = q.filter(Attendance.status == status_filter)
+
     records = q.order_by(Attendance.date.desc()).all()
     csv_text = export_attendance_csv(records)
-    filename = f"attendance_{local_today().isoformat()}.csv"
+    s_label = start_date.isoformat() if start_date else "all"
+    e_label = end_date.isoformat() if end_date else "latest"
+    filename = f"attendance_export_{s_label}_to_{e_label}.csv"
     return Response(
         content=csv_text,
         media_type="text/csv",
