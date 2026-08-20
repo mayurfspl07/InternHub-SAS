@@ -27,7 +27,9 @@ All existing 62 endpoints remain backward-compatible at their routes (`/api/*`) 
 | :--- | :--- | :--- |
 | `/api/auth/*` | Login, Logout, Register, Me, Invite | Resolves memberships; Me returns active organization list |
 | `/api/admin/*` | User management, Bin, Invites | Scoped to active `organization_id`; Bin items isolated to tenant |
-| `/api/attendance/*` | Check-in, Check-out, History, Reports, Manual | Shift rules read from `organization_settings`; records filtered by `organization_id` |
+| `/api/admin/students/*` | Admin student attendance overview, today live, detail, search, CSV export | Scoped to active tenant; full visibility for admins |
+| `/api/mentor/students/*` | Mentor student attendance overview, today live, mentee detail, search, CSV export | Scoped to active tenant; strictly filtered to assigned mentees |
+| `/api/attendance/*` | Check-in, Check-out, History, Reports, Personal Export (`/my/export`), Manual | Shift rules read from `organization_settings`; personal export scoped to caller |
 | `/api/projects/*` | Projects, Tasks, Comments, Links | Project and task queries bound to active `organization_id` |
 | `/api/leave/*` | Requests, Reviews, Quota Balance | Quota and sync rules read from `organization_settings` |
 | `/api/standup/*` | Daily log submission and history | Standup records bound to active `organization_id` |
