@@ -1,14 +1,14 @@
-"""Admin-only student attendance management & export APIs.
+"""Student attendance management & export APIs for Admin and Mentor roles.
 
 Endpoints:
   GET /api/admin/students
-      Paginated list of all interns with attendance overview stats.
+      Paginated list of interns with attendance overview stats (scoped to assigned mentees for mentors).
 
   GET /api/admin/students/today (alias: /api/admin/attendance/today)
-      Today'\''s live attendance for all interns, paginated, with summary breakdown.
+      Today's live attendance for interns, paginated, with summary breakdown.
 
   GET /api/admin/students/export (alias: /api/admin/attendance/export)
-      Admin attendance CSV export with flexible from_date/to_date, department, status, user_id filters.
+      Attendance CSV export with flexible from_date/to_date, department, status, user_id filters.
 
   GET /api/admin/students/search (alias: /api/admin/students/overview/search)
       Search students by name/email/dept with custom from_date/to_date attendance overview window.
@@ -16,7 +16,7 @@ Endpoints:
   GET /api/admin/students/{user_id}/attendance
       Full attendance records for a specific intern with date filters & monthly summary.
 
-All endpoints require admin or superadmin role.
+Endpoints require admin, superadmin, or mentor role. Mentors only receive data for their assigned interns.
 """
 from datetime import date, timedelta
 from typing import Annotated
@@ -37,6 +37,7 @@ from models import (
 )
 from utils import (
     export_attendance_csv,
+    get_mentor_intern_ids,
     isoformat_utc,
     local_today,
     month_range,
@@ -53,11 +54,15 @@ REPORT_MAX_PAGE_SIZE = 10_000
 # Helpers & Serialisers
 # ---------------------------------------------------------------------------
 
-def _require_admin(request: Request, db: Session) -> User:
+def _require_admin_or_mentor(request: Request, db: Session) -> User:
     user = get_optional_user(request, db)
-    if not user or user.role not in (UserRole.ADMIN, UserRole.SUPERADMIN):
-        raise HTTPException(status_code=403, detail="Admin access required.")
+    if not user or user.role not in (UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.MENTOR):
+        raise HTTPException(status_code=403, detail="Admin or mentor access required.")
     return user
+
+
+def _require_admin(request: Request, db: Session) -> User:
+    return _require_admin_or_mentor(request, db)
 
 
 def _att_dict(r: Attendance) -> dict:
@@ -245,7 +250,7 @@ def _parse_date_range(params) -> tuple[date, date]:
 @router.get("")
 async def list_students(request: Request, db: DbSession):
     """
-    Admin-only: paginated intern list with attendance overview stats.
+    Paginated intern list with attendance overview stats (admin or mentor).
 
     Query params:
       page        int   default 1
@@ -256,7 +261,7 @@ async def list_students(request: Request, db: DbSession):
       sort        str   "name" (default) | "joining_date"
       window_days int   trailing calendar days for attendance stats (default 30, max 365)
     """
-    _require_admin(request, db)
+    user = _require_admin_or_mentor(request, db)
     params = request.query_params
 
     try:
@@ -273,6 +278,10 @@ async def list_students(request: Request, db: DbSession):
         window_days = 30
 
     q = db.query(User).filter(User.role == UserRole.INTERN, User.is_deleted == False)
+
+    if user.is_mentor and not user.is_admin:
+        mentor_intern_ids = get_mentor_intern_ids(db, user.id) or [-1]
+        q = q.filter(User.id.in_(mentor_intern_ids))
 
     search = params.get("search", "").strip()
     if search:
@@ -340,13 +349,13 @@ async def list_students(request: Request, db: DbSession):
 
 
 # ---------------------------------------------------------------------------
-# Endpoint 2: GET /api/admin/students/today  (Today'\''s Attendance for Admin)
+# Endpoint 2: GET /api/admin/students/today  (Today's Attendance)
 # ---------------------------------------------------------------------------
 
 @router.get("/today")
 async def today_attendance(request: Request, db: DbSession):
     """
-    Admin-only: Today'\''s live attendance for all interns, paginated, with summary.
+    Today's live attendance for interns, paginated, with summary (admin or mentor).
 
     Query params:
       page        int   default 1
@@ -356,7 +365,7 @@ async def today_attendance(request: Request, db: DbSession):
       status      str   filter by status: present, late, half_day, absent, on_leave, not_checked_in, checked_in, checked_out
       is_active   str   "true" or "false" (default true)
     """
-    _require_admin(request, db)
+    user = _require_admin_or_mentor(request, db)
     params = request.query_params
     today = local_today()
 
@@ -369,8 +378,12 @@ async def today_attendance(request: Request, db: DbSession):
     except ValueError:
         page_size = PAGE_SIZE
 
-    # All active interns
+    # Base query for interns
     base_q = db.query(User).filter(User.role == UserRole.INTERN, User.is_deleted == False)
+
+    if user.is_mentor and not user.is_admin:
+        mentor_intern_ids = get_mentor_intern_ids(db, user.id) or [-1]
+        base_q = base_q.filter(User.id.in_(mentor_intern_ids))
 
     search = params.get("search", "").strip()
     if search:
@@ -391,7 +404,7 @@ async def today_attendance(request: Request, db: DbSession):
     all_interns = base_q.order_by(User.name).all()
     intern_ids = [u.id for u in all_interns]
 
-    # Today'\''s attendance map
+    # Today's attendance map
     today_records = (
         db.query(Attendance)
         .options(joinedload(Attendance.user))
@@ -488,14 +501,14 @@ async def today_attendance(request: Request, db: DbSession):
 
 
 # ---------------------------------------------------------------------------
-# Endpoint 3: GET /api/admin/students/export  (Admin Attendance CSV Export)
+# Endpoint 3: GET /api/admin/students/export  (Attendance CSV Export)
 # ---------------------------------------------------------------------------
 
 @router.get("/export")
 @router.get("/export.csv")
 async def export_admin_attendance(request: Request, db: DbSession):
     """
-    Admin-only: Export attendance records as CSV with date filters.
+    Export attendance records as CSV with date filters (admin or mentor).
 
     Query params:
       from_date / start / from   YYYY-MM-DD (default: 30 days ago)
@@ -505,7 +518,7 @@ async def export_admin_attendance(request: Request, db: DbSession):
       department                 str (filter by department)
       status                     str (filter status: present, late, absent, etc.)
     """
-    _require_admin(request, db)
+    user = _require_admin_or_mentor(request, db)
     params = request.query_params
     start_date, end_date = _parse_date_range(params)
 
@@ -521,9 +534,16 @@ async def export_admin_attendance(request: Request, db: DbSession):
         )
     )
 
+    if user.is_mentor and not user.is_admin:
+        mentor_intern_ids = get_mentor_intern_ids(db, user.id) or [-1]
+        q = q.filter(Attendance.user_id.in_(mentor_intern_ids))
+
     intern_id = params.get("user_id") or params.get("intern_id") or params.get("student_id")
     if intern_id and intern_id.isdigit():
-        q = q.filter(Attendance.user_id == int(intern_id))
+        requested_id = int(intern_id)
+        if user.is_mentor and not user.is_admin and requested_id not in (get_mentor_intern_ids(db, user.id) or []):
+            raise HTTPException(status_code=403, detail="You can only export attendance for your own interns.")
+        q = q.filter(Attendance.user_id == requested_id)
 
     dept = params.get("department", "").strip()
     if dept:
@@ -536,7 +556,7 @@ async def export_admin_attendance(request: Request, db: DbSession):
     records = q.order_by(Attendance.date.desc(), User.name).all()
     csv_text = export_attendance_csv(records)
 
-    filename = f"admin_attendance_export_{start_date.isoformat()}_to_{end_date.isoformat()}.csv"
+    filename = f"attendance_export_{start_date.isoformat()}_to_{end_date.isoformat()}.csv"
     return Response(
         content=csv_text,
         media_type="text/csv",
@@ -552,7 +572,7 @@ async def export_admin_attendance(request: Request, db: DbSession):
 @router.get("/overview/search")
 async def search_student_overview(request: Request, db: DbSession):
     """
-    Admin-only: Search students with custom from_date/to_date attendance overview window.
+    Search students with custom from_date/to_date attendance overview window (admin or mentor).
 
     Query params:
       q / search                 str (search term across name, email, department)
@@ -565,7 +585,7 @@ async def search_student_overview(request: Request, db: DbSession):
       page_size                  int (default 20, max 200)
       sort                       str ("name" | "joining_date" | "attendance_rate")
     """
-    _require_admin(request, db)
+    user = _require_admin_or_mentor(request, db)
     params = request.query_params
     start_date, end_date = _parse_date_range(params)
 
@@ -580,6 +600,10 @@ async def search_student_overview(request: Request, db: DbSession):
 
     q_term = (params.get("q") or params.get("search") or "").strip()
     q = db.query(User).filter(User.role == UserRole.INTERN, User.is_deleted == False)
+
+    if user.is_mentor and not user.is_admin:
+        mentor_intern_ids = get_mentor_intern_ids(db, user.id) or [-1]
+        q = q.filter(User.id.in_(mentor_intern_ids))
 
     if q_term:
         like = f"%{q_term}%"
@@ -657,7 +681,7 @@ async def search_student_overview(request: Request, db: DbSession):
 @router.get("/{user_id}/attendance")
 async def student_attendance(user_id: int, request: Request, db: DbSession):
     """
-    Admin-only: full paginated attendance for one intern with date filters.
+    Full paginated attendance for one intern with date filters (admin or mentor).
 
     Query params:
       from_date / start / from   YYYY-MM-DD inclusive start (default: 30 days ago)
@@ -667,7 +691,12 @@ async def student_attendance(user_id: int, request: Request, db: DbSession):
       page                       int        default 1
       page_size                  int        default 31, max 10000
     """
-    _require_admin(request, db)
+    user = _require_admin_or_mentor(request, db)
+
+    if user.is_mentor and not user.is_admin:
+        mentor_intern_ids = get_mentor_intern_ids(db, user.id)
+        if user_id not in mentor_intern_ids:
+            raise HTTPException(status_code=403, detail="You can only view attendance for your own interns.")
 
     student = db.get(User, user_id)
     if not student or student.is_deleted:
