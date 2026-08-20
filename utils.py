@@ -129,12 +129,16 @@ def determine_status(
     checkout_missed: bool,
 ) -> str:
     """
-    Priority order:
-    1. Missed checkout → absent (0 hours, can't verify)
-    2. hours < 5       → absent (not enough time regardless of when they arrived)
-    3. check-in ≥ noon → late   (overrides present/half_day)
-    4. hours ≥ 7       → present
-    5. hours ≥ 5       → half_day
+    Final status after checkout (hours-first priority order):
+    1. Missed checkout            → absent  (can't verify work without checkout)
+    2. hours > 0, hours < 5       → half_day (showed up but left early)
+    3. hours > 0, check-in ≥ 12  → late    (late arrival, even with enough hours)
+    4. hours ≥ 7                  → present
+    5. 5 ≤ hours < 7              → half_day
+
+    When hours == 0 (no checkout yet — provisional):
+    6. check-in ≥ LATE_CUTOFF    → late
+    7. otherwise                  → present
     """
     from config import Config
 
@@ -143,16 +147,21 @@ def determine_status(
     if checkout_missed:
         return "absent"
 
-    if hw < Config.HALF_DAY_HOURS:
-        return "absent"
+    if hw > Decimal("0"):
+        # Hours are known — use them as primary signal
+        if hw < Config.HALF_DAY_HOURS:
+            # Showed up but left early → half_day (not absent)
+            return "half_day"
+        if check_in_time >= Config.NOON_CUTOFF:
+            return "late"
+        if hw >= Config.FULL_DAY_HOURS:
+            return "present"
+        return "half_day"
 
-    if check_in_time >= Config.NOON_CUTOFF:
+    # No hours yet (no checkout) — provisional status from arrival time only
+    if check_in_time >= Config.LATE_CUTOFF:
         return "late"
-
-    if hw >= Config.FULL_DAY_HOURS:
-        return "present"
-
-    return "half_day"
+    return "present"
 
 
 def resolve_attendance_status(
@@ -202,8 +211,8 @@ def apply_checkout_to_record(record, check_out: datetime, *, source: str = "manu
         record.status = determine_status(record.check_in.time(), hours, False)
 
 
-def determine_attendance_status(check_in_dt: datetime, late_hour: int = 9) -> str:
-    """Provisional status at check-in (finalized at checkout)."""
+def determine_attendance_status(check_in_dt: datetime) -> str:
+    """Provisional status at check-in (finalized at checkout via determine_status)."""
     return "late" if is_late_checkin(check_in_dt) else "present"
 
 
@@ -265,11 +274,16 @@ def export_attendance_csv(records) -> str:
     return buf.getvalue()
 
 
-def auto_checkout_missed_sessions(db: "Session") -> int:
+def auto_checkout_missed_sessions(db: "Session", *, commit: bool = True) -> int:
     """Close prior days' open sessions as missed checkout → absent.
 
     Only processes records with date strictly before today so a midday server
     restart does not mark interns still working today as absent.
+
+    Args:
+        commit: If True (default), commits the transaction after processing.
+                Pass False when the caller manages its own commit (e.g. the
+                HTTP route that needs to include an audit log in the same tx).
     """
     from models import Attendance
 
@@ -303,7 +317,7 @@ def auto_checkout_missed_sessions(db: "Session") -> int:
             "system: midnight auto-checkout",
         )
         updated += 1
-    if updated:
+    if updated and commit:
         db.commit()
     return updated
 

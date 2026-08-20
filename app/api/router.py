@@ -18,6 +18,7 @@ from routes.api import (
     reviews,
     search,
     standup,
+    student_attendance,
     users,
 )
 
@@ -41,4 +42,5 @@ api_router.include_router(profile.router)
 api_router.include_router(reviews.router)
 api_router.include_router(search.router)
 api_router.include_router(standup.router)
+api_router.include_router(student_attendance.router)
 api_router.include_router(users.router)

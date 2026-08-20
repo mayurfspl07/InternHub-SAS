@@ -123,9 +123,10 @@ class ManualAttendanceRequest(BaseModel):
     user_id: int = Field(..., description="Intern user ID", json_schema_extra={"example": 3})
     date: str = Field(..., description="Attendance date (YYYY-MM-DD)", json_schema_extra={"example": "2026-08-15"})
     check_in: Optional[str] = Field("09:00", description="Check-in time (HH:MM)", json_schema_extra={"example": "09:00"})
-    check_out: Optional[str] = Field("17:00", description="Check-out time (HH:MM)", json_schema_extra={"example": "17:00"})
-    status: Optional[str] = Field("present", description="Attendance status: present, half_day, late, absent, on_leave, excused", json_schema_extra={"example": "present"})
-    status_override: Optional[str] = Field(None, description="Status override: on_leave or excused", json_schema_extra={"example": "excused"})
+    check_out: Optional[str] = Field(None, description="Check-out time (HH:MM). Omit to leave checkout open.", json_schema_extra={"example": "17:00"})
+    # NOTE: `status` is intentionally absent — it is computed from check_in/check_out times.
+    # Use `status_override` (admin-only) to force on_leave or excused on a record.
+    status_override: Optional[str] = Field(None, description="Admin-only status override: on_leave or excused", json_schema_extra={"example": "excused"})
     reason: str = Field(..., description="Reason for creating manual record", json_schema_extra={"example": "Retroactive entry approved by Mentor"})
 
 

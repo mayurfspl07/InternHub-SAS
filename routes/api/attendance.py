@@ -294,7 +294,8 @@ async def history(request: Request, db: DbSession):
         raise HTTPException(status_code=401)
 
     params = request.query_params
-    user_id = user.id
+    # None means "unfiltered" (admin all-intern view); default to own records for interns.
+    user_id: int | None = user.id if user.is_intern else None
     if user.role in ("admin", "mentor"):
         target_id = params.get("user_id")
         if target_id and target_id.isdigit():
@@ -305,6 +306,10 @@ async def history(request: Request, db: DbSession):
                 if requested_id not in allowed_ids:
                     raise HTTPException(status_code=403, detail="You can only view attendance for your own interns.")
             user_id = requested_id
+        elif user.is_mentor and user_id is None:
+            # Mentor without user_id — default to their own scoped interns (show first intern or require param)
+            user_id = user.id  # fallback to own record so the response isn’t unexpectedly huge
+        # Admins without user_id: user_id stays None → query all interns below
 
     month = params.get("month", today_str()[:7])
     try:
@@ -322,16 +327,23 @@ async def history(request: Request, db: DbSession):
     except ValueError:
         page_size = PAGE_SIZE
     # A calendar month has at most 31 rows per user (UniqueConstraint on user_id+date),
-    # so cap generously rather than at PAGE_SIZE — callers that want the full month's
+    # so cap generously rather than at PAGE_SIZE — callers that want the full month’s
     # records in one page (e.g. monthly hour totals, the calendar view) rely on this.
     page_size = min(max(1, page_size), REPORT_MAX_PAGE_SIZE)
 
+    from models import UserRole as _UserRole
     q = (
         db.query(Attendance)
         .options(joinedload(Attendance.user))
-        .filter(and_(Attendance.user_id == user_id, Attendance.date >= start, Attendance.date <= end))
-        .order_by(Attendance.date.desc())
+        .filter(and_(Attendance.date >= start, Attendance.date <= end))
     )
+    if user_id is not None:
+        q = q.filter(Attendance.user_id == user_id)
+    else:
+        # Admin all-interns view — filter to intern role only
+        from models import User as _User
+        q = q.join(_User, Attendance.user_id == _User.id).filter(_User.role == _UserRole.INTERN)
+    q = q.order_by(Attendance.date.desc())
 
     total = q.count()
     records = q.offset((page - 1) * page_size).limit(page_size).all()
@@ -466,6 +478,9 @@ async def export_csv(request: Request, db: DbSession):
             pass
     if user.is_mentor:
         ids = get_mentor_intern_ids(db, user.id) or [-1]
+        # Enforce access: mentor may not export another mentor's intern
+        if intern_id is not None and intern_id not in ids:
+            raise HTTPException(status_code=403, detail="You can only export attendance for your own interns.")
         q = q.filter(Attendance.user_id.in_(ids))
     records = q.order_by(Attendance.date.desc()).all()
     csv_text = export_attendance_csv(records)
@@ -482,7 +497,9 @@ async def trigger_auto_checkout(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user or user.role not in ("admin", "mentor"):
         raise HTTPException(status_code=403)
-    count = auto_checkout_missed_sessions(db)
+    # Record the audit entry before calling auto-checkout so both are committed
+    # together in the single db.commit() below (avoids a double-commit).
+    count = auto_checkout_missed_sessions(db, commit=False)
     record_audit(
         db,
         user,
@@ -572,6 +589,8 @@ async def edit_attendance(record_id: int, request: Request, db: DbSession, data:
                 new_out = _parse_time_on_date(record.date, str(raw))
             except ValueError:
                 raise HTTPException(status_code=422, detail="Invalid check-out time.")
+            if not record.check_in:
+                raise HTTPException(status_code=422, detail="Cannot set check-out: record has no check-in time.")
             if new_out <= record.check_in:
                 raise HTTPException(status_code=422, detail="Check-out must be after check-in.")
             old = record.check_out.strftime("%H:%M") if record.check_out and not record.checkout_missed else None
