@@ -814,3 +814,22 @@ admin_attendance_router.add_api_route("/today", today_attendance, methods=["GET"
 admin_attendance_router.add_api_route("/export", export_admin_attendance, methods=["GET"], summary="Admin Export Attendance CSV")
 admin_attendance_router.add_api_route("/export.csv", export_admin_attendance, methods=["GET"], summary="Admin Export Attendance CSV File")
 admin_attendance_router.add_api_route("/search", search_student_overview, methods=["GET"], summary="Admin Search Attendance Overview")
+
+
+# ---------------------------------------------------------------------------
+# Mentor Routers for /api/mentor/students and /api/mentor/attendance
+# ---------------------------------------------------------------------------
+mentor_router = APIRouter(prefix="/api/mentor/students", tags=["Mentor - Student Attendance"])
+mentor_router.add_api_route("", list_students, methods=["GET"], summary="Mentor Students List")
+mentor_router.add_api_route("/today", today_attendance, methods=["GET"], summary="Mentor Today Attendance")
+mentor_router.add_api_route("/export", export_admin_attendance, methods=["GET"], summary="Mentor Export Attendance CSV")
+mentor_router.add_api_route("/export.csv", export_admin_attendance, methods=["GET"], summary="Mentor Export Attendance CSV File")
+mentor_router.add_api_route("/search", search_student_overview, methods=["GET"], summary="Mentor Search Overview")
+mentor_router.add_api_route("/overview/search", search_student_overview, methods=["GET"], summary="Mentor Search Overview Alias")
+mentor_router.add_api_route("/{user_id}/attendance", student_attendance, methods=["GET"], summary="Mentor Student Attendance Detail")
+
+mentor_attendance_router = APIRouter(prefix="/api/mentor/attendance", tags=["Mentor - Attendance Management"])
+mentor_attendance_router.add_api_route("/today", today_attendance, methods=["GET"], summary="Mentor Today Attendance Alias")
+mentor_attendance_router.add_api_route("/export", export_admin_attendance, methods=["GET"], summary="Mentor Export Attendance CSV Alias")
+mentor_attendance_router.add_api_route("/export.csv", export_admin_attendance, methods=["GET"], summary="Mentor Export Attendance CSV File Alias")
+mentor_attendance_router.add_api_route("/search", search_student_overview, methods=["GET"], summary="Mentor Search Attendance Overview Alias")
