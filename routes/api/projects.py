@@ -399,6 +399,7 @@ async def list_projects(request: Request, db: DbSession):
     mentor_id = params.get("mentor_id")
     from_date = params.get("from_date")
     to_date = params.get("to_date")
+    search = (params.get("search") or params.get("q") or "").strip()
     try:
         page = max(1, int(params.get("page", 1)))
     except ValueError:
@@ -409,6 +410,15 @@ async def list_projects(request: Request, db: DbSession):
         page_size = PAGE_SIZE
 
     q = _visible_projects_query(db, user)
+    org_id = _resolve_request_org_id(request, user, db)
+    if org_id is not None:
+        q = q.filter(Project.organization_id == org_id)
+
+    if search:
+        pattern = f"%{search}%"
+        q = q.filter(
+            (Project.name.ilike(pattern)) | (func.coalesce(Project.description, "").ilike(pattern))
+        )
     if status:
         q = q.filter(Project.status == status)
     if mentor_id and mentor_id.isdigit():
@@ -444,8 +454,63 @@ async def list_projects(request: Request, db: DbSession):
             for p in projects
         ],
         "page": page,
+        "page_size": page_size,
         "total_pages": total_pages,
         "total": total,
+        "filters": {
+            "search": search or None,
+            "status": status or None,
+            "mentor_id": int(mentor_id) if (mentor_id and mentor_id.isdigit()) else None,
+        },
+    }
+
+
+@router.get("/search")
+async def search_projects(request: Request, db: DbSession):
+    """Fast scoped project search and autocomplete."""
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+    params = request.query_params
+    q_str = (params.get("q") or params.get("query") or params.get("search") or "").strip()
+    status = params.get("status")
+    try:
+        limit = min(50, max(1, int(params.get("limit", 20))))
+    except ValueError:
+        limit = 20
+
+    q = _visible_projects_query(db, user)
+    org_id = _resolve_request_org_id(request, user, db)
+    if org_id is not None:
+        q = q.filter(Project.organization_id == org_id)
+
+    if q_str:
+        pattern = f"%{q_str}%"
+        q = q.filter(
+            (Project.name.ilike(pattern)) | (func.coalesce(Project.description, "").ilike(pattern))
+        )
+    if status:
+        q = q.filter(Project.status == status)
+
+    projects = q.options(
+        joinedload(Project.mentor),
+        joinedload(Project.mentor_assignments).joinedload(ProjectMentorAssignment.user),
+        joinedload(Project.assignments).joinedload(ProjectAssignment.user),
+    ).order_by(Project.created_at.desc()).limit(limit).all()
+
+    task_stats = _task_stats_for_projects(db, [p.id for p in projects])
+
+    return {
+        "query": q_str,
+        "total": len(projects),
+        "projects": [
+            _project_dict(
+                p,
+                task_done=task_stats.get(p.id, (0, 0))[0],
+                task_total=task_stats.get(p.id, (0, 0))[1],
+            )
+            for p in projects
+        ],
     }
 
 

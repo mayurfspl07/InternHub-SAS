@@ -1053,10 +1053,18 @@ def test_dashboard_notifications_profile_reviews_search_standup_users_apis(api_e
     resp = client.delete(f"/api/reviews/{review_id}", headers=mentor_headers)
     assert resp.status_code == 200
 
-    # 5. Search API
+    # 5. Search APIs (Global & Project Search)
     resp = client.get("/api/search?q=TechCorp", headers=admin_headers)
     assert resp.status_code == 200
     assert "results" in resp.json()
+
+    resp = client.get("/api/projects?search=Platform", headers=admin_headers)
+    assert resp.status_code == 200
+    assert "projects" in resp.json()
+
+    resp = client.get("/api/projects/search?q=Platform", headers=admin_headers)
+    assert resp.status_code == 200
+    assert "projects" in resp.json()
 
     # 6. Standup Log APIs
     resp = client.post(

@@ -767,10 +767,20 @@ def build_custom_openapi(app: FastAPI) -> Dict[str, Any]:
             "example": {
                 "projects": [project_sample],
                 "page": 1,
+                "page_size": 20,
                 "total": 8,
                 "total_pages": 1,
+                "filters": {"search": None, "status": "active", "mentor_id": None},
             },
-            "description": "List of accessible projects",
+            "description": "List of accessible projects with search, status, mentor, and date filters",
+        },
+        ("GET", "/api/projects/search"): {
+            "example": {
+                "query": "Platform",
+                "total": 2,
+                "projects": [project_sample],
+            },
+            "description": "Fast scoped project search and autocomplete for dropdowns and navigation",
         },
         ("POST", "/api/projects"): {
             "example": project_sample,
