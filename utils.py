@@ -553,7 +553,7 @@ def get_user_project_ids(db: "Session", user) -> list[int]:
 def scoped_audit_query(db: "Session", user, org_id: int | None = None):
     """Return an AuditLog query filtered by role and organization."""
     from sqlalchemy import or_
-    from models import AuditLog
+    from models import AuditLog, OrganizationMembership
 
     q = db.query(AuditLog)
     if org_id is not None:

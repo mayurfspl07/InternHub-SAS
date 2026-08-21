@@ -922,6 +922,51 @@ def test_dashboard_notifications_profile_reviews_search_standup_users_apis(api_e
     assert resp.status_code == 200
     assert "stats" in resp.json()
 
+    # Role-specific Single-Response Dashboard APIs
+    resp = client.get("/api/admin/dashboard", headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["role"] == "admin"
+    assert "present_today_list" in data
+    assert "open_tasks" in data
+    assert "active_projects" in data
+    assert "pending_leave_requests" in data
+
+    resp = client.get("/admin/dashboard", headers=admin_headers)
+    assert resp.status_code == 200
+
+    resp = client.get("/api/mentor/dashboard", headers=mentor_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["role"] == "mentor"
+    assert "assigned_interns" in data
+    assert "projects" in data
+    assert "open_tasks" in data
+
+    resp = client.get("/mentor/dashboard", headers=mentor_headers)
+    assert resp.status_code == 200
+
+    resp = client.get("/api/intern/dashboard", headers=intern_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["role"] == "intern"
+    assert "today_attendance" in data
+    assert "assigned_projects" in data
+    assert "assigned_tasks" in data
+
+    resp = client.get("/intern/dashboard", headers=intern_headers)
+    assert resp.status_code == 200
+
+    resp = client.get("/api/superadmin/dashboard", headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["role"] == "superadmin"
+    assert "organizations" in data
+    assert "system_health" in data
+
+    resp = client.get("/superadmin/dashboard", headers=admin_headers)
+    assert resp.status_code == 200
+
     resp = client.get("/api/dashboard/present-today", headers=admin_headers)
     assert resp.status_code == 200
 
