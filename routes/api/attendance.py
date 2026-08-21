@@ -32,7 +32,8 @@ from utils import (
     today_str,
     isoformat_utc,
 )
-from fastapi.responses import FileResponse, Response
+import base64
+from fastapi.responses import FileResponse, Response, RedirectResponse
 from routes.api.schemas import AttendanceEditRequest, ManualAttendanceRequest, get_payload
 
 router = APIRouter(prefix="/api/attendance", tags=["Attendance"])
@@ -68,9 +69,15 @@ def _att_dict(r: Attendance) -> dict:
             if show_checkout and r.check_out_lat is not None and r.check_out_lng is not None
             else None
         ),
-        "check_in_photo_url": f"/api/attendance/{r.id}/photo/checkin" if r.check_in_photo else None,
+        "check_in_photo_url": (
+            r.check_in_photo
+            if r.check_in_photo and r.check_in_photo.startswith(("http://", "https://"))
+            else (f"/api/attendance/{r.id}/photo/checkin" if r.check_in_photo else None)
+        ),
         "check_out_photo_url": (
-            f"/api/attendance/{r.id}/photo/checkout" if show_checkout and r.check_out_photo else None
+            r.check_out_photo
+            if show_checkout and r.check_out_photo and r.check_out_photo.startswith(("http://", "https://"))
+            else (f"/api/attendance/{r.id}/photo/checkout" if show_checkout and r.check_out_photo else None)
         ),
     }
 
@@ -263,6 +270,31 @@ async def check_out(
     return _att_dict(record)
 
 
+def _generate_placeholder_svg(name: str, kind_title: str, date_str: str) -> str:
+    initials = "".join([part[0].upper() for part in name.split() if part][:2]) or "U"
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">'
+        f'<defs>'
+        f'<linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">'
+        f'<stop offset="0%" stop-color="#1e293b"/>'
+        f'<stop offset="100%" stop-color="#0f172a"/>'
+        f'</linearGradient>'
+        f'<linearGradient id="avatarBg" x1="0%" y1="0%" x2="100%" y2="100%">'
+        f'<stop offset="0%" stop-color="#3b82f6"/>'
+        f'<stop offset="100%" stop-color="#1d4ed8"/>'
+        f'</linearGradient>'
+        f'</defs>'
+        f'<rect width="100%" height="100%" fill="url(#bg)" rx="16"/>'
+        f'<circle cx="200" cy="140" r="55" fill="url(#avatarBg)"/>'
+        f'<text x="200" y="152" font-family="-apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif" font-size="40" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">{initials}</text>'
+        f'<text x="200" y="230" font-family="-apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif" font-size="20" font-weight="600" fill="#f8fafc" text-anchor="middle">{name}</text>'
+        f'<text x="200" y="260" font-family="-apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif" font-size="14" font-weight="500" fill="#94a3b8" text-anchor="middle">{kind_title} • {date_str}</text>'
+        f'<rect x="80" y="295" width="240" height="34" rx="17" fill="#334155"/>'
+        f'<text x="200" y="316" font-family="-apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif" font-size="12" font-weight="500" fill="#cbd5e1" text-anchor="middle" dominant-baseline="middle">Photo Archived / Unavailable</text>'
+        f'</svg>'
+    )
+
+
 @router.get("/{attendance_id}/photo/{kind}")
 async def get_attendance_photo(attendance_id: int, kind: str, request: Request, db: DbSession):
     user = get_optional_user(request, db)
@@ -276,15 +308,50 @@ async def get_attendance_photo(attendance_id: int, kind: str, request: Request, 
     if record.user_id != user.id and not user.is_admin:
         if not user.is_mentor or not mentor_can_edit_intern(db, user, record.user_id):
             raise HTTPException(status_code=403)
+
     rel_path = record.check_in_photo if kind == "checkin" else record.check_out_photo
+
+    # 1. External remote storage (S3 / Cloudflare R2 / CDN URL)
+    if rel_path and rel_path.startswith(("http://", "https://")):
+        return RedirectResponse(url=rel_path, status_code=307)
+
+    # 2. Base64 Data URI
+    if rel_path and rel_path.startswith("data:image/"):
+        try:
+            header, base64_data = rel_path.split(",", 1)
+            media_type = header.split(";")[0].replace("data:", "")
+            image_bytes = base64.b64decode(base64_data)
+            return Response(
+                content=image_bytes,
+                media_type=media_type,
+                headers={"Cache-Control": "private, max-age=86400"},
+            )
+        except Exception:
+            pass
+
+    # 3. Disk-based photo
     abs_path = photo_abs_path(rel_path) if rel_path else None
-    if not abs_path:
-        raise HTTPException(status_code=404, detail="No photo for this record.")
-    return FileResponse(
-        abs_path,
-        media_type="image/jpeg",
-        headers={"Cache-Control": "private, max-age=86400"},
-    )
+    if abs_path:
+        return FileResponse(
+            abs_path,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "private, max-age=86400"},
+        )
+
+    # 4. Graceful placeholder SVG when photo is missing on ephemeral disk / uncaptured
+    allow_fallback = request.query_params.get("fallback", "1").lower() not in ("0", "false", "no")
+    if allow_fallback:
+        user_name = record.user.name if record.user else f"User {record.user_id}"
+        kind_title = "Check-in Photo" if kind == "checkin" else "Check-out Photo"
+        date_str = record.date.isoformat() if record.date else "Today"
+        svg_content = _generate_placeholder_svg(user_name, kind_title, date_str)
+        return Response(
+            content=svg_content,
+            media_type="image/svg+xml",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+
+    raise HTTPException(status_code=404, detail="No photo for this record.")
 
 
 @router.get("/history")

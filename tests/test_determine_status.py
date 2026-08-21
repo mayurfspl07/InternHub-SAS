@@ -12,8 +12,8 @@ class DetermineStatusTests(unittest.TestCase):
     def test_missed_checkout_is_absent_regardless_of_hours(self):
         self.assertEqual(determine_status(time(9, 0), Decimal("8"), True), "absent")
 
-    def test_under_half_day_hours_is_absent(self):
-        self.assertEqual(determine_status(time(9, 0), Decimal("4.9"), False), "absent")
+    def test_under_half_day_hours_is_half_day(self):
+        self.assertEqual(determine_status(time(9, 0), Decimal("4.9"), False), "half_day")
 
     def test_late_checkin_overrides_full_day_hours(self):
         # Checked in at noon but stayed 8 hours — still "late", not "present".

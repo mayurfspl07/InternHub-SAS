@@ -11,7 +11,7 @@ from starlette.requests import Request
 from database import Base
 from dependencies import generate_token
 from models import Attendance, AttendanceStatus, User, UserRole, AttendanceAuditLog, AuditLog
-from routes.api.attendance import create_attendance_manual
+from routes.api.attendance import create_attendance_manual, get_attendance_photo
 
 
 def make_request(
@@ -287,3 +287,54 @@ class AttendanceManualTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(system_audit.actor_name, self.admin.name)
         self.assertEqual(system_audit.verb, f"created attendance for {self.intern.name}")
         self.assertEqual(system_audit.target, "Auditing log verification")
+
+    async def test_get_photo_missing_returns_svg_fallback(self):
+        att = Attendance(
+            user_id=self.intern.id,
+            date=date(2026, 7, 28),
+            check_in=datetime(2026, 7, 28, 9, 30),
+            status=AttendanceStatus.PRESENT,
+            check_in_photo="non_existent_file.jpg",
+        )
+        self.db.add(att)
+        self.db.commit()
+        self.db.refresh(att)
+
+        req = make_request(self.intern, method="GET")
+        res = await get_attendance_photo(att.id, "checkin", req, self.db)
+        self.assertEqual(res.media_type, "image/svg+xml")
+        self.assertIn(b"<svg", res.body)
+
+    async def test_get_photo_fallback_disabled_raises_404(self):
+        att = Attendance(
+            user_id=self.intern.id,
+            date=date(2026, 7, 28),
+            check_in=datetime(2026, 7, 28, 9, 30),
+            status=AttendanceStatus.PRESENT,
+            check_in_photo="non_existent_file.jpg",
+        )
+        self.db.add(att)
+        self.db.commit()
+        self.db.refresh(att)
+
+        req = make_request(self.intern, method="GET", query_string=b"fallback=0")
+        with self.assertRaises(HTTPException) as ctx:
+            await get_attendance_photo(att.id, "checkin", req, self.db)
+        self.assertEqual(ctx.exception.status_code, 404)
+
+    async def test_get_photo_direct_url_redirects(self):
+        att = Attendance(
+            user_id=self.intern.id,
+            date=date(2026, 7, 28),
+            check_in=datetime(2026, 7, 28, 9, 30),
+            status=AttendanceStatus.PRESENT,
+            check_in_photo="https://cdn.example.com/selfie.jpg",
+        )
+        self.db.add(att)
+        self.db.commit()
+        self.db.refresh(att)
+
+        req = make_request(self.intern, method="GET")
+        res = await get_attendance_photo(att.id, "checkin", req, self.db)
+        self.assertEqual(res.status_code, 307)
+        self.assertEqual(res.headers["location"], "https://cdn.example.com/selfie.jpg")
