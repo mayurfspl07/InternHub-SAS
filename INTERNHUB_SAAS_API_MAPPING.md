@@ -38,4 +38,4 @@ All existing 62 endpoints remain backward-compatible at their routes (`/api/*`) 
 | `/api/announcements/*`| Broadcast announcements | Scoped to organization and optional project |
 | `/api/notifications/*`| User push notifications | Scoped to `organization_id` and recipient |
 | `/api/audit/*` | Activity audit trail | Scoped to tenant `organization_id` |
-| `/api/dashboard/*` | KPI cards and 30-day analytics | Aggregated strictly for active `organization_id` |
+| `/api/dashboard/*`, `/api/admin/dashboard`, `/api/mentor/dashboard`, `/api/intern/dashboard`, `/api/superadmin/dashboard` | Role-specific single-response dashboards and 30-day analytics | Aggregated strictly for active `organization_id` |
