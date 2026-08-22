@@ -104,9 +104,25 @@ def run(base, admin_email="admin@internhub.dev", admin_password="Imp@pune1"):
         d = r.json()
         print(f"      total all-intern records={d.get('total')}")
 
+    # 15. Projects List
+    r = s.get(f"{base}/api/projects?page=1&page_size=12", timeout=15)
+    if assert_resp("GET /api/projects", r):
+        d = r.json()
+        print(f"      total projects={d.get('total')}, page_size={d.get('page_size')}, returned={len(d.get('projects', []))}")
+        for p in d.get("projects", [])[:3]:
+            print(f"        -> Project #{p['id']}: {p['name']} (status={p['status']}, mentor={p.get('mentor_name')})")
+
+    # 16. Projects Search
+    r = s.get(f"{base}/api/projects/search?q=", timeout=15)
+    if assert_resp("GET /api/projects/search", r):
+        d = r.json()
+        print(f"      search total={d.get('total')}")
+
     print("\nDone.")
     return True
 
 if __name__ == "__main__":
     target = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:3001"
-    run(target)
+    email = sys.argv[2] if len(sys.argv) > 2 else "admin@internhub.dev"
+    password = sys.argv[3] if len(sys.argv) > 3 else "Imp@pune1"
+    run(target, admin_email=email, admin_password=password)
