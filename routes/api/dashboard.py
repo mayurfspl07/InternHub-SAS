@@ -81,23 +81,30 @@ def _build_admin_dashboard(request: Request, user: User, db: Session) -> dict:
     today = local_today()
     window_start = today - timedelta(days=29)
 
+    header_org = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+
     # 1. Interns & Mentors count
-    if org_id is not None:
+    if header_org and str(header_org).isdigit():
+        target_org = int(header_org)
         intern_ids = [
             m.user_id
             for m in db.query(OrganizationMembership.user_id)
-            .filter_by(organization_id=org_id, role="intern", is_active=True)
+            .filter_by(organization_id=target_org, role="intern", is_active=True)
             .all()
         ]
         mentor_ids = [
             m.user_id
             for m in db.query(OrganizationMembership.user_id)
-            .filter_by(organization_id=org_id, role="mentor", is_active=True)
+            .filter_by(organization_id=target_org, role="mentor", is_active=True)
             .all()
         ]
+        if not intern_ids:
+            intern_ids = [u.id for u in db.query(User.id).filter(User.role == "intern", User.is_active == True, User.is_deleted == False).all()]
+        if not mentor_ids:
+            mentor_ids = [u.id for u in db.query(User.id).filter(User.role == "mentor", User.is_active == True, User.is_deleted == False).all()]
     else:
-        intern_ids = [u.id for u in db.query(User.id).filter_by(role="intern", is_active=True).all()]
-        mentor_ids = [u.id for u in db.query(User.id).filter_by(role="mentor", is_active=True).all()]
+        intern_ids = [u.id for u in db.query(User.id).filter(User.role == "intern", User.is_active == True, User.is_deleted == False).all()]
+        mentor_ids = [u.id for u in db.query(User.id).filter(User.role == "mentor", User.is_active == True, User.is_deleted == False).all()]
 
     intern_scope = intern_ids or [-1]
 
@@ -135,8 +142,10 @@ def _build_admin_dashboard(request: Request, user: User, db: Session) -> dict:
 
     # 3. Projects & Project Status
     proj_q = db.query(Project).filter_by(is_deleted=False)
-    if org_id is not None:
-        proj_q = proj_q.filter(Project.organization_id == org_id)
+    if header_org and str(header_org).isdigit():
+        proj_q = proj_q.filter((Project.organization_id == int(header_org)) | (Project.organization_id.is_(None)))
+    elif org_id is not None and not user.is_admin:
+        proj_q = proj_q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
     all_projects = proj_q.options(joinedload(Project.mentor), joinedload(Project.tasks), joinedload(Project.assignments)).order_by(Project.created_at.desc()).all()
 
     project_status = {}
@@ -162,8 +171,10 @@ def _build_admin_dashboard(request: Request, user: User, db: Session) -> dict:
 
     # 4. Tasks & Task Status
     task_q = db.query(Task).join(Project, Task.project_id == Project.id).filter(Task.is_deleted == False)
-    if org_id is not None:
-        task_q = task_q.filter(Project.organization_id == org_id)
+    if header_org and str(header_org).isdigit():
+        task_q = task_q.filter((Project.organization_id == int(header_org)) | (Project.organization_id.is_(None)))
+    elif org_id is not None and not user.is_admin:
+        task_q = task_q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
 
     task_rows = task_q.with_entities(Task.status, func.count(Task.id)).group_by(Task.status).all()
     task_status = {s: c for s, c in task_rows}
@@ -200,8 +211,10 @@ def _build_admin_dashboard(request: Request, user: User, db: Session) -> dict:
         .options(joinedload(LeaveRequest.user))
         .filter(LeaveRequest.status == "pending", LeaveRequest.is_deleted == False)
     )
-    if org_id is not None:
-        leave_q = leave_q.filter(LeaveRequest.organization_id == org_id)
+    if header_org and str(header_org).isdigit():
+        leave_q = leave_q.filter((LeaveRequest.organization_id == int(header_org)) | (LeaveRequest.organization_id.is_(None)))
+    elif org_id is not None and not user.is_admin:
+        leave_q = leave_q.filter((LeaveRequest.organization_id == org_id) | (LeaveRequest.organization_id.is_(None)))
     pending_leaves = leave_q.order_by(LeaveRequest.created_at.desc()).limit(20).all()
     pending_leave_list = [
         {

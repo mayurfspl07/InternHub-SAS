@@ -183,6 +183,44 @@ class ProjectMultiMentorTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(created["mentor_ids"], [self.mentor1.id, self.mentor2.id])
 
+    async def test_admin_sees_all_projects_and_mentor_sees_only_own(self):
+        # Create Project 1 assigned to Mentor 1
+        p1 = await create_project(
+            make_request(
+                self.admin,
+                "POST",
+                {"name": "Mentor1 Project", "mentor_ids": [self.mentor1.id]},
+            ),
+            self.db,
+        )
+        # Create Project 2 assigned to Mentor 2
+        p2 = await create_project(
+            make_request(
+                self.admin,
+                "POST",
+                {"name": "Mentor2 Project", "mentor_ids": [self.mentor2.id]},
+            ),
+            self.db,
+        )
+
+        # 1. Admin must see both projects
+        admin_resp = await list_projects(make_request(self.admin, "GET"), self.db)
+        admin_pids = {p["id"] for p in admin_resp["projects"]}
+        self.assertIn(p1["id"], admin_pids)
+        self.assertIn(p2["id"], admin_pids)
+
+        # 2. Mentor 1 must see only Project 1 (not Project 2)
+        m1_resp = await list_projects(make_request(self.mentor1, "GET"), self.db)
+        m1_pids = {p["id"] for p in m1_resp["projects"]}
+        self.assertIn(p1["id"], m1_pids)
+        self.assertNotIn(p2["id"], m1_pids)
+
+        # 3. Mentor 2 must see only Project 2 (not Project 1)
+        m2_resp = await list_projects(make_request(self.mentor2, "GET"), self.db)
+        m2_pids = {p["id"] for p in m2_resp["projects"]}
+        self.assertIn(p2["id"], m2_pids)
+        self.assertNotIn(p1["id"], m2_pids)
+
 
 if __name__ == "__main__":
     unittest.main()

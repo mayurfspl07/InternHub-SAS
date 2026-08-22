@@ -228,19 +228,19 @@ class OrganizationMembership(Base):
 
     @property
     def is_superadmin(self) -> bool:
-        return self.role == UserRole.SUPERADMIN
+        return self.role in (UserRole.SUPERADMIN, "superadmin")
 
     @property
     def is_admin(self) -> bool:
-        return self.role in (UserRole.ADMIN, UserRole.SUPERADMIN)
+        return self.role in (UserRole.ADMIN, UserRole.SUPERADMIN, "admin", "superadmin", "org_admin")
 
     @property
     def is_mentor(self) -> bool:
-        return self.role == UserRole.MENTOR
+        return self.role in (UserRole.MENTOR, "mentor")
 
     @property
     def is_intern(self) -> bool:
-        return self.role == UserRole.INTERN
+        return self.role in (UserRole.INTERN, "intern")
 
     def to_dict(self) -> dict:
         return {
@@ -355,19 +355,22 @@ class User(Base):
 
     @property
     def is_superadmin(self) -> bool:
-        return self.role == UserRole.SUPERADMIN or self.is_platform_admin
+        return self.role in (UserRole.SUPERADMIN, "superadmin") or self.is_platform_admin
 
     @property
     def is_admin(self) -> bool:
-        return self.role in (UserRole.ADMIN, UserRole.SUPERADMIN) or self.is_platform_admin
+        return (
+            self.role in (UserRole.ADMIN, UserRole.SUPERADMIN, "admin", "superadmin", "org_admin")
+            or self.is_platform_admin
+        )
 
     @property
     def is_mentor(self) -> bool:
-        return self.role == UserRole.MENTOR
+        return self.role in (UserRole.MENTOR, "mentor")
 
     @property
     def is_intern(self) -> bool:
-        return self.role == UserRole.INTERN
+        return self.role in (UserRole.INTERN, "intern")
 
     def __repr__(self) -> str:
         return f"<User {self.id} {self.email} ({self.role})>"

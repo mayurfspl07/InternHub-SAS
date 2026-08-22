@@ -410,9 +410,14 @@ async def list_projects(request: Request, db: DbSession):
         page_size = PAGE_SIZE
 
     q = _visible_projects_query(db, user)
-    org_id = _resolve_request_org_id(request, user, db)
-    if org_id is not None:
-        q = q.filter(Project.organization_id == org_id)
+    header_org = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+    if header_org and str(header_org).isdigit():
+        org_id = int(header_org)
+        q = q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
+    elif not user.is_platform_admin:
+        org_id = _resolve_request_org_id(request, user, db)
+        if org_id is not None:
+            q = q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
 
     if search:
         pattern = f"%{search}%"
@@ -480,9 +485,14 @@ async def search_projects(request: Request, db: DbSession):
         limit = 20
 
     q = _visible_projects_query(db, user)
-    org_id = _resolve_request_org_id(request, user, db)
-    if org_id is not None:
-        q = q.filter(Project.organization_id == org_id)
+    header_org = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+    if header_org and str(header_org).isdigit():
+        org_id = int(header_org)
+        q = q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
+    elif not user.is_platform_admin:
+        org_id = _resolve_request_org_id(request, user, db)
+        if org_id is not None:
+            q = q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
 
     if q_str:
         pattern = f"%{q_str}%"
@@ -539,7 +549,10 @@ async def create_project(request: Request, db: DbSession, data: ProjectCreatePay
     status = str(payload.get("status", "planning"))
     if status not in ProjectStatus.ALL:
         status = ProjectStatus.PLANNING
+
+    org_id = _resolve_request_org_id(request, user, db)
     project = Project(
+        organization_id=org_id,
         name=name,
         description=str(payload.get("description", "")).strip(),
         start_date=start,
@@ -585,9 +598,13 @@ async def get_project(project_id: int, request: Request, db: DbSession):
     ).filter_by(id=project_id, is_deleted=False).first()
     if not project:
         raise HTTPException(status_code=404)
-    org_id = _resolve_request_org_id(request, user, db)
-    if org_id is not None and project.organization_id is not None and project.organization_id != org_id:
-        raise HTTPException(status_code=404, detail="Project not found.")
+
+    # Cross-tenant isolation: non-platform admins must match project's organization
+    if not (user.is_platform_admin or user.is_superadmin):
+        org_id = _resolve_request_org_id(request, user, db)
+        if org_id is not None and project.organization_id is not None and project.organization_id != org_id:
+            raise HTTPException(status_code=404, detail="Project not found.")
+
     if not _is_project_member(db, user, project):
         raise HTTPException(status_code=403)
     active_tasks = [t for t in project.tasks if not t.is_deleted]
