@@ -542,6 +542,68 @@ async def search_projects(request: Request, db: DbSession):
     }
 
 
+@router.get("/interns")
+@router.get("/interns/dropdown")
+async def get_project_interns(request: Request, db: DbSession):
+    """Dropdown list of all active interns for project assignment."""
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+    interns = (
+        db.query(User)
+        .filter(User.role == UserRole.INTERN, User.is_active == True, User.is_deleted == False)
+        .order_by(User.name.asc())
+        .all()
+    )
+    items = [
+        {
+            "id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "role": u.role,
+            "department": u.department,
+            "job_title": u.job_title,
+            "mentor_id": u.mentor_id,
+            "is_active": u.is_active,
+        }
+        for u in interns
+    ]
+    return {
+        "interns": items,
+        "total": len(items),
+    }
+
+
+@router.get("/mentors")
+@router.get("/mentors/dropdown")
+async def get_project_mentors(request: Request, db: DbSession):
+    """Dropdown list of all active mentors for project mentor assignment."""
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+    mentors = (
+        db.query(User)
+        .filter(User.role == UserRole.MENTOR, User.is_active == True, User.is_deleted == False)
+        .order_by(User.name.asc())
+        .all()
+    )
+    items = [
+        {
+            "id": m.id,
+            "name": m.name,
+            "email": m.email,
+            "role": m.role,
+            "department": m.department,
+            "job_title": m.job_title,
+        }
+        for m in mentors
+    ]
+    return {
+        "mentors": items,
+        "total": len(items),
+    }
+
+
 @router.post("")
 async def create_project(request: Request, db: DbSession, data: ProjectCreatePayload | None = Body(None)):
     user = get_optional_user(request, db)

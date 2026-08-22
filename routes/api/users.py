@@ -152,6 +152,9 @@ def _task_dict(t: Task, project_name: str | None = None) -> dict:
     }
 
 
+from models import Attendance, LeaveRequest, LeaveStatus, Project, ProjectAssignment, Task, User, UserRole
+
+
 def _att_dict(r: Attendance) -> dict:
     return {
         "date": r.date.isoformat(),
@@ -159,6 +162,109 @@ def _att_dict(r: Attendance) -> dict:
         "check_out": r.check_out.strftime("%H:%M") if r.check_out else None,
         "hours": r.duration_hours,
         "status": r.status,
+    }
+
+
+@router.get("/interns")
+@router.get("/dropdown")
+async def get_interns_dropdown(request: Request, db: DbSession):
+    """
+    Dropdown API for selecting interns or users across modals and forms.
+    Supports ?role=intern (default), ?role=mentor, ?search=, ?department=, ?is_active=, ?mentor_id=
+    """
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+    params = request.query_params
+    role = str(params.get("role", "intern")).strip().lower()
+    search = (params.get("search") or params.get("q") or "").strip()
+    dept = params.get("department", "").strip()
+    mentor_id_param = params.get("mentor_id")
+    is_active_raw = params.get("is_active", "true").strip().lower()
+
+    q = db.query(User).filter(User.is_deleted == False)
+
+    if role and role != "all":
+        q = q.filter(User.role == role)
+
+    if is_active_raw in ("true", "1"):
+        q = q.filter(User.is_active == True)
+    elif is_active_raw in ("false", "0"):
+        q = q.filter(User.is_active == False)
+
+    # Scoping: If mentor is requesting their own mentees explicitly
+    if mentor_id_param and str(mentor_id_param).isdigit():
+        q = q.filter(User.mentor_id == int(mentor_id_param))
+    elif user.is_mentor and not user.is_admin and params.get("scope") == "mine":
+        q = q.filter(User.mentor_id == user.id)
+
+    # Text search for autocomplete dropdowns
+    if search:
+        like = f"%{search}%"
+        q = q.filter((User.name.ilike(like)) | (User.email.ilike(like)) | (User.department.ilike(like)))
+
+    if dept:
+        q = q.filter(User.department.ilike(f"%{dept}%"))
+
+    users = q.order_by(User.name.asc()).all()
+
+    # Preload mentor names for interns
+    mentor_ids = {u.mentor_id for u in users if u.mentor_id}
+    mentor_map = {}
+    if mentor_ids:
+        mentors = db.query(User.id, User.name).filter(User.id.in_(mentor_ids)).all()
+        mentor_map = {m.id: m.name for m in mentors}
+
+    items = [
+        {
+            "id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "role": u.role,
+            "department": u.department,
+            "job_title": u.job_title,
+            "phone": u.phone,
+            "mentor_id": u.mentor_id,
+            "mentor_name": mentor_map.get(u.mentor_id) if u.mentor_id else None,
+            "is_active": u.is_active,
+            "joining_date": u.joining_date.isoformat() if u.joining_date else None,
+        }
+        for u in users
+    ]
+
+    return {
+        "interns": items if role == "intern" else [i for i in items if i["role"] == "intern"],
+        "users": items,
+        "total": len(items),
+    }
+
+
+@router.get("/mentors")
+async def get_mentors_dropdown(request: Request, db: DbSession):
+    """Dropdown API for selecting mentors."""
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+    mentors = (
+        db.query(User)
+        .filter(User.role == UserRole.MENTOR, User.is_active == True, User.is_deleted == False)
+        .order_by(User.name.asc())
+        .all()
+    )
+    items = [
+        {
+            "id": m.id,
+            "name": m.name,
+            "email": m.email,
+            "role": m.role,
+            "department": m.department,
+            "job_title": m.job_title,
+        }
+        for m in mentors
+    ]
+    return {
+        "mentors": items,
+        "total": len(items),
     }
 
 
