@@ -49,22 +49,45 @@ def _has_overlap(db, user_id: int, start: date, end: date, exclude_id: int | Non
 
 @router.get("/mine")
 async def my_requests(request: Request, db: DbSession):
+    """Retrieve logged-in user's leave requests with pending status breakdown and quota balance."""
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
     mine = (
         db.query(LeaveRequest)
         .options(joinedload(LeaveRequest.user), joinedload(LeaveRequest.reviewer))
-        .filter_by(user_id=user.id)
+        .filter(LeaveRequest.user_id == user.id, LeaveRequest.is_deleted == False)
         .order_by(LeaveRequest.created_at.desc())
         .all()
     )
+    request_dicts = [_leave_dict(lr) for lr in mine]
+    pending = [r for r in request_dicts if r["status"] == LeaveStatus.PENDING]
+    approved = [r for r in request_dicts if r["status"] == LeaveStatus.APPROVED]
+    rejected = [r for r in request_dicts if r["status"] == LeaveStatus.REJECTED]
     balance = get_leave_balance(db, user.id)
-    return {"requests": [_leave_dict(lr) for lr in mine], "balance": balance}
+
+    return {
+        "requests": request_dicts,
+        "pending_requests": pending,
+        "approved_requests": approved,
+        "rejected_requests": rejected,
+        "summary": {
+            "total": len(request_dicts),
+            "pending": len(pending),
+            "approved": len(approved),
+            "rejected": len(rejected),
+            "days_taken": sum(r["days"] for r in approved),
+            "days_pending": sum(r["days"] for r in pending),
+        },
+        "balance": balance,
+    }
 
 
 @router.post("")
 async def apply(request: Request, db: DbSession, data: LeaveApplyRequest | None = Body(None)):
+    """
+    Submit a leave request with strict date, overlap, notice, and balance validations.
+    """
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
@@ -72,49 +95,70 @@ async def apply(request: Request, db: DbSession, data: LeaveApplyRequest | None 
         raise HTTPException(status_code=403, detail="Only interns can request leave.")
 
     payload = await get_payload(request, data)
+    raw_start = str(payload.get("start_date") or payload.get("start") or "").strip()
+    raw_end = str(payload.get("end_date") or payload.get("end") or "").strip()
+    if not raw_start or not raw_end:
+        raise HTTPException(status_code=422, detail="Both start_date and end_date are required.")
+
     try:
-        start = date.fromisoformat(str(payload.get("start_date", "")).strip())
-        end = date.fromisoformat(str(payload.get("end_date", "")).strip())
+        start = date.fromisoformat(raw_start)
+        end = date.fromisoformat(raw_end)
     except (ValueError, TypeError):
         raise HTTPException(status_code=422, detail="Invalid date format. Use YYYY-MM-DD.")
 
     if start > end:
         raise HTTPException(status_code=422, detail="End date must be on or after start date.")
 
-    if start <= local_today():
+    today = local_today()
+    if start <= today:
         raise HTTPException(status_code=422, detail="Leave must be requested at least one day in advance.")
 
     reason = str(payload.get("reason", "")).strip()
-    if not reason:
-        raise HTTPException(status_code=422, detail="Please provide a reason.")
+    if not reason or len(reason) < 3:
+        raise HTTPException(status_code=422, detail="Please provide a valid reason (at least 3 characters).")
 
-    leave_type = str(payload.get("leave_type", LeaveType.CASUAL))
+    leave_type = str(payload.get("leave_type", LeaveType.CASUAL)).strip().lower()
     if leave_type not in LeaveType.ALL:
         leave_type = LeaveType.CASUAL
 
-    # Overlap check
+    days_requested = _business_days(start, end)
+    if days_requested <= 0:
+        raise HTTPException(status_code=422, detail="Requested leave period contains 0 working days.")
+
+    # Overlap check against existing pending or approved requests
     if _has_overlap(db, user.id, start, end):
-        raise HTTPException(status_code=409, detail="You already have a pending or approved leave overlapping these dates.")
+        raise HTTPException(
+            status_code=409,
+            detail="You already have a pending or approved leave overlapping these dates."
+        )
 
     balance = get_leave_balance(db, user.id)
-    days_requested = _business_days(start, end)
     if days_requested > balance["remaining"]:
         raise HTTPException(
             status_code=422,
-            detail=f"Insufficient leave balance. You have {balance['remaining']} day(s) remaining, but requested {days_requested}."
+            detail=f"Insufficient leave balance. You have {balance['remaining']} day(s) remaining, but requested {days_requested} working day(s)."
         )
 
-    lr = LeaveRequest(user_id=user.id, start_date=start, end_date=end, reason=reason, leave_type=leave_type, status=LeaveStatus.PENDING)
+    from routes.api.projects import _resolve_request_org_id
+    org_id = _resolve_request_org_id(request, user, db)
+
+    lr = LeaveRequest(
+        organization_id=org_id,
+        user_id=user.id,
+        start_date=start,
+        end_date=end,
+        reason=reason,
+        leave_type=leave_type,
+        status=LeaveStatus.PENDING,
+    )
     db.add(lr)
     record_audit(db, user, "leave.request", "requested leave", f"{start} → {end}")
 
-    # Notify whoever can actually review this — the intern's mentor and all admins —
-    # so a pending request is easy to trace instead of only showing up if someone
-    # happens to open the Leave management page.
+    # Notify intern's mentor and organization admins
     notify_ids: set[int] = set()
     if user.mentor_id:
         notify_ids.add(user.mentor_id)
-    for admin_user in db.query(User).filter_by(role="admin", is_active=True).all():
+    for admin_user in db.query(User).filter(User.role.in_(("admin", "superadmin", "org_admin")), User.is_active == True).all():
         notify_ids.add(admin_user.id)
     for uid in notify_ids:
         push_notification(

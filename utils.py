@@ -484,16 +484,25 @@ def get_leave_balance(db: "Session", user_id: int) -> dict:
     from models import LeaveRequest
     from config import Config
     year = local_today().year
-    approved = db.query(LeaveRequest).filter(
+    leaves = db.query(LeaveRequest).filter(
         LeaveRequest.user_id == user_id,
-        LeaveRequest.status == "approved",
         LeaveRequest.is_deleted == False,
         LeaveRequest.start_date >= date(year, 1, 1),
         LeaveRequest.start_date <= date(year, 12, 31),
     ).all()
+    approved = [lr for lr in leaves if lr.status == "approved"]
+    pending = [lr for lr in leaves if lr.status == "pending"]
     used = sum(_business_days(lr.start_date, lr.end_date) for lr in approved)
+    pending_days = sum(_business_days(lr.start_date, lr.end_date) for lr in pending)
     quota = Config.LEAVE_QUOTA_DAYS
-    return {"used": used, "quota": quota, "remaining": max(0, quota - used)}
+    remaining = max(0, quota - used)
+    return {
+        "used": used,
+        "pending": pending_days,
+        "quota": quota,
+        "remaining": remaining,
+        "available_after_pending": max(0, remaining - pending_days),
+    }
 
 
 # ---------------------------------------------------------------------------
