@@ -397,8 +397,8 @@ async def list_projects(request: Request, db: DbSession):
     params = request.query_params
     status = params.get("status")
     mentor_id = params.get("mentor_id")
-    from_date = params.get("from_date")
-    to_date = params.get("to_date")
+    from_date = params.get("from_date") or params.get("start_date") or params.get("from") or params.get("start")
+    to_date = params.get("to_date") or params.get("end_date") or params.get("to") or params.get("end")
     search = (params.get("search") or params.get("q") or "").strip()
     try:
         page = max(1, int(params.get("page", 1)))
@@ -426,13 +426,13 @@ async def list_projects(request: Request, db: DbSession):
         q = _filter_projects_by_mentor(q, db, int(mentor_id))
     if from_date:
         try:
-            from_dt = date.fromisoformat(from_date)
+            from_dt = date.fromisoformat(str(from_date).strip())
             q = q.filter(func.coalesce(Project.start_date, func.date(Project.created_at)) >= from_dt)
         except ValueError:
             pass
     if to_date:
         try:
-            to_dt = date.fromisoformat(to_date)
+            to_dt = date.fromisoformat(str(to_date).strip())
             q = q.filter(func.coalesce(Project.end_date, Project.start_date, func.date(Project.created_at)) <= to_dt)
         except ValueError:
             pass
@@ -462,19 +462,24 @@ async def list_projects(request: Request, db: DbSession):
             "search": search or None,
             "status": status or None,
             "mentor_id": int(mentor_id) if (mentor_id and mentor_id.isdigit()) else None,
+            "from_date": str(from_date).strip() if from_date else None,
+            "to_date": str(to_date).strip() if to_date else None,
         },
     }
 
 
 @router.get("/search")
 async def search_projects(request: Request, db: DbSession):
-    """Fast scoped project search and autocomplete."""
+    """Fast scoped project search and autocomplete with optional date and mentor filters."""
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
     params = request.query_params
     q_str = (params.get("q") or params.get("query") or params.get("search") or "").strip()
     status = params.get("status")
+    mentor_id = params.get("mentor_id")
+    from_date = params.get("from_date") or params.get("start_date") or params.get("from") or params.get("start")
+    to_date = params.get("to_date") or params.get("end_date") or params.get("to") or params.get("end")
     try:
         limit = min(50, max(1, int(params.get("limit", 20))))
     except ValueError:
@@ -493,6 +498,20 @@ async def search_projects(request: Request, db: DbSession):
         )
     if status:
         q = q.filter(Project.status == status)
+    if mentor_id and mentor_id.isdigit():
+        q = _filter_projects_by_mentor(q, db, int(mentor_id))
+    if from_date:
+        try:
+            from_dt = date.fromisoformat(str(from_date).strip())
+            q = q.filter(func.coalesce(Project.start_date, func.date(Project.created_at)) >= from_dt)
+        except ValueError:
+            pass
+    if to_date:
+        try:
+            to_dt = date.fromisoformat(str(to_date).strip())
+            q = q.filter(func.coalesce(Project.end_date, Project.start_date, func.date(Project.created_at)) <= to_dt)
+        except ValueError:
+            pass
 
     projects = q.options(
         joinedload(Project.mentor),
@@ -505,6 +524,13 @@ async def search_projects(request: Request, db: DbSession):
     return {
         "query": q_str,
         "total": len(projects),
+        "filters": {
+            "query": q_str or None,
+            "status": status or None,
+            "mentor_id": int(mentor_id) if (mentor_id and mentor_id.isdigit()) else None,
+            "from_date": str(from_date).strip() if from_date else None,
+            "to_date": str(to_date).strip() if to_date else None,
+        },
         "projects": [
             _project_dict(
                 p,
