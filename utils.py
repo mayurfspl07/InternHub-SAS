@@ -590,15 +590,14 @@ def scoped_audit_query(db: "Session", user, org_id: int | None = None):
             )
         )
 
-    # Intern: activity on projects they belong to.
-    if org_id is not None:
-        return q.filter(
-            or_(
-                AuditLog.project_id.in_(project_ids),
-                AuditLog.organization_id == org_id,
-            )
+    # Intern: ONLY activities performed by the intern, affecting the intern, or on their assigned projects.
+    return q.filter(
+        or_(
+            AuditLog.actor_id == user.id,
+            AuditLog.affected_user_id == user.id,
+            AuditLog.project_id.in_(project_ids),
         )
-    return q.filter(AuditLog.project_id.in_(project_ids))
+    )
 
 
 # ---------------------------------------------------------------------------
