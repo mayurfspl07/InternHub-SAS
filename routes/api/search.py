@@ -59,7 +59,7 @@ async def search(request: Request, db: DbSession):
 
         # Add organization filtering if org_id is available
         if org_id is not None:
-            proj_q = proj_q.filter(Project.organization_id == org_id)
+            proj_q = proj_q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
 
         results["projects"] = [
             {"id": p.id, "name": p.name, "status": p.status, "description": p.description}
@@ -75,7 +75,7 @@ async def search(request: Request, db: DbSession):
             task_q = task_q.filter(Project.id.in_(get_user_project_ids(db, user) or [-1]))
         # Add organization filtering for tasks if org_id is available
         if org_id is not None:
-            task_q = task_q.filter(Project.organization_id == org_id)
+            task_q = task_q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
 
         results["tasks"] = [
             {

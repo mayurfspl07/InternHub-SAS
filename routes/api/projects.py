@@ -617,10 +617,11 @@ async def get_project(project_id: int, request: Request, db: DbSession):
     if not project:
         raise HTTPException(status_code=404)
 
-    # Cross-tenant isolation: non-platform admins must match project's organization
-    if not (user.is_platform_admin or user.is_superadmin):
-        org_id = _resolve_request_org_id(request, user, db)
-        if org_id is not None and project.organization_id is not None and project.organization_id != org_id:
+    # Cross-tenant isolation: when explicit X-Organization-Id header is passed
+    header_org = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+    if header_org and str(header_org).isdigit():
+        req_org = int(header_org)
+        if project.organization_id is not None and project.organization_id != req_org:
             raise HTTPException(status_code=404, detail="Project not found.")
 
     if not _is_project_member(db, user, project):
