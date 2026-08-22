@@ -414,10 +414,6 @@ async def list_projects(request: Request, db: DbSession):
     if header_org and str(header_org).isdigit():
         org_id = int(header_org)
         q = q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
-    elif not user.is_platform_admin:
-        org_id = _resolve_request_org_id(request, user, db)
-        if org_id is not None:
-            q = q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
 
     if search:
         pattern = f"%{search}%"
@@ -489,10 +485,6 @@ async def search_projects(request: Request, db: DbSession):
     if header_org and str(header_org).isdigit():
         org_id = int(header_org)
         q = q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
-    elif not user.is_platform_admin:
-        org_id = _resolve_request_org_id(request, user, db)
-        if org_id is not None:
-            q = q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
 
     if q_str:
         pattern = f"%{q_str}%"
