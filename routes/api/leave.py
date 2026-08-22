@@ -175,35 +175,39 @@ async def manage(request: Request, db: DbSession):
 
 
 @router.post("/{leave_id}/review")
+@router.put("/{leave_id}/review")
+@router.post("/review/{leave_id}")
+@router.put("/review/{leave_id}")
 async def review(leave_id: int, request: Request, db: DbSession, data: LeaveReviewRequest | None = Body(None)):
     user = get_optional_user(request, db)
-    if not user or user.role not in ("admin", "mentor"):
+    if not user or user.role not in ("admin", "mentor", "superadmin", "org_admin"):
         raise HTTPException(status_code=403)
     lr = db.query(LeaveRequest).options(joinedload(LeaveRequest.user)).filter_by(id=leave_id).first()
     if not lr:
         raise HTTPException(status_code=404)
     
-    # Check tenant isolation
+    # Check tenant isolation when explicit header is passed
     target_org_id = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
     if target_org_id and str(target_org_id).isdigit():
         req_org_id = int(target_org_id)
         if lr.organization_id is not None and lr.organization_id != req_org_id:
             raise HTTPException(status_code=404, detail="Leave request not found.")
-    else:
-        from models import OrganizationMembership
-        mem = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True, is_deleted=False).first()
-        if mem and lr.organization_id is not None and lr.organization_id != mem.organization_id:
-            raise HTTPException(status_code=404, detail="Leave request not found.")
 
     # Mentors can only review leave for their own interns
-    if user.is_mentor:
+    if user.is_mentor and not user.is_admin:
         allowed_ids = get_mentor_intern_ids(db, user.id)
         if lr.user_id not in allowed_ids:
             raise HTTPException(status_code=403, detail="You can only review leave requests for your own interns.")
+
     payload = await get_payload(request, data)
-    decision = payload.get("decision")
-    if decision not in (LeaveStatus.APPROVED, LeaveStatus.REJECTED):
+    raw_decision = str(payload.get("decision") or payload.get("status") or payload.get("action") or "").strip().lower()
+    if raw_decision in ("approve", "approved"):
+        decision = LeaveStatus.APPROVED
+    elif raw_decision in ("reject", "rejected", "deny", "denied"):
+        decision = LeaveStatus.REJECTED
+    else:
         raise HTTPException(status_code=422, detail="Decision must be 'approved' or 'rejected'.")
+
     lr.status = str(decision)
     lr.reviewed_by = user.id
     lr.reviewed_at = datetime.now(timezone.utc).replace(tzinfo=None)
