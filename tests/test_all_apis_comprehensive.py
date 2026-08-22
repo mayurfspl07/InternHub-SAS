@@ -544,13 +544,15 @@ def test_attendance_apis(api_env):
     assert resp.status_code == 200
 
     # 2. Check-in (multipart form-data with selfie and GPS)
+    from unittest.mock import patch
     photo_file = ("selfie.jpg", b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"fake_jpeg_content", "image/jpeg")
-    resp = client.post(
-        "/api/attendance/check-in",
-        files={"photo": photo_file},
-        data={"lat": 19.076, "lng": 72.877},
-        headers=intern_headers,
-    )
+    with patch("routes.api.attendance.is_checkin_blocked", return_value=False):
+        resp = client.post(
+            "/api/attendance/check-in",
+            files={"photo": photo_file},
+            data={"lat": 19.076, "lng": 72.877},
+            headers=intern_headers,
+        )
     assert resp.status_code == 200
     record_id = resp.json()["id"]
 
