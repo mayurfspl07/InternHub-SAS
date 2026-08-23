@@ -10,6 +10,7 @@ from models import (
     Announcement,
     BinEntityType,
     BinItem,
+    BlogPost,
     Cohort,
     LeaveRequest,
     PerformanceReview,
@@ -30,6 +31,7 @@ ENTITY_MODELS: dict[str, type] = {
     BinEntityType.TASK_COMMENT: TaskComment,
     BinEntityType.USER: User,
     BinEntityType.ANNOUNCEMENT: Announcement,
+    BinEntityType.BLOG_POST: BlogPost,
     BinEntityType.COHORT: Cohort,
     BinEntityType.REVIEW: PerformanceReview,
     BinEntityType.STANDUP: StandupLog,
@@ -99,6 +101,8 @@ def _snapshot_entity(entity_type: str, entity: Any) -> dict[str, Any]:
         )
     elif isinstance(entity, Announcement):
         data.update({"title": entity.title, "project_id": entity.project_id})
+    elif isinstance(entity, BlogPost):
+        data.update({"title": entity.title, "slug": entity.slug, "status": entity.status})
     elif isinstance(entity, Cohort):
         data.update({"name": entity.name})
     elif isinstance(entity, PerformanceReview):

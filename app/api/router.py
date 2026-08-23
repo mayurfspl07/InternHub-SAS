@@ -7,6 +7,7 @@ from routes.api import (
     attendance,
     audit,
     auth,
+    blogs,
     cohorts,
     dashboard,
     leave,
@@ -35,6 +36,7 @@ api_router.include_router(projects.router)
 api_router.include_router(projects.task_router)
 api_router.include_router(audit.router)
 api_router.include_router(announcements.router)
+api_router.include_router(blogs.router)
 api_router.include_router(cohorts.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(dashboard.admin_dashboard_router)

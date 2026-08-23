@@ -34,7 +34,7 @@ from dependencies import (
 from log_files import setup_terminal_logging
 from routes.api import (
     admin, announcements, attendance, audit, auth,
-    cohorts, dashboard, leave, notifications, org, platform, profile,
+    blogs, cohorts, dashboard, leave, notifications, org, platform, profile,
     projects, reviews, search, standup, users,
 )
 from routes.api.openapi_docs import build_custom_openapi

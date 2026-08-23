@@ -247,6 +247,29 @@ class AnnouncementUpdatePayload(BaseModel):
 
 
 # ==============================================================================
+# Blog Schemas
+# ==============================================================================
+class BlogCreatePayload(BaseModel):
+    title: str = Field(..., min_length=1, description="Blog post title", json_schema_extra={"example": "How InternHub Simplifies Intern Management"})
+    content: str = Field(..., min_length=1, description="Blog post body (HTML or markdown)", json_schema_extra={"example": "<p>Managing interns has never been easier...</p>"})
+    excerpt: Optional[str] = Field(None, description="Short summary shown in blog listings", json_schema_extra={"example": "A deep dive into InternHub's intern management workflow."})
+    cover_image_url: Optional[str] = Field(None, description="Cover image URL", json_schema_extra={"example": "https://cdn.example.com/cover.png"})
+    tags: Optional[List[str]] = Field(None, description="Tag list; stored comma-separated", json_schema_extra={"example": ["product", "internship"]})
+    status: Optional[str] = Field("draft", description="Publication status: draft or published", json_schema_extra={"example": "draft"})
+    slug: Optional[str] = Field(None, description="Optional custom URL slug (auto-generated from title when omitted)", json_schema_extra={"example": "how-internhub-simplifies-intern-management"})
+
+
+class BlogUpdatePayload(BaseModel):
+    title: Optional[str] = Field(None, description="Blog post title", json_schema_extra={"example": "How InternHub Simplifies Intern Management (2026)"})
+    content: Optional[str] = Field(None, description="Blog post body (HTML or markdown)", json_schema_extra={"example": "<p>Updated content...</p>"})
+    excerpt: Optional[str] = Field(None, description="Short summary shown in blog listings", json_schema_extra={"example": "An updated look at InternHub's workflow."})
+    cover_image_url: Optional[str] = Field(None, description="Cover image URL", json_schema_extra={"example": "https://cdn.example.com/cover-v2.png"})
+    tags: Optional[List[str]] = Field(None, description="Tag list; stored comma-separated", json_schema_extra={"example": ["product"]})
+    status: Optional[str] = Field(None, description="Publication status: draft or published", json_schema_extra={"example": "published"})
+    slug: Optional[str] = Field(None, description="Custom URL slug", json_schema_extra={"example": "internhub-intern-management-2026"})
+
+
+# ==============================================================================
 # Profile & Standup & Reviews Schemas
 # ==============================================================================
 class ProfileUpdatePayload(BaseModel):

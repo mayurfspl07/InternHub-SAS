@@ -732,6 +732,7 @@ class BinEntityType:
     TASK_COMMENT = "task_comment"
     USER = "user"
     ANNOUNCEMENT = "announcement"
+    BLOG_POST = "blog_post"
     COHORT = "cohort"
     REVIEW = "review"
     STANDUP = "standup"
@@ -933,3 +934,32 @@ class ProjectLink(Base):
     project = relationship("Project", back_populates="links")
     user = relationship("User", foreign_keys=[user_id])
     deleted_by = relationship("User", foreign_keys=[deleted_by_id])
+
+
+class BlogPost(Base):
+    """Marketing blog post — publicly readable when published, admin-managed."""
+
+    __tablename__ = "blog_posts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True, default=1
+    )
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    slug: Mapped[str] = mapped_column(String(220), nullable=False, unique=True, index=True)
+    excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    cover_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    tags: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False, index=True)
+    author_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    organization = relationship("Organization", foreign_keys=[organization_id])
+    author = relationship("User", foreign_keys=[author_id])
