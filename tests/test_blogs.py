@@ -264,7 +264,7 @@ def test_sitemap_includes_published_posts_only(client):
     _create_post(db, "Hidden From Sitemap", status="draft")
     db.close()
 
-    base = (Config.PUBLIC_SITE_URL or "https://internhub-sas-production.up.railway.app").rstrip("/")
+    base = (Config.PUBLIC_SITE_URL or "https://nowinternhub.com").rstrip("/")
 
     res = tc.get("/sitemap.xml")
     assert res.status_code == 200

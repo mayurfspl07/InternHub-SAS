@@ -98,7 +98,7 @@ def _require_admin(request: Request, db: Session):
 @sitemap_router.get("/sitemap.xml", include_in_schema=False)
 async def blog_sitemap(db: DbSession):
     """Dynamic XML sitemap — static marketing routes plus every published blog post."""
-    base = (Config.PUBLIC_SITE_URL or "https://internhub-sas-production.up.railway.app").rstrip("/")
+    base = (Config.PUBLIC_SITE_URL or "https://nowinternhub.com").rstrip("/")
 
     entries = [
         f"<url><loc>{base}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>",
