@@ -116,6 +116,16 @@ def _run_auto_checkout() -> None:
         db.close()
 
 
+def _run_marketing_blog_seed() -> None:
+    """Idempotent seeding of SEO marketing blog posts (opt-in via SEED_BLOGS=true)."""
+    from seed_blogs import seed_blogs
+
+    try:
+        seed_blogs()
+    except Exception as exc:
+        print(f"[WARNING] Marketing blog seeding failed: {exc}")
+
+
 def _run_bin_purge() -> None:
     """Daily purge of expired recycle-bin entries."""
     from database import SessionLocal
@@ -216,6 +226,9 @@ async def lifespan(app: FastAPI):
         ) from exc
 
     await asyncio.to_thread(_ensure_bootstrap_admin)
+
+    if os.environ.get("SEED_BLOGS", "").strip().lower() in ("1", "true", "yes"):
+        await asyncio.to_thread(_run_marketing_blog_seed)
 
     db = SessionLocal()
     try:
