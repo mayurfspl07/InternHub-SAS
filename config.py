@@ -258,7 +258,9 @@ class Config:
         raw = os.environ.get(
             "CORS_ORIGINS",
             "http://localhost:5173,http://127.0.0.1:5173,"
-            "http://localhost:3001,http://127.0.0.1:3001",
+            "http://localhost:3001,http://127.0.0.1:3001,"
+            "https://nowinternhub.com,https://www.nowinternhub.com,"
+            "https://internhub-sas-production.up.railway.app",
         )
         origins = [origin.strip().rstrip("/") for origin in raw.split(",") if origin.strip()]
         if cls.PUBLIC_SITE_URL and cls.PUBLIC_SITE_URL not in origins:
