@@ -4,9 +4,11 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from fastapi.responses import Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from config import Config
 from database import get_db
 from dependencies import get_optional_user
 from models import BlogPost, BinEntityType
@@ -15,6 +17,8 @@ from routes.api.schemas import BlogCreatePayload, BlogUpdatePayload, get_payload
 from utils import record_audit, isoformat_utc
 
 router = APIRouter(prefix="/api/blogs", tags=["Blogs"])
+# Sitemap lives at site root (/sitemap.xml) where search engines expect it.
+sitemap_router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db)]
 
 VALID_STATUSES = ("draft", "published")
@@ -89,6 +93,44 @@ def _require_admin(request: Request, db: Session):
     if not user or not user.is_admin:
         raise HTTPException(status_code=403)
     return user
+
+
+@sitemap_router.get("/sitemap.xml", include_in_schema=False)
+async def blog_sitemap(db: DbSession):
+    """Dynamic XML sitemap — static marketing routes plus every published blog post."""
+    base = (Config.PUBLIC_SITE_URL or "https://internhub-sas-production.up.railway.app").rstrip("/")
+
+    entries = [
+        f"<url><loc>{base}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>",
+        f"<url><loc>{base}/blogs</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>",
+        f"<url><loc>{base}/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>",
+        f"<url><loc>{base}/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>",
+    ]
+    posts = (
+        db.query(BlogPost)
+        .filter(BlogPost.is_deleted == False, BlogPost.status == "published")  # noqa: E712
+        .order_by(BlogPost.published_at.desc())
+        .all()
+    )
+    for post in posts:
+        lastmod = isoformat_utc(post.updated_at)
+        entries.append(
+            f"<url><loc>{base}/blogs/{post.slug}</loc>"
+            + (f"<lastmod>{lastmod}</lastmod>" if lastmod else "")
+            + "<changefreq>monthly</changefreq><priority>0.7</priority></url>"
+        )
+
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        + "".join(entries)
+        + "</urlset>"
+    )
+    return Response(
+        content=xml,
+        media_type="application/xml",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @router.get("")

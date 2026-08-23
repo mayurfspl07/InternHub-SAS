@@ -10,6 +10,7 @@ from routes.api import (
     blogs,
     cohorts,
     dashboard,
+    leads,
     leave,
     notifications,
     org,
@@ -37,6 +38,9 @@ api_router.include_router(projects.task_router)
 api_router.include_router(audit.router)
 api_router.include_router(announcements.router)
 api_router.include_router(blogs.router)
+api_router.include_router(blogs.sitemap_router)
+api_router.include_router(leads.router)
+api_router.include_router(leads.platform_router)
 api_router.include_router(cohorts.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(dashboard.admin_dashboard_router)

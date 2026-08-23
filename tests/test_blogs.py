@@ -253,3 +253,49 @@ def test_draft_detail_visible_to_admin_preview(client):
     res = tc.get("/api/blogs/preview-only", headers=_auth(tokens["admin"]))
     assert res.status_code == 200
     assert res.json()["status"] == "draft"
+
+
+def test_sitemap_includes_published_posts_only(client):
+    from config import Config
+
+    tc, SessionLocal, tokens = client
+    db = SessionLocal()
+    _create_post(db, "Sitemap Live Post", slug="sitemap-live-post")
+    _create_post(db, "Hidden From Sitemap", status="draft")
+    db.close()
+
+    base = (Config.PUBLIC_SITE_URL or "https://internhub-sas-production.up.railway.app").rstrip("/")
+
+    res = tc.get("/sitemap.xml")
+    assert res.status_code == 200
+    assert "xml" in res.headers["content-type"]
+
+    body = res.text
+    assert f"<loc>{base}/</loc>" in body
+    assert f"<loc>{base}/blogs</loc>" in body
+    assert f"<loc>{base}/blogs/sitemap-live-post</loc>" in body
+    assert "<lastmod>" in body
+
+    # Drafts and deleted posts must never appear.
+    assert "hidden-from-sitemap" not in body
+    db = SessionLocal()
+    draft = (
+        db.query(BlogPost)
+        .filter(BlogPost.slug == "hidden-from-sitemap")
+        .first()
+    )
+    draft_id = draft.id if draft else None
+    live = db.query(BlogPost).filter(BlogPost.slug == "sitemap-live-post").first()
+    if live and draft_id:
+        from models import BinEntityType
+        from recycle_bin import move_to_bin
+        admin = db.query(User).filter_by(email="admin@test.local").first()
+        move_to_bin(db, admin, BinEntityType.BLOG_POST, live)
+        db.commit()
+    db.close()
+
+    body_after = tc.get("/sitemap.xml").text
+    assert "sitemap-live-post" not in body_after
+
+    # The {slug} route must still resolve — sitemap path must not shadow it.
+    assert tc.get("/api/blogs/sitemap-live-post").status_code == 404  # soft-deleted above

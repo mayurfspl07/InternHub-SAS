@@ -42,10 +42,12 @@ class _InMemoryStore:
         return True
 
     def delete(self, key: str) -> bool:
-        if key in self._store:
-            del self._store[key]
-            return True
-        return False
+        # Rate-limit windows live in their own map; deleting a rate-limit key must
+        # clear that window too (mirrors Redis ZSET deletion semantics).
+        existed = self._store.pop(key, None) is not None
+        if self._rate_limits.pop(key, None) is not None:
+            existed = True
+        return existed
 
     def is_rate_limited(self, key: str, limit: int, window_seconds: int) -> bool:
         now = time.time()

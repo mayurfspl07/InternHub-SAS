@@ -963,3 +963,30 @@ class BlogPost(Base):
 
     organization = relationship("Organization", foreign_keys=[organization_id])
     author = relationship("User", foreign_keys=[author_id])
+
+
+class LeadStatus:
+    NEW = "new"
+    CONTACTED = "contacted"
+    CONVERTED = "converted"
+    CLOSED = "closed"
+    ALL = (NEW, CONTACTED, CONVERTED, CLOSED)
+
+
+class Lead(Base):
+    """Marketing-site lead captured from public forms (demo requests, contact)."""
+
+    __tablename__ = "leads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    email: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    company: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    role: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    cohort_size: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(String(50), default="marketing_site", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default=LeadStatus.NEW, nullable=False, index=True)
+    ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False, index=True)

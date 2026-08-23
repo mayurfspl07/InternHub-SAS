@@ -630,7 +630,12 @@ def test_leave_apis(api_env):
 
     # 2. Apply for leave
     leave_start = date.today() + timedelta(days=5)
-    leave_end = date.today() + timedelta(days=6)
+    # Skip past weekends so the window always contains at least one working day.
+    while leave_start.weekday() >= 5:
+        leave_start += timedelta(days=1)
+    leave_end = leave_start + timedelta(days=1)
+    while leave_end.weekday() >= 5:
+        leave_end += timedelta(days=1)
     resp = client.post(
         "/api/leave",
         json={

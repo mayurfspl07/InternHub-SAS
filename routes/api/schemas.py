@@ -270,6 +270,21 @@ class BlogUpdatePayload(BaseModel):
 
 
 # ==============================================================================
+# Lead Schemas
+# ==============================================================================
+class LeadCreatePayload(BaseModel):
+    name: str = Field(..., min_length=1, description="Full name of the prospective customer", json_schema_extra={"example": "Alex Morgan"})
+    email: str = Field(..., min_length=1, description="Work email address", json_schema_extra={"example": "alex@acmecorp.com"})
+    phone: Optional[str] = Field(None, description="Contact phone number", json_schema_extra={"example": "+91 9876543210"})
+    company: Optional[str] = Field(None, description="Company / organization name", json_schema_extra={"example": "Acme Corp"})
+    role: Optional[str] = Field(None, description="Job title of the contact", json_schema_extra={"example": "Engineering Lead"})
+    cohort_size: Optional[str] = Field(None, description="Intern cohort size band", json_schema_extra={"example": "16-50 interns"})
+    message: Optional[str] = Field(None, description="Free-text message from the contact", json_schema_extra={"example": "We would like a demo for our summer cohort."})
+    source: Optional[str] = Field("marketing_site", description="Where the lead came from (e.g. marketing_site)", json_schema_extra={"example": "marketing_site"})
+    website: Optional[str] = Field(None, description="Honeypot anti-spam field — must remain empty", json_schema_extra={"example": None})
+
+
+# ==============================================================================
 # Profile & Standup & Reviews Schemas
 # ==============================================================================
 class ProfileUpdatePayload(BaseModel):
