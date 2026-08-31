@@ -14,15 +14,15 @@ from dependencies import (
     verify_token,
 )
 from models import User
-from utils import record_audit, isoformat_utc
+from utils import record_audit, isoformat_utc, get_internship_summary
 from routes.api.schemas import ProfileUpdatePayload, ChangePasswordPayload, get_payload
 
 router = APIRouter(prefix="/api/profile", tags=["Profile"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
-def _user_dict(u: User) -> dict:
-    return {
+def _user_dict(u: User, db: Session | None = None) -> dict:
+    data = {
         "id": u.id,
         "name": u.name,
         "email": u.email,
@@ -34,8 +34,13 @@ def _user_dict(u: User) -> dict:
         "phone": u.phone,
         "job_title": u.job_title,
         "joining_date": u.joining_date.isoformat() if u.joining_date else None,
+        "internship_end_date": u.internship_end_date.isoformat() if u.internship_end_date else None,
+        "internship_duration_months": u.internship_duration_months,
         "created_at": isoformat_utc(u.created_at),
     }
+    if db is not None:
+        data["internship_summary"] = get_internship_summary(db, u)
+    return data
 
 
 @router.get("")
@@ -43,7 +48,7 @@ async def get_profile(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
-    return _user_dict(user)
+    return _user_dict(user, db=db)
 
 
 @router.put("")

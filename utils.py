@@ -21,6 +21,41 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 APP_TZ = ZoneInfo(Config.TIMEZONE)
+IST_TZ = ZoneInfo("Asia/Kolkata")
+
+
+def to_ist(dt: datetime | None) -> datetime | None:
+    """Convert a naive local or timezone-aware datetime into IST (Asia/Kolkata)."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=IST_TZ)
+    return dt.astimezone(IST_TZ)
+
+
+def isoformat_ist(
+    dt: datetime | None,
+    *,
+    timespec: str = "seconds",
+) -> str | None:
+    """Serialize datetime as IST ISO 8601 string (+05:30)."""
+    ist = to_ist(dt)
+    if ist is None:
+        return None
+    return ist.isoformat(timespec=timespec)
+
+
+def fmt_time_ist(dt: datetime | None, use_12h: bool = True) -> str:
+    """Format datetime into IST time string, e.g. '10:30 AM' or '10:30'."""
+    ist = to_ist(dt)
+    if ist is None:
+        return ""
+    if use_12h:
+        res = ist.strftime("%I:%M %p")
+        if res.startswith("0"):
+            res = res[1:]
+        return res
+    return ist.strftime("%H:%M")
 
 
 def local_now() -> datetime:
@@ -762,3 +797,256 @@ def clear_all_database_data(db: "Session", *, preserve_admin_users: bool = True)
 
     db.commit()
     return counts
+
+
+def slugify_status_name(name: str) -> str:
+    """Convert a human status name into a clean, URL-safe slug."""
+    import re
+    s = str(name).strip().lower()
+    s = re.sub(r"[^\w\s-]", "", s)
+    s = re.sub(r"[\s-]+", "_", s)
+    return s.strip("_") or "status"
+
+
+def get_or_seed_org_task_statuses(db: "Session", org_id: int):
+    """Retrieve all TaskStatusBucket entries for an organization, auto-seeding defaults if none exist."""
+    from models import TaskStatusBucket, TaskStatusCategory
+
+    statuses = (
+        db.query(TaskStatusBucket)
+        .filter_by(organization_id=org_id)
+        .order_by(TaskStatusBucket.order_index.asc(), TaskStatusBucket.id.asc())
+        .all()
+    )
+    if statuses:
+        return statuses
+
+    defaults = [
+        TaskStatusBucket(
+            organization_id=org_id,
+            name="To Do",
+            slug="todo",
+            color="#94A3B8",
+            order_index=0,
+            status_category=TaskStatusCategory.TODO,
+            is_default=True,
+            is_system=True,
+        ),
+        TaskStatusBucket(
+            organization_id=org_id,
+            name="In Progress",
+            slug="in_progress",
+            color="#3B82F6",
+            order_index=1,
+            status_category=TaskStatusCategory.IN_PROGRESS,
+            is_default=False,
+            is_system=True,
+        ),
+        TaskStatusBucket(
+            organization_id=org_id,
+            name="Review",
+            slug="review",
+            color="#F59E0B",
+            order_index=2,
+            status_category=TaskStatusCategory.IN_PROGRESS,
+            is_default=False,
+            is_system=False,
+        ),
+        TaskStatusBucket(
+            organization_id=org_id,
+            name="Completed",
+            slug="done",
+            color="#10B981",
+            order_index=3,
+            status_category=TaskStatusCategory.DONE,
+            is_default=False,
+            is_system=True,
+        ),
+    ]
+    db.add_all(defaults)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        return (
+            db.query(TaskStatusBucket)
+            .filter_by(organization_id=org_id)
+            .order_by(TaskStatusBucket.order_index.asc(), TaskStatusBucket.id.asc())
+            .all()
+        )
+    for d in defaults:
+        db.refresh(d)
+    return defaults
+
+
+def get_org_done_statuses(db: "Session", org_id: int | None) -> set[str]:
+    """Return the set of status slugs that represent completion for the given organization."""
+    from models import TaskStatusBucket, TaskStatusCategory
+
+    base_done = {"done", "completed"}
+    if org_id is None:
+        return base_done
+
+    done_rows = (
+        db.query(TaskStatusBucket.slug)
+        .filter_by(organization_id=org_id, status_category=TaskStatusCategory.DONE)
+        .all()
+    )
+    if not done_rows:
+        count = db.query(TaskStatusBucket).filter_by(organization_id=org_id).count()
+        if count == 0:
+            get_or_seed_org_task_statuses(db, org_id)
+            done_rows = (
+                db.query(TaskStatusBucket.slug)
+                .filter_by(organization_id=org_id, status_category=TaskStatusCategory.DONE)
+                .all()
+            )
+
+    return base_done.union({r[0] for r in done_rows})
+
+
+# ---------------------------------------------------------------------------
+# Internship Summary & Attachments
+# ---------------------------------------------------------------------------
+
+def get_internship_summary(db: "Session", user: "User", org_id: int | None = None) -> dict:
+    """Compute and format complete internship period, duration, and leave stats for an intern."""
+    import calendar
+    from models import LeaveRequest, LeaveStatus
+
+    start_date = user.joining_date
+    end_date = user.internship_end_date
+    duration_months = user.internship_duration_months or 3
+
+    if start_date and not end_date:
+        new_year = start_date.year + (start_date.month + duration_months - 1) // 12
+        new_month = (start_date.month + duration_months - 1) % 12 + 1
+        max_day = calendar.monthrange(new_year, new_month)[1]
+        new_day = min(start_date.day, max_day)
+        end_date = date(new_year, new_month, new_day)
+
+    leaves = (
+        db.query(LeaveRequest)
+        .filter(
+            LeaveRequest.user_id == user.id,
+            LeaveRequest.is_deleted == False,
+        )
+        .all()
+    )
+    approved_leaves = sum(lr.days for lr in leaves if lr.status == LeaveStatus.APPROVED)
+    pending_leaves = sum(lr.days for lr in leaves if lr.status == LeaveStatus.PENDING)
+    total_quota = Config.LEAVE_QUOTA_DAYS
+    balance_info = get_leave_balance(db, user.id)
+    remaining_balance = balance_info.get("remaining", 0)
+
+    today = local_today()
+    days_remaining = None
+    if end_date:
+        days_remaining = max(0, (end_date - today).days)
+
+    return {
+        "start_date": start_date.isoformat() if start_date else None,
+        "end_date": end_date.isoformat() if end_date else None,
+        "duration_months": duration_months,
+        "duration_label": f"{duration_months} Months" if duration_months else None,
+        "approved_leaves": approved_leaves,
+        "leaves_used": approved_leaves,
+        "pending_leaves": pending_leaves,
+        "remaining_leave_balance": remaining_balance,
+        "leave_balance": balance_info,
+        "total_leave_quota": total_quota,
+        "days_remaining": days_remaining,
+        "summary_text": f"Internship Period – {duration_months} Months | Approved Leaves – {approved_leaves} Days" if duration_months else None,
+    }
+
+
+def _slugify_filename(name: str) -> str:
+    import os
+    import re
+    stem, ext = os.path.splitext(name)
+    clean_stem = re.sub(r"[^\w\s-]", "", stem).strip().lower()
+    clean_stem = re.sub(r"[-\s]+", "_", clean_stem) or "file"
+    clean_ext = re.sub(r"[^\w.]", "", ext).lower()
+    return f"{clean_stem}{clean_ext}"
+
+
+def save_task_attachment(
+    task_id: int,
+    user_id: int | None,
+    file_name: str,
+    content: bytes,
+) -> tuple[str, str, int]:
+    """Persist task attachment file safely on disk.
+
+    Returns: (rel_path, safe_file_name, file_size)
+    """
+    import os
+    if not content:
+        raise ValueError("Attachment content cannot be empty.")
+    if len(content) > 20 * 1024 * 1024:
+        raise ValueError("File size exceeds 20 MB limit.")
+
+    safe_name = _slugify_filename(file_name)
+    timestamp_prefix = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stored_name = f"{timestamp_prefix}_{safe_name}"
+
+    rel_path = os.path.join("tasks", str(task_id), stored_name)
+    base_dir = os.path.abspath(Config.UPLOADS_DIR)
+    abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
+
+    if not abs_path.startswith(base_dir):
+        raise ValueError("Invalid target path.")
+
+    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+    with open(abs_path, "wb") as f:
+        f.write(content)
+
+    return rel_path.replace("\\", "/"), file_name, len(content)
+
+
+def save_leave_attachment(
+    leave_id: int,
+    user_id: int,
+    file_name: str,
+    content: bytes,
+) -> tuple[str, str, int]:
+    """Persist leave supporting document safely on disk.
+
+    Returns: (rel_path, safe_file_name, file_size)
+    """
+    import os
+    if not content:
+        raise ValueError("Attachment content cannot be empty.")
+    if len(content) > 20 * 1024 * 1024:
+        raise ValueError("File size exceeds 20 MB limit.")
+
+    safe_name = _slugify_filename(file_name)
+    timestamp_prefix = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stored_name = f"{timestamp_prefix}_{safe_name}"
+
+    rel_path = os.path.join("leave", str(leave_id), stored_name)
+    base_dir = os.path.abspath(Config.UPLOADS_DIR)
+    abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
+
+    if not abs_path.startswith(base_dir):
+        raise ValueError("Invalid target path.")
+
+    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+    with open(abs_path, "wb") as f:
+        f.write(content)
+
+    return rel_path.replace("\\", "/"), file_name, len(content)
+
+
+def attachment_abs_path(rel_path: str) -> str | None:
+    """Safely resolve an attachment relative path to an absolute path on disk."""
+    import os
+    if not rel_path:
+        return None
+    base_dir = os.path.abspath(Config.UPLOADS_DIR)
+    abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
+    if not abs_path.startswith(base_dir):
+        return None
+    if os.path.isfile(abs_path):
+        return abs_path
+    return None

@@ -24,11 +24,15 @@ from models import (
 )
 from utils import (
     compute_streak,
+    fmt_time_ist,
+    get_internship_summary,
     get_mentor_intern_ids,
+    get_org_done_statuses,
     get_user_project_ids,
     isoformat_utc,
     local_today,
     scoped_audit_query,
+    to_ist,
 )
 
 # Domain routers
@@ -178,7 +182,7 @@ def _build_admin_dashboard(request: Request, user: User, db: Session) -> dict:
 
     task_rows = task_q.with_entities(Task.status, func.count(Task.id)).group_by(Task.status).all()
     task_status = {s: c for s, c in task_rows}
-    done_statuses = ("done", "completed")
+    done_statuses = get_org_done_statuses(db, org_id)
     open_tasks_count = sum(c for s, c in task_status.items() if s not in done_statuses)
 
     open_tasks_db = (
@@ -383,8 +387,8 @@ def _build_mentor_dashboard(request: Request, user: User, db: Session) -> dict:
             "email": u.email,
             "department": u.department,
             "today_status": today_att_map[u.id].status if u.id in today_att_map else "absent",
-            "check_in": today_att_map[u.id].check_in.strftime("%H:%M") if (u.id in today_att_map and today_att_map[u.id].check_in) else None,
-            "check_out": today_att_map[u.id].check_out.strftime("%H:%M") if (u.id in today_att_map and today_att_map[u.id].check_out) else None,
+            "check_in": fmt_time_ist(today_att_map[u.id].check_in, use_12h=False) if (u.id in today_att_map and today_att_map[u.id].check_in) else None,
+            "check_out": fmt_time_ist(today_att_map[u.id].check_out, use_12h=False) if (u.id in today_att_map and today_att_map[u.id].check_out) else None,
             "hours_worked": today_att_map[u.id].duration_hours if u.id in today_att_map else 0.0,
             "check_in_photo_url": (
                 today_att_map[u.id].check_in_photo
@@ -585,8 +589,8 @@ def _build_intern_dashboard(request: Request, user: User, db: Session) -> dict:
         "has_checked_in": bool(today_att and today_att.check_in),
         "has_checked_out": bool(today_att and today_att.check_out),
         "status": today_att.status if today_att else None,
-        "check_in": today_att.check_in.strftime("%H:%M") if (today_att and today_att.check_in) else None,
-        "check_out": today_att.check_out.strftime("%H:%M") if (today_att and today_att.check_out) else None,
+        "check_in": fmt_time_ist(today_att.check_in, use_12h=False) if (today_att and today_att.check_in) else None,
+        "check_out": fmt_time_ist(today_att.check_out, use_12h=False) if (today_att and today_att.check_out) else None,
         "hours_worked": today_att.duration_hours if today_att else 0.0,
         "check_in_photo_url": (
             today_att.check_in_photo
@@ -767,6 +771,7 @@ def _build_intern_dashboard(request: Request, user: User, db: Session) -> dict:
         "project_status": project_status,
         "task_status": task_status,
         "recent_leave_requests": recent_leave_requests,
+        "internship_summary": get_internship_summary(db, user, org_id),
         "announcements": announcements,
         "recent_activity": recent_activity,
     }

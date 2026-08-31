@@ -2,7 +2,8 @@
 from datetime import date, datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import case, func, select
 
@@ -16,15 +17,26 @@ from models import (
     ProjectMentorAssignment,
     ProjectStatus,
     Task,
+    TaskAttachment,
     TaskComment,
     TaskPriority,
     TaskStatus,
+    TaskStatusBucket,
+    TaskStatusCategory,
     User,
     UserRole,
     BinEntityType,
 )
 from recycle_bin import move_to_bin
-from utils import push_notification, record_audit, isoformat_utc
+from utils import (
+    push_notification,
+    record_audit,
+    isoformat_utc,
+    get_or_seed_org_task_statuses,
+    get_org_done_statuses,
+    save_task_attachment,
+    attachment_abs_path,
+)
 from routes.api.schemas import (
     ProjectCreatePayload,
     ProjectUpdatePayload,
@@ -46,13 +58,55 @@ PAGE_SIZE = 12
 _STATUS_LABELS = {
     "todo": "to do",
     "in_progress": "in progress",
+    "review": "review",
     "done": "done",
+    "completed": "completed",
 }
 
 
 def _status_label(status: str) -> str:
     return _STATUS_LABELS.get(status, status.replace("_", " "))
 
+
+def _validate_org_task_status(db: Session, org_id: int | None, status: str) -> str:
+    """Validate status against organization buckets, with fallback to TaskStatus.ALL."""
+    norm_status = str(status).strip()
+    if norm_status == "completed":
+        norm_status = "done"
+
+    if org_id is not None:
+        buckets = get_or_seed_org_task_statuses(db, org_id)
+        valid_slugs = {b.slug for b in buckets}.union({"todo", "in_progress", "done"})
+        if norm_status in valid_slugs:
+            return norm_status
+        raise HTTPException(status_code=422, detail="Invalid status.")
+
+    if norm_status in TaskStatus.ALL:
+        return norm_status
+    raise HTTPException(status_code=422, detail="Invalid status.")
+
+
+@router.get("/task-statuses")
+@router.get("/{project_id}/task-statuses")
+async def get_project_task_statuses(
+    request: Request,
+    db: DbSession,
+    project_id: int | None = None,
+):
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+
+    org_id = None
+    if project_id:
+        project = db.query(Project).filter_by(id=project_id, is_deleted=False).first()
+        if project:
+            org_id = project.organization_id
+    if org_id is None:
+        org_id = _resolve_request_org_id(request, user, db) or 1
+
+    buckets = get_or_seed_org_task_statuses(db, org_id)
+    return {"statuses": [b.to_dict() for b in buckets]}
 
 
 def _mentor_user_dict(user: User) -> dict:
@@ -158,12 +212,14 @@ def _task_stats_for_projects(db: Session, project_ids: list[int]) -> dict[int, t
     """Return {project_id: (done_count, total_count)} without loading full task rows."""
     if not project_ids:
         return {}
-    done_statuses = (TaskStatus.DONE,)
+    done_bucket_slugs = {
+        r[0] for r in db.query(TaskStatusBucket.slug).filter_by(status_category=TaskStatusCategory.DONE).all()
+    }.union({TaskStatus.DONE, "done", "completed"})
     rows = (
         db.query(
             Task.project_id,
             func.count(Task.id),
-            func.sum(case((Task.status.in_(done_statuses), 1), else_=0)),
+            func.sum(case((Task.status.in_(done_bucket_slugs), 1), else_=0)),
         )
         .filter(Task.project_id.in_(project_ids), Task.is_deleted == False)
         .group_by(Task.project_id)
@@ -276,6 +332,7 @@ def _sync_project_mentors(db: Session, project: Project, mentor_ids: list[int]) 
 
 def _task_dict(t: Task, *, user: User, db: Session, project: Project) -> dict:
     due = t.deadline.isoformat() if t.deadline else None
+    attachments_list = [a.to_dict() for a in t.attachments] if hasattr(t, "attachments") and t.attachments else []
     return {
         "id": t.id,
         "project_id": t.project_id,
@@ -292,13 +349,15 @@ def _task_dict(t: Task, *, user: User, db: Session, project: Project) -> dict:
         "is_overdue": t.is_overdue,
         "can_delete": _can_delete_task(db, user, project, t),
         "created_at": isoformat_utc(t.created_at),
-        "comment_count": len([c for c in t.comments if not c.is_deleted]),
+        "comment_count": len([c for c in t.comments if not c.is_deleted]) if hasattr(t, "comments") and t.comments else 0,
+        "attachment_count": len(attachments_list),
+        "attachments": attachments_list,
     }
 
 
-def _comment_dict(c: TaskComment) -> dict:
+def _comment_dict(c: TaskComment, attachment_dict: dict | None = None) -> dict:
     author = c.author.name if c.author else None
-    return {
+    data = {
         "id": c.id,
         "task_id": c.task_id,
         "user_id": c.user_id,
@@ -313,6 +372,9 @@ def _comment_dict(c: TaskComment) -> dict:
         "deleted_at": isoformat_utc(c.deleted_at) if c.deleted_at else None,
         "deleted_by_name": c.deleted_by.name if c.deleted_by else None,
     }
+    if attachment_dict is not None:
+        data["attachment"] = attachment_dict
+    return data
 
 
 def _visible_projects_query(db, user):
@@ -689,8 +751,9 @@ async def get_project(project_id: int, request: Request, db: DbSession):
     if not _is_project_member(db, user, project):
         raise HTTPException(status_code=403)
     active_tasks = [t for t in project.tasks if not t.is_deleted]
+    done_statuses = get_org_done_statuses(db, project.organization_id)
     done_count = sum(
-        1 for t in active_tasks if t.status in (TaskStatus.DONE,)
+        1 for t in active_tasks if t.status in done_statuses
     )
     return {
         **_project_dict(project, task_done=done_count, task_total=len(active_tasks)),
@@ -958,14 +1021,24 @@ async def create_task(project_id: int, request: Request, db: DbSession, data: Ta
     priority = str(payload.get("priority", TaskPriority.MEDIUM))
     if priority not in (TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH):
         priority = TaskPriority.MEDIUM
+    org_id = project.organization_id or _resolve_request_org_id(request, user, db) or 1
+    raw_status = payload.get("status")
+    if raw_status:
+        task_status = _validate_org_task_status(db, org_id, raw_status)
+    else:
+        buckets = get_or_seed_org_task_statuses(db, org_id)
+        default_bucket = next((b for b in buckets if b.is_default), None)
+        task_status = default_bucket.slug if default_bucket else TaskStatus.TODO
+
     task = Task(
         project_id=project.id,
+        organization_id=org_id,
         created_by_id=user.id,
         title=title,
         description=str(payload.get("description", "")).strip(),
         assigned_to=assigned_to,
         deadline=deadline,
-        status=str(payload.get("status", TaskStatus.TODO)),
+        status=task_status,
         priority=priority,
     )
     db.add(task)
@@ -1022,11 +1095,11 @@ async def update_task(task_id: int, request: Request, db: DbSession, data: TaskU
         # Key present but value is None or empty string → clear the deadline
         deadline = None
     old_status = task.status
-    new_status = str(payload_dict.get("status", task.status) if payload_dict.get("status") is not None else task.status)
-    if new_status == "completed":
-        new_status = "done"
-    if new_status not in TaskStatus.ALL:
-        raise HTTPException(status_code=422, detail="Invalid status.")
+    if "status" in payload_dict and payload_dict["status"] is not None:
+        org_id = project.organization_id or task.organization_id or _resolve_request_org_id(request, user, db) or 1
+        new_status = _validate_org_task_status(db, org_id, payload_dict["status"])
+    else:
+        new_status = task.status
     task.title = title
     if "description" in payload_dict and payload_dict["description"] is not None:
         task.description = str(payload_dict["description"]).strip()
@@ -1065,12 +1138,11 @@ async def update_task_status(task_id: int, request: Request, db: DbSession, data
     if not _can_move_task(user, project, task, db):
         raise HTTPException(status_code=403)
     payload = await get_payload(request, data)
-    new_status = payload.get("status")
-    # Accept "completed" as alias for "done"
-    if new_status == "completed":
-        new_status = "done"
-    if new_status not in TaskStatus.ALL:
-        raise HTTPException(status_code=422, detail="Invalid status.")
+    new_status_raw = payload.get("status")
+    if not new_status_raw:
+        raise HTTPException(status_code=422, detail="Status is required.")
+    org_id = project.organization_id or task.organization_id or _resolve_request_org_id(request, user, db) or 1
+    new_status = _validate_org_task_status(db, org_id, new_status_raw)
     old_status = task.status
     task.status = str(new_status)
     record_audit(
@@ -1127,8 +1199,14 @@ async def get_comments(task_id: int, request: Request, db: DbSession):
     return [_comment_dict(c) for c in comments]
 
 
-@router.post("/tasks/{task_id}/comments")
-async def add_comment(task_id: int, request: Request, db: DbSession, data: TaskCommentPayload | None = Body(None)):
+@router.post("/tasks/{task_id}/attachments")
+async def upload_task_attachment(
+    task_id: int,
+    request: Request,
+    db: DbSession,
+    file: UploadFile = File(...),
+    description: str | None = Form(None),
+):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
@@ -1137,14 +1215,185 @@ async def add_comment(task_id: int, request: Request, db: DbSession, data: TaskC
         raise HTTPException(status_code=404)
     if not _is_project_member(db, user, task.project):
         raise HTTPException(status_code=403)
-    payload = await get_payload(request, data)
-    body = str(payload.get("body", "")).strip()
-    if not body:
-        raise HTTPException(status_code=422, detail="Comment body is required.")
-    if len(body) > 100:
-        raise HTTPException(status_code=422, detail="Comment cannot exceed 100 characters.")
-    comment = TaskComment(task_id=task_id, user_id=user.id, body=body)
+
+    if not file or not file.filename:
+        raise HTTPException(status_code=422, detail="No file uploaded.")
+
+    content = await file.read()
+    try:
+        rel_path, safe_name, file_size = save_task_attachment(
+            task.id, user.id, file.filename, content
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    mime = file.content_type or "application/octet-stream"
+    attachment = TaskAttachment(
+        task_id=task.id,
+        user_id=user.id,
+        file_name=safe_name,
+        file_path=rel_path,
+        file_size=file_size,
+        file_type=mime,
+        description=str(description).strip() if description else None,
+    )
+    db.add(attachment)
+    record_audit(
+        db,
+        user,
+        "task.attachment_uploaded",
+        "uploaded attachment to task",
+        f"{task.title}: {safe_name}",
+        project_id=task.project_id,
+    )
+    db.commit()
+    db.refresh(attachment)
+    return attachment.to_dict()
+
+
+@router.get("/tasks/{task_id}/attachments")
+async def list_task_attachments(task_id: int, request: Request, db: DbSession):
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+    task = db.query(Task).options(joinedload(Task.project)).filter_by(id=task_id, is_deleted=False).first()
+    if not task:
+        raise HTTPException(status_code=404)
+    if not _is_project_member(db, user, task.project):
+        raise HTTPException(status_code=403)
+
+    attachments = (
+        db.query(TaskAttachment)
+        .options(joinedload(TaskAttachment.user))
+        .filter_by(task_id=task_id)
+        .order_by(TaskAttachment.created_at.desc())
+        .all()
+    )
+    return {
+        "task_id": task.id,
+        "attachments": [a.to_dict() for a in attachments],
+        "total": len(attachments),
+    }
+
+
+@router.get("/tasks/attachments/{attachment_id}/download")
+async def download_task_attachment(attachment_id: int, request: Request, db: DbSession):
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+    attachment = db.query(TaskAttachment).options(joinedload(TaskAttachment.task)).filter_by(id=attachment_id).first()
+    if not attachment or not attachment.task or attachment.task.is_deleted:
+        raise HTTPException(status_code=404, detail="Attachment not found.")
+
+    project = db.get(Project, attachment.task.project_id)
+    if not project or not _is_project_member(db, user, project):
+        raise HTTPException(status_code=403)
+
+    abs_path = attachment_abs_path(attachment.file_path)
+    if not abs_path:
+        raise HTTPException(status_code=404, detail="Attachment file not found on disk.")
+
+    return FileResponse(
+        path=abs_path,
+        media_type=attachment.file_type or "application/octet-stream",
+        filename=attachment.file_name,
+    )
+
+
+@router.delete("/tasks/attachments/{attachment_id}")
+async def delete_task_attachment(attachment_id: int, request: Request, db: DbSession):
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+    attachment = db.query(TaskAttachment).options(joinedload(TaskAttachment.task)).filter_by(id=attachment_id).first()
+    if not attachment or not attachment.task or attachment.task.is_deleted:
+        raise HTTPException(status_code=404, detail="Attachment not found.")
+
+    project = db.get(Project, attachment.task.project_id)
+    if not project:
+        raise HTTPException(status_code=404)
+
+    is_uploader = attachment.user_id == user.id
+    is_project_mentor = user.is_mentor and (project.mentor_id == user.id or db.query(ProjectMentorAssignment).filter_by(project_id=project.id, user_id=user.id).first() is not None)
+    if not (user.is_admin or is_uploader or is_project_mentor):
+        raise HTTPException(status_code=403, detail="Not authorized to delete this attachment.")
+
+    task = attachment.task
+    file_name = attachment.file_name
+    db.delete(attachment)
+    record_audit(
+        db,
+        user,
+        "task.attachment_deleted",
+        "deleted attachment on task",
+        f"{task.title}: {file_name}",
+        project_id=task.project_id,
+    )
+    db.commit()
+    return {"ok": True, "success": True, "message": "Attachment deleted successfully."}
+
+
+@router.post("/tasks/{task_id}/comments")
+async def add_comment(
+    task_id: int,
+    request: Request,
+    db: DbSession,
+    body: str | None = Form(None),
+    file: UploadFile | None = File(None),
+    data: TaskCommentPayload | None = Body(None),
+):
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+    task = db.query(Task).options(joinedload(Task.project)).filter_by(id=task_id, is_deleted=False).first()
+    if not task:
+        raise HTTPException(status_code=404)
+    if not _is_project_member(db, user, task.project):
+        raise HTTPException(status_code=403)
+
+    comment_body = body
+    if comment_body is None and data is not None:
+        comment_body = data.body
+    elif comment_body is None:
+        try:
+            payload = await get_payload(request, data)
+            comment_body = payload.get("body")
+        except Exception:
+            pass
+
+    comment_text = str(comment_body or "").strip()
+    has_file = file is not None and hasattr(file, "filename") and bool(file.filename)
+    if not comment_text and not has_file:
+        raise HTTPException(status_code=422, detail="Comment body or attachment is required.")
+    if len(comment_text) > 1000:
+        raise HTTPException(status_code=422, detail="Comment cannot exceed 1000 characters.")
+
+    comment = TaskComment(task_id=task_id, user_id=user.id, body=comment_text or "Attached file")
     db.add(comment)
+    db.flush()
+
+    att_dict = None
+    if has_file:
+        content = await file.read()
+        try:
+            rel_path, safe_name, file_size = save_task_attachment(task.id, user.id, file.filename, content)
+            mime = getattr(file, "content_type", None) or "application/octet-stream"
+            att = TaskAttachment(
+                task_id=task.id,
+                user_id=user.id,
+                comment_id=comment.id,
+                file_name=safe_name,
+                file_path=rel_path,
+                file_size=file_size,
+                file_type=mime,
+                description=f"Attached with comment #{comment.id}",
+            )
+            db.add(att)
+            db.flush()
+            att_dict = att.to_dict()
+        except Exception:
+            pass
+
     record_audit(db, user, "task.comment", "commented on task", task.title, project_id=task.project_id)
 
     mentor_ids, _ = _ordered_project_mentors(task.project)
@@ -1154,13 +1403,16 @@ async def add_comment(task_id: int, request: Request, db: DbSession, data: TaskC
     _notify_new_comment(
         db, task.project, user, recipients,
         f"{user.name} commented on task \"{task.title}\" ({task.project.name}): "
-        f"\"{_comment_preview(body)}\"",
+        f"\"{_comment_preview(comment_text or 'Attached file')}\"",
         link=f"/projects/{task.project_id}",
     )
 
     db.commit()
     db.refresh(comment)
-    return _comment_dict(comment)
+    return _comment_dict(comment, attachment_dict=att_dict)
+
+
+post_task_comment = add_comment
 
 
 @router.delete("/tasks/comments/{comment_id}")

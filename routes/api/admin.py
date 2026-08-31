@@ -10,7 +10,19 @@ from sqlalchemy.orm import Session
 from config import Config
 from database import get_db
 from dependencies import get_optional_user, generate_token, issue_session_cookies
-from models import InternInviteLink, LeaveRequest, Project, ProjectAssignment, User, UserRole, BinItem, _utcnow
+from models import (
+    InternInviteLink,
+    LeaveRequest,
+    Project,
+    ProjectAssignment,
+    Task,
+    TaskStatusBucket,
+    TaskStatusCategory,
+    User,
+    UserRole,
+    BinItem,
+    _utcnow,
+)
 from recycle_bin import (
     bin_item_dict,
     move_to_bin,
@@ -20,7 +32,14 @@ from recycle_bin import (
     restore_bin_item,
 )
 from models import BinEntityType
-from utils import clear_all_database_data, push_notification, record_audit, isoformat_utc
+from utils import (
+    clear_all_database_data,
+    get_or_seed_org_task_statuses,
+    push_notification,
+    record_audit,
+    isoformat_utc,
+    slugify_status_name,
+)
 
 from routes.api.schemas import (
     AdminCreateUserRequest,
@@ -29,6 +48,9 @@ from routes.api.schemas import (
     AdminInviteLinkCreateRequest,
     AdminInviteLinkActionRequest,
     ClearDataRequest,
+    TaskStatusBucketCreatePayload,
+    TaskStatusBucketUpdatePayload,
+    TaskStatusBucketReorderPayload,
     get_payload,
 )
 
@@ -878,3 +900,301 @@ async def clear_database(request: Request, db: DbSession, data: ClearDataRequest
         "admins_preserved": preserved,
         "tables": counts,
     }
+
+
+def _resolve_admin_org_id(request: Request, user: User, db: Session) -> int:
+    org_header = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+    if org_header and str(org_header).isdigit():
+        return int(org_header)
+    from models import OrganizationMembership
+    mem = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True, is_deleted=False).first()
+    if mem and mem.organization_id:
+        return mem.organization_id
+    return 1
+
+
+@router.get("/task-statuses")
+async def list_task_statuses(request: Request, db: DbSession):
+    user = get_optional_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+    
+    org_id = _resolve_admin_org_id(request, user, db)
+    buckets = get_or_seed_org_task_statuses(db, org_id)
+
+    from sqlalchemy import func
+    task_counts_rows = (
+        db.query(Task.status, func.count(Task.id))
+        .filter(Task.organization_id == org_id, Task.is_deleted == False)
+        .group_by(Task.status)
+        .all()
+    )
+    task_counts = {status: count for status, count in task_counts_rows}
+
+    return {
+        "statuses": [
+            b.to_dict(task_count=task_counts.get(b.slug, 0))
+            for b in buckets
+        ]
+    }
+
+
+@router.post("/task-statuses")
+async def create_task_status(
+    request: Request,
+    db: DbSession,
+    data: TaskStatusBucketCreatePayload | None = Body(None),
+):
+    user = get_optional_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+
+    org_id = _resolve_admin_org_id(request, user, db)
+    payload = await get_payload(request, data)
+
+    name = str(payload.get("name", "")).strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Status bucket name is required.")
+
+    slug_raw = payload.get("slug")
+    slug = str(slug_raw).strip() if slug_raw else slugify_status_name(name)
+    if not slug:
+        slug = slugify_status_name(name)
+
+    existing_slug = (
+        db.query(TaskStatusBucket)
+        .filter_by(organization_id=org_id, slug=slug)
+        .first()
+    )
+    if existing_slug:
+        raise HTTPException(
+            status_code=422,
+            detail=f"A status bucket with key '{slug}' already exists in this organization.",
+        )
+
+    existing_name = (
+        db.query(TaskStatusBucket)
+        .filter_by(organization_id=org_id, name=name)
+        .first()
+    )
+    if existing_name:
+        raise HTTPException(
+            status_code=422,
+            detail=f"A status bucket named '{name}' already exists in this organization.",
+        )
+
+    category = str(payload.get("status_category", TaskStatusCategory.IN_PROGRESS)).strip().lower()
+    if category not in TaskStatusCategory.ALL:
+        category = TaskStatusCategory.IN_PROGRESS
+
+    is_default = bool(payload.get("is_default", False))
+    if is_default:
+        db.query(TaskStatusBucket).filter_by(organization_id=org_id).update(
+            {TaskStatusBucket.is_default: False}
+        )
+
+    from sqlalchemy import func
+    order_index = payload.get("order_index")
+    if order_index is None:
+        max_order = (
+            db.query(func.max(TaskStatusBucket.order_index))
+            .filter_by(organization_id=org_id)
+            .scalar()
+        )
+        order_index = (max_order + 1) if max_order is not None else 0
+    else:
+        try:
+            order_index = int(order_index)
+        except (TypeError, ValueError):
+            order_index = 0
+
+    color = str(payload.get("color", "#6366F1")).strip() or "#6366F1"
+
+    bucket = TaskStatusBucket(
+        organization_id=org_id,
+        name=name,
+        slug=slug,
+        color=color,
+        order_index=order_index,
+        status_category=category,
+        is_default=is_default,
+        is_system=False,
+    )
+    db.add(bucket)
+    db.commit()
+    db.refresh(bucket)
+
+    record_audit(
+        db,
+        user,
+        "task_status.create",
+        "created task status bucket",
+        name,
+        target_id=bucket.id,
+    )
+
+    return bucket.to_dict(task_count=0)
+
+
+@router.put("/task-statuses/reorder")
+async def reorder_task_statuses(
+    request: Request,
+    db: DbSession,
+    data: TaskStatusBucketReorderPayload | None = Body(None),
+):
+    user = get_optional_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+
+    org_id = _resolve_admin_org_id(request, user, db)
+    payload = await get_payload(request, data)
+    status_ids = payload.get("status_ids")
+    if not isinstance(status_ids, list):
+        raise HTTPException(status_code=422, detail="status_ids list is required.")
+
+    for index, sid in enumerate(status_ids):
+        try:
+            s_id = int(sid)
+        except (TypeError, ValueError):
+            continue
+        db.query(TaskStatusBucket).filter_by(id=s_id, organization_id=org_id).update(
+            {TaskStatusBucket.order_index: index}
+        )
+    db.commit()
+
+    buckets = (
+        db.query(TaskStatusBucket)
+        .filter_by(organization_id=org_id)
+        .order_by(TaskStatusBucket.order_index.asc(), TaskStatusBucket.id.asc())
+        .all()
+    )
+    return {"statuses": [b.to_dict() for b in buckets]}
+
+
+@router.put("/task-statuses/{status_id}")
+async def update_task_status(
+    status_id: int,
+    request: Request,
+    db: DbSession,
+    data: TaskStatusBucketUpdatePayload | None = Body(None),
+):
+    user = get_optional_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+
+    org_id = _resolve_admin_org_id(request, user, db)
+    bucket = db.query(TaskStatusBucket).filter_by(id=status_id, organization_id=org_id).first()
+    if not bucket:
+        raise HTTPException(status_code=404, detail="Status bucket not found.")
+
+    payload = await get_payload(request, data)
+
+    if "name" in payload and payload["name"] is not None:
+        name = str(payload["name"]).strip()
+        if not name:
+            raise HTTPException(status_code=422, detail="Name cannot be empty.")
+        existing_name = (
+            db.query(TaskStatusBucket)
+            .filter(
+                TaskStatusBucket.organization_id == org_id,
+                TaskStatusBucket.name == name,
+                TaskStatusBucket.id != status_id,
+            )
+            .first()
+        )
+        if existing_name:
+            raise HTTPException(status_code=422, detail=f"A status bucket named '{name}' already exists.")
+        bucket.name = name
+
+    if "color" in payload and payload["color"] is not None:
+        bucket.color = str(payload["color"]).strip()
+
+    if "status_category" in payload and payload["status_category"] is not None:
+        category = str(payload["status_category"]).strip().lower()
+        if category in TaskStatusCategory.ALL:
+            bucket.status_category = category
+
+    if "is_default" in payload and payload["is_default"] is not None:
+        is_def = bool(payload["is_default"])
+        if is_def:
+            db.query(TaskStatusBucket).filter(
+                TaskStatusBucket.organization_id == org_id,
+                TaskStatusBucket.id != status_id,
+            ).update({TaskStatusBucket.is_default: False})
+            bucket.is_default = True
+        else:
+            bucket.is_default = False
+
+    if "order_index" in payload and payload["order_index"] is not None:
+        try:
+            bucket.order_index = int(payload["order_index"])
+        except (TypeError, ValueError):
+            pass
+
+    db.commit()
+    db.refresh(bucket)
+
+    record_audit(
+        db,
+        user,
+        "task_status.update",
+        "updated task status bucket",
+        bucket.name,
+        target_id=bucket.id,
+    )
+    return bucket.to_dict()
+
+
+@router.delete("/task-statuses/{status_id}")
+async def delete_task_status(status_id: int, request: Request, db: DbSession):
+    user = get_optional_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+
+    org_id = _resolve_admin_org_id(request, user, db)
+    bucket = db.query(TaskStatusBucket).filter_by(id=status_id, organization_id=org_id).first()
+    if not bucket:
+        raise HTTPException(status_code=404, detail="Status bucket not found.")
+
+    active_tasks_count = (
+        db.query(Task)
+        .filter(
+            Task.organization_id == org_id,
+            Task.is_deleted == False,
+            Task.status == bucket.slug,
+        )
+        .count()
+    )
+    if active_tasks_count > 0:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot delete status bucket '{bucket.name}' because {active_tasks_count} active task(s) are currently assigned to it. Please reassign or move these tasks before deleting.",
+        )
+
+    if bucket.is_default:
+        other_bucket = (
+            db.query(TaskStatusBucket)
+            .filter(TaskStatusBucket.organization_id == org_id, TaskStatusBucket.id != bucket.id)
+            .first()
+        )
+        if other_bucket:
+            other_bucket.is_default = True
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail="Cannot delete the organization's only remaining status bucket.",
+            )
+
+    bucket_name = bucket.name
+    db.delete(bucket)
+    db.commit()
+
+    record_audit(
+        db,
+        user,
+        "task_status.delete",
+        "deleted task status bucket",
+        bucket_name,
+        target_id=status_id,
+    )
+    return {"success": True, "message": f"Status bucket '{bucket_name}' deleted."}

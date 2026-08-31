@@ -181,6 +181,7 @@ class TaskCreatePayload(BaseModel):
     assigned_to: Optional[int] = Field(None, description="Assigned intern user ID", json_schema_extra={"example": 3})
     due_date: Optional[str] = Field(None, description="Due date / deadline (YYYY-MM-DD)", json_schema_extra={"example": "2026-08-30"})
     priority: Optional[str] = Field("medium", description="Priority: low, medium, high", json_schema_extra={"example": "high"})
+    status: Optional[str] = Field(None, description="Initial status slug (defaults to org default status if omitted)", json_schema_extra={"example": "todo"})
 
 
 class TaskUpdatePayload(BaseModel):
@@ -189,11 +190,32 @@ class TaskUpdatePayload(BaseModel):
     assigned_to: Optional[int] = Field(None, description="Assigned intern ID", json_schema_extra={"example": 3})
     due_date: Optional[str] = Field(None, description="Deadline (YYYY-MM-DD)", json_schema_extra={"example": "2026-08-30"})
     priority: Optional[str] = Field(None, description="Priority: low, medium, high", json_schema_extra={"example": "high"})
-    status: Optional[str] = Field(None, description="Status: todo, in_progress, testing, done", json_schema_extra={"example": "done"})
+    status: Optional[str] = Field(None, description="Status slug", json_schema_extra={"example": "done"})
 
 
 class TaskStatusPayload(BaseModel):
-    status: str = Field(..., description="New task status: todo, in_progress, testing, done", json_schema_extra={"example": "done"})
+    status: str = Field(..., description="New task status slug", json_schema_extra={"example": "done"})
+
+
+class TaskStatusBucketCreatePayload(BaseModel):
+    name: str = Field(..., description="Status bucket name", json_schema_extra={"example": "QA / Testing"})
+    slug: Optional[str] = Field(None, description="Optional custom slug (auto-generated if omitted)", json_schema_extra={"example": "qa_testing"})
+    color: Optional[str] = Field("#6366F1", description="Hex color code", json_schema_extra={"example": "#8B5CF6"})
+    status_category: Optional[str] = Field("in_progress", description="Category: todo, in_progress, done", json_schema_extra={"example": "in_progress"})
+    is_default: Optional[bool] = Field(False, description="Whether this is the default status for new tasks")
+    order_index: Optional[int] = Field(None, description="Sequence order for display")
+
+
+class TaskStatusBucketUpdatePayload(BaseModel):
+    name: Optional[str] = Field(None, description="Status bucket name")
+    color: Optional[str] = Field(None, description="Hex color code")
+    status_category: Optional[str] = Field(None, description="Category: todo, in_progress, done")
+    is_default: Optional[bool] = Field(None, description="Whether this is default status")
+    order_index: Optional[int] = Field(None, description="Sequence order for display")
+
+
+class TaskStatusBucketReorderPayload(BaseModel):
+    status_ids: list[int] = Field(..., description="List of status IDs in desired order", json_schema_extra={"example": [1, 3, 2, 4]})
 
 
 class TaskCommentPayload(BaseModel):

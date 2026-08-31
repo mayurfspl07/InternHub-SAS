@@ -60,6 +60,13 @@ class ProjectStatus:
     ALL = (PLANNING, ACTIVE, COMPLETED, ON_HOLD)
 
 
+class TaskStatusCategory:
+    TODO = "todo"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+    ALL = (TODO, IN_PROGRESS, DONE)
+
+
 class TaskStatus:
     TODO = "todo"
     IN_PROGRESS = "in_progress"
@@ -130,6 +137,12 @@ class Organization(Base):
         "OrganizationMembership",
         back_populates="organization",
         cascade="all, delete-orphan",
+    )
+    task_status_buckets = relationship(
+        "TaskStatusBucket",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        order_by="TaskStatusBucket.order_index",
     )
 
     def to_dict(self) -> dict:
@@ -203,6 +216,8 @@ class OrganizationMembership(Base):
     department: Mapped[str | None] = mapped_column(String(120), nullable=True)
     job_title: Mapped[str | None] = mapped_column(String(120), nullable=True)
     joining_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    internship_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    internship_duration_months: Mapped[int | None] = mapped_column(Integer, nullable=True, default=3)
     mentor_membership_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("organization_memberships.id", ondelete="SET NULL"), nullable=True
     )
@@ -282,6 +297,8 @@ class User(Base):
     phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     job_title: Mapped[str | None] = mapped_column(String(120), nullable=True)
     joining_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    internship_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    internship_duration_months: Mapped[int | None] = mapped_column(Integer, nullable=True, default=3)
     session_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     token_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     mentor_id: Mapped[int | None] = mapped_column(
@@ -585,14 +602,101 @@ class Task(Base):
     creator = relationship("User", back_populates="tasks_created", foreign_keys=[created_by_id])
     assignee = relationship("User", back_populates="tasks_assigned", foreign_keys=[assigned_to])
     comments = relationship("TaskComment", back_populates="task", cascade="all, delete-orphan", order_by="TaskComment.created_at")
+    attachments = relationship("TaskAttachment", back_populates="task", cascade="all, delete-orphan", order_by="TaskAttachment.created_at.desc()")
 
     @property
     def is_overdue(self) -> bool:
         return (
             self.deadline is not None
-            and self.status not in (TaskStatus.DONE,)
+            and self.status not in (TaskStatus.DONE, "done", "completed")
             and self.deadline < date.today()
         )
+
+
+class TaskAttachment(Base):
+    __tablename__ = "task_attachments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    task_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    comment_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("task_comments.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    file_type: Mapped[str] = mapped_column(String(100), nullable=False, default="application/octet-stream")
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+
+    task = relationship("Task", back_populates="attachments")
+    user = relationship("User")
+    comment = relationship("TaskComment")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "task_id": self.task_id,
+            "user_id": self.user_id,
+            "user_name": self.user.name if self.user else None,
+            "comment_id": self.comment_id,
+            "file_name": self.file_name,
+            "file_size": self.file_size,
+            "file_type": self.file_type,
+            "description": self.description,
+            "download_url": f"/api/projects/tasks/attachments/{self.id}/download",
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class TaskStatusBucket(Base):
+    __tablename__ = "task_status_buckets"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "slug", name="uq_org_status_slug"),
+        UniqueConstraint("organization_id", "name", name="uq_org_status_name"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(60), nullable=False)
+    slug: Mapped[str] = mapped_column(String(60), nullable=False)
+    color: Mapped[str] = mapped_column(String(20), nullable=False, default="#6366F1")
+    order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status_category: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=TaskStatusCategory.IN_PROGRESS
+    )
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow, nullable=False
+    )
+
+    organization = relationship("Organization", back_populates="task_status_buckets")
+
+    def to_dict(self, task_count: int | None = None) -> dict:
+        data = {
+            "id": self.id,
+            "organization_id": self.organization_id,
+            "name": self.name,
+            "slug": self.slug,
+            "color": self.color,
+            "order_index": self.order_index,
+            "status_category": self.status_category,
+            "is_default": self.is_default,
+            "is_system": self.is_system,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+        if task_count is not None:
+            data["task_count"] = task_count
+        return data
 
 
 class LeaveRequest(Base):
@@ -614,6 +718,8 @@ class LeaveRequest(Base):
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    attachment_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    attachment_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

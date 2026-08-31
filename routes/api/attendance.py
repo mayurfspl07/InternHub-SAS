@@ -31,6 +31,9 @@ from utils import (
     record_audit,
     today_str,
     isoformat_utc,
+    to_ist,
+    isoformat_ist,
+    fmt_time_ist,
 )
 import base64
 from fastapi.responses import FileResponse, Response, RedirectResponse
@@ -45,15 +48,20 @@ REPORT_MAX_PAGE_SIZE = 10000
 
 def _att_dict(r: Attendance) -> dict:
     show_checkout = r.check_out is not None and not r.checkout_missed
+    check_in_ist = to_ist(r.check_in) if r.check_in else None
+    check_out_ist = to_ist(r.check_out) if show_checkout else None
+
     return {
         "id": r.id,
         "user_id": r.user_id,
         "user_name": r.user.name if r.user else None,
         "date": r.date.isoformat(),
-        "check_in": r.check_in.strftime("%H:%M") if r.check_in else None,
-        "check_in_dt": r.check_in.isoformat() if r.check_in else None,
-        "check_out": r.check_out.strftime("%H:%M") if show_checkout else None,
-        "check_out_dt": r.check_out.isoformat() if show_checkout else None,
+        "check_in": check_in_ist.strftime("%H:%M") if check_in_ist else None,
+        "check_in_time": fmt_time_ist(r.check_in) if r.check_in else None,
+        "check_in_dt": isoformat_ist(r.check_in) if r.check_in else None,
+        "check_out": check_out_ist.strftime("%H:%M") if check_out_ist else None,
+        "check_out_time": fmt_time_ist(r.check_out) if show_checkout else None,
+        "check_out_dt": isoformat_ist(r.check_out) if show_checkout else None,
         "hours_worked": r.hours_worked,
         "status": r.status,
         "notes": r.notes,

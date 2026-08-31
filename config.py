@@ -235,6 +235,13 @@ class Config:
         )
     )
 
+    UPLOADS_DIR: str = os.path.abspath(
+        _env(
+            "UPLOADS_DIR",
+            default=os.path.join(BASE_DIR, "uploads"),
+        )
+    )
+
     # Optional override when the Vite build is not in the sibling frontend folder
     # (common when deploying the backend folder alone on Railway).
     FRONTEND_DIST_DIR: str = os.path.abspath(

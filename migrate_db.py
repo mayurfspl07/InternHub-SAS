@@ -47,6 +47,14 @@ def sync_schema() -> None:
         "migrations.20260815_multi_tenant_saas"
     )
     multi_tenant_migration.upgrade(engine)
+    task_status_migration = importlib.import_module(
+        "migrations.20260831_add_task_status_buckets"
+    )
+    task_status_migration.upgrade(engine)
+    features_2_to_5_migration = importlib.import_module(
+        "migrations.20260831_features_2_to_5"
+    )
+    features_2_to_5_migration.upgrade(engine)
     print("[OK] Schema sync complete.")
 
 

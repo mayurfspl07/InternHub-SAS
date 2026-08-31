@@ -2,13 +2,26 @@
 from datetime import date, datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
 from dependencies import get_optional_user
 from models import LeaveRequest, LeaveStatus, LeaveType, User
-from utils import get_leave_balance, get_mentor_intern_ids, push_notification, record_audit, _business_days, isoformat_utc, sync_attendance_for_approved_leave, local_today
+from utils import (
+    get_leave_balance,
+    get_mentor_intern_ids,
+    push_notification,
+    record_audit,
+    _business_days,
+    isoformat_utc,
+    sync_attendance_for_approved_leave,
+    local_today,
+    get_internship_summary,
+    save_leave_attachment,
+    attachment_abs_path,
+)
 
 from routes.api.schemas import LeaveApplyRequest, LeaveReviewRequest, get_payload
 
@@ -17,6 +30,7 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 
 def _leave_dict(lr: LeaveRequest) -> dict:
+    has_att = bool(lr.attachment_path)
     return {
         "id": lr.id,
         "user_id": lr.user_id,
@@ -30,6 +44,9 @@ def _leave_dict(lr: LeaveRequest) -> dict:
         "reviewed_by": lr.reviewed_by,
         "reviewer_name": lr.reviewer.name if lr.reviewer else None,
         "reviewed_at": isoformat_utc(lr.reviewed_at),
+        "has_attachment": has_att,
+        "attachment_name": lr.attachment_name if has_att else None,
+        "attachment_url": f"/api/leave/{lr.id}/attachment" if has_att else None,
         "created_at": isoformat_utc(lr.created_at),
     }
 
@@ -80,13 +97,24 @@ async def my_requests(request: Request, db: DbSession):
             "days_pending": sum(r["days"] for r in pending),
         },
         "balance": balance,
+        "internship_summary": get_internship_summary(db, user),
     }
 
 
 @router.post("")
-async def apply(request: Request, db: DbSession, data: LeaveApplyRequest | None = Body(None)):
+async def apply(
+    request: Request,
+    db: DbSession,
+    start_date: str | None = Form(None),
+    end_date: str | None = Form(None),
+    reason: str | None = Form(None),
+    leave_type: str | None = Form(None),
+    attachment: UploadFile | None = File(None),
+    data: LeaveApplyRequest | None = Body(None),
+):
     """
     Submit a leave request with strict date, overlap, notice, and balance validations.
+    Optional supporting attachment (e.g. medical certificate).
     """
     user = get_optional_user(request, db)
     if not user:
@@ -94,9 +122,19 @@ async def apply(request: Request, db: DbSession, data: LeaveApplyRequest | None 
     if not user.is_intern:
         raise HTTPException(status_code=403, detail="Only interns can request leave.")
 
-    payload = await get_payload(request, data)
-    raw_start = str(payload.get("start_date") or payload.get("start") or "").strip()
-    raw_end = str(payload.get("end_date") or payload.get("end") or "").strip()
+    payload = {}
+    if data is not None and hasattr(data, "model_dump"):
+        payload = data.model_dump()
+    elif isinstance(data, dict):
+        payload = data
+    else:
+        try:
+            payload = await get_payload(request, None)
+        except Exception:
+            payload = {}
+
+    raw_start = str(start_date or payload.get("start_date") or payload.get("start") or "").strip()
+    raw_end = str(end_date or payload.get("end_date") or payload.get("end") or "").strip()
     if not raw_start or not raw_end:
         raise HTTPException(status_code=422, detail="Both start_date and end_date are required.")
 
@@ -113,13 +151,13 @@ async def apply(request: Request, db: DbSession, data: LeaveApplyRequest | None 
     if start <= today:
         raise HTTPException(status_code=422, detail="Leave must be requested at least one day in advance.")
 
-    reason = str(payload.get("reason", "")).strip()
-    if not reason or len(reason) < 3:
+    reason_str = str(reason or payload.get("reason", "")).strip()
+    if not reason_str or len(reason_str) < 3:
         raise HTTPException(status_code=422, detail="Please provide a valid reason (at least 3 characters).")
 
-    leave_type = str(payload.get("leave_type", LeaveType.CASUAL)).strip().lower()
-    if leave_type not in LeaveType.ALL:
-        leave_type = LeaveType.CASUAL
+    leave_type_val = str(leave_type or payload.get("leave_type", LeaveType.CASUAL)).strip().lower()
+    if leave_type_val not in LeaveType.ALL:
+        leave_type_val = LeaveType.CASUAL
 
     days_requested = _business_days(start, end)
     if days_requested <= 0:
@@ -147,11 +185,24 @@ async def apply(request: Request, db: DbSession, data: LeaveApplyRequest | None 
         user_id=user.id,
         start_date=start,
         end_date=end,
-        reason=reason,
-        leave_type=leave_type,
+        reason=reason_str,
+        leave_type=leave_type_val,
         status=LeaveStatus.PENDING,
     )
     db.add(lr)
+    db.flush()
+
+    if attachment and attachment.filename:
+        content = await attachment.read()
+        try:
+            rel_path, safe_name, file_size = save_leave_attachment(
+                lr.id, user.id, attachment.filename, content
+            )
+            lr.attachment_path = rel_path
+            lr.attachment_name = safe_name
+        except Exception:
+            pass
+
     record_audit(db, user, "leave.request", "requested leave", f"{start} → {end}")
 
     # Notify intern's mentor and organization admins
@@ -163,7 +214,7 @@ async def apply(request: Request, db: DbSession, data: LeaveApplyRequest | None 
     for uid in notify_ids:
         push_notification(
             db, uid,
-            f"{user.name} requested {leave_type} leave for {start.isoformat()} → {end.isoformat()} "
+            f"{user.name} requested {leave_type_val} leave for {start.isoformat()} → {end.isoformat()} "
             f"({days_requested} day{'s' if days_requested != 1 else ''}).",
             link="/leave",
         )
@@ -171,6 +222,33 @@ async def apply(request: Request, db: DbSession, data: LeaveApplyRequest | None 
     db.commit()
     db.refresh(lr)
     return _leave_dict(lr)
+
+
+@router.get("/{leave_id}/attachment")
+async def get_leave_attachment(leave_id: int, request: Request, db: DbSession):
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+    lr = db.get(LeaveRequest, leave_id)
+    if not lr or lr.is_deleted or not lr.attachment_path:
+        raise HTTPException(status_code=404, detail="Attachment not found.")
+
+    is_applicant = lr.user_id == user.id
+    is_mentor = user.is_mentor and (user.mentor_id == lr.user_id or (lr.user and user.id == lr.user.mentor_id))
+    if not (user.is_admin or is_applicant or is_mentor or user.is_mentor):
+        raise HTTPException(status_code=403, detail="Not authorized to view this attachment.")
+
+    abs_path = attachment_abs_path(lr.attachment_path)
+    if not abs_path:
+        raise HTTPException(status_code=404, detail="Attachment file not found on disk.")
+
+    import mimetypes
+    media_type, _ = mimetypes.guess_type(abs_path)
+    return FileResponse(
+        path=abs_path,
+        media_type=media_type or "application/octet-stream",
+        filename=lr.attachment_name or "attachment",
+    )
 
 
 @router.get("/manage")
