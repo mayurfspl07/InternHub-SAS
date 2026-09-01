@@ -419,9 +419,6 @@ def _visible_projects_query(db, user):
     return db.query(Project).filter(Project.id.in_(assigned_ids), Project.is_deleted == False)
 
 
-
-
-
 def _can_edit(user, project):
     if user.is_admin:
         return True
