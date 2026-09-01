@@ -150,6 +150,9 @@ def _create_thread_session(source_db=None):
         return None
 
 
+_email_log_lock = threading.Lock()
+
+
 def send_email_sync(
     org_id: int,
     recipient_email: str,
@@ -213,17 +216,18 @@ def send_email_sync(
     finally:
         if session is not None:
             try:
-                log_entry = EmailLog(
-                    organization_id=org_id,
-                    recipient_email=recipient_email,
-                    recipient_name=recipient_name,
-                    subject=subject,
-                    email_type=email_type,
-                    status=status,
-                    error_message=error_msg,
-                )
-                session.add(log_entry)
-                session.commit()
+                with _email_log_lock:
+                    log_entry = EmailLog(
+                        organization_id=org_id,
+                        recipient_email=recipient_email,
+                        recipient_name=recipient_name,
+                        subject=subject,
+                        email_type=email_type,
+                        status=status,
+                        error_message=error_msg,
+                    )
+                    session.add(log_entry)
+                    session.commit()
             except Exception as log_err:
                 logger.error("Failed to write email log: %s", log_err)
             finally:

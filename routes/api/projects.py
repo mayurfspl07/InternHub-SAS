@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import case, func, select
 
 from database import get_db
-from dependencies import get_optional_user
+from dependencies import get_optional_user, _resolve_request_org_id
 from models import (
     Project,
     ProjectAssignment,
@@ -419,13 +419,7 @@ def _visible_projects_query(db, user):
     return db.query(Project).filter(Project.id.in_(assigned_ids), Project.is_deleted == False)
 
 
-def _resolve_request_org_id(request: Request, user: User, db: Session) -> int | None:
-    header_val = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
-    if header_val and str(header_val).isdigit():
-        return int(header_val)
-    from models import OrganizationMembership
-    mem = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True, is_deleted=False).first()
-    return mem.organization_id if mem else None
+
 
 
 def _can_edit(user, project):
@@ -1140,6 +1134,10 @@ async def update_task(task_id: int, request: Request, db: DbSession, data: TaskU
     task.assigned_to = assigned_to
     if assigned_to and assigned_to != old_assignee:
         push_notification(db, assigned_to, f"Task reassigned to you: {title} (Project: {project.name})", link=f"/projects/{project.id}")
+        assignee_user = db.get(User, assigned_to)
+        if assignee_user:
+            from email_service import send_task_assigned_email
+            send_task_assigned_email(db, org_id, task, assignee_user, user)
     if old_status != new_status:
         record_audit(
             db,

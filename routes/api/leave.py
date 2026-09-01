@@ -177,7 +177,7 @@ async def apply(
             detail=f"Insufficient leave balance. You have {balance['remaining']} day(s) remaining, but requested {days_requested} working day(s)."
         )
 
-    from routes.api.projects import _resolve_request_org_id
+    from dependencies import _resolve_request_org_id
     org_id = _resolve_request_org_id(request, user, db)
 
     lr = LeaveRequest(
