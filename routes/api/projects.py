@@ -1069,6 +1069,10 @@ async def create_task(project_id: int, request: Request, db: DbSession, data: Ta
     db.add(task)
     if assigned_to and assigned_to != user.id:
         push_notification(db, assigned_to, f"New task assigned: {title} (Project: {project.name})", link=f"/projects/{project.id}")
+        assignee_user = db.get(User, assigned_to)
+        if assignee_user:
+            from email_service import send_task_assigned_email
+            send_task_assigned_email(db, org_id, task, assignee_user, user)
     record_audit(db, user, "task.create", "created task", title, project_id=project.id)
     db.commit()
     db.refresh(task)

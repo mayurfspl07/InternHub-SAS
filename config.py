@@ -249,6 +249,15 @@ class Config:
     CLOUDINARY_API_SECRET: str = _env("CLOUDINARY_API_SECRET", default="").strip()
     CLOUDINARY_FOLDER: str = _env("CLOUDINARY_FOLDER", default="internhub").strip()
 
+    # Platform-level SMTP fallback settings (when tenant does not provide custom SMTP)
+    SMTP_HOST: str = _env("SMTP_HOST", default="").strip()
+    SMTP_PORT: int = int(_env("SMTP_PORT", default="587") or "587")
+    SMTP_USER: str = _env("SMTP_USER", "SMTP_USERNAME", default="").strip()
+    SMTP_PASSWORD: str = _env("SMTP_PASSWORD", default="").strip()
+    SMTP_SENDER_EMAIL: str = _env("SMTP_SENDER_EMAIL", "MAIL_FROM", default="").strip()
+    SMTP_SENDER_NAME: str = _env("SMTP_SENDER_NAME", default="InternHub").strip()
+    SMTP_ENCRYPTION: str = _env("SMTP_ENCRYPTION", default="tls").strip().lower()  # tls, ssl, none
+
     # Optional override when the Vite build is not in the sibling frontend folder
     # (common when deploying the backend folder alone on Railway).
     FRONTEND_DIST_DIR: str = os.path.abspath(

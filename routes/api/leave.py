@@ -207,10 +207,16 @@ async def apply(
 
     # Notify intern's mentor and organization admins
     notify_ids: set[int] = set()
+    reviewers: list[User] = []
     if user.mentor_id:
         notify_ids.add(user.mentor_id)
+        m_user = db.get(User, user.mentor_id)
+        if m_user:
+            reviewers.append(m_user)
     for admin_user in db.query(User).filter(User.role.in_(("admin", "superadmin", "org_admin")), User.is_active == True).all():
-        notify_ids.add(admin_user.id)
+        if admin_user.id not in notify_ids:
+            notify_ids.add(admin_user.id)
+            reviewers.append(admin_user)
     for uid in notify_ids:
         push_notification(
             db, uid,
@@ -218,6 +224,12 @@ async def apply(
             f"({days_requested} day{'s' if days_requested != 1 else ''}).",
             link="/leave",
         )
+
+    # Dispatch Tenant-wise Email Notification
+    from dependencies import _resolve_request_org_id
+    from email_service import send_leave_request_email
+    org_id = _resolve_request_org_id(request, user, db) or 1
+    send_leave_request_email(db, org_id, lr, user, reviewers)
 
     db.commit()
     db.refresh(lr)
@@ -340,6 +352,15 @@ async def review(leave_id: int, request: Request, db: DbSession, data: LeaveRevi
         f"Your leave request ({lr.start_date} → {lr.end_date}) was {decision} by {user.name}.",
         link="/leave"
     )
+
+    # Dispatch Tenant-wise Email Notification to Intern
+    from dependencies import _resolve_request_org_id
+    from email_service import send_leave_status_email
+    org_id = _resolve_request_org_id(request, user, db) or 1
+    intern_user = db.get(User, lr.user_id)
+    if intern_user:
+        send_leave_status_email(db, org_id, lr, intern_user, user)
+
     record_audit(db, user, f"leave.{decision}", f"{decision} leave for", lr.user.name if lr.user else str(lr.user_id))
     db.commit()
     return _leave_dict(lr)

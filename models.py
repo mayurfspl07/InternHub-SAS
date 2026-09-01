@@ -173,6 +173,17 @@ class Organization(Base):
         cascade="all, delete-orphan",
         order_by="InternshipDurationMaster.order_index",
     )
+    smtp_config = relationship(
+        "TenantSmtpConfig",
+        back_populates="organization",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    email_logs = relationship(
+        "EmailLog",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
 
     def to_dict(self) -> dict:
         return {
@@ -227,6 +238,94 @@ class OrganizationSettings(Base):
             "require_attendance_selfie": self.require_attendance_selfie,
             "require_attendance_gps": self.require_attendance_gps,
             "auto_checkout_enabled": self.auto_checkout_enabled,
+        }
+
+
+class TenantSmtpConfig(Base):
+    __tablename__ = "tenant_smtp_configs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    organization_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), unique=True, nullable=False, index=True
+    )
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    host: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    port: Mapped[int] = mapped_column(Integer, default=587, nullable=False)
+    username: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    password: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    sender_email: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    sender_name: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    encryption: Mapped[str] = mapped_column(String(20), default="tls", nullable=False)  # "tls", "ssl", "none"
+
+    # Notification trigger toggles
+    notify_welcome: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notify_leave_request: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notify_leave_decision: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notify_assignment_new: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notify_assignment_submit: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notify_assignment_grade: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notify_task_assigned: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notify_attendance_alert: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    organization = relationship("Organization", back_populates="smtp_config")
+
+    def to_dict(self, mask_password: bool = True) -> dict:
+        return {
+            "id": self.id,
+            "organization_id": self.organization_id,
+            "is_enabled": self.is_enabled,
+            "host": self.host,
+            "port": self.port,
+            "username": self.username,
+            "password": "••••••••" if (mask_password and self.password) else self.password,
+            "has_password": bool(self.password),
+            "sender_email": self.sender_email,
+            "sender_name": self.sender_name,
+            "encryption": self.encryption,
+            "notify_welcome": self.notify_welcome,
+            "notify_leave_request": self.notify_leave_request,
+            "notify_leave_decision": self.notify_leave_decision,
+            "notify_assignment_new": self.notify_assignment_new,
+            "notify_assignment_submit": self.notify_assignment_submit,
+            "notify_assignment_grade": self.notify_assignment_grade,
+            "notify_task_assigned": self.notify_task_assigned,
+            "notify_attendance_alert": self.notify_attendance_alert,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class EmailLog(Base):
+    __tablename__ = "email_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    organization_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    recipient_email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    recipient_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    subject: Mapped[str] = mapped_column(String(500), nullable=False)
+    email_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="sent", index=True)  # "sent", "failed", "simulated"
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sent_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+
+    organization = relationship("Organization", back_populates="email_logs")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "organization_id": self.organization_id,
+            "recipient_email": self.recipient_email,
+            "recipient_name": self.recipient_name,
+            "subject": self.subject,
+            "email_type": self.email_type,
+            "status": self.status,
+            "error_message": self.error_message,
+            "sent_at": self.sent_at.isoformat() if self.sent_at else None,
         }
 
 

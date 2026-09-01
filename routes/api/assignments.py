@@ -241,6 +241,8 @@ async def create_assignment(
     )
 
     # Notify assignee if specific intern was assigned
+    from email_service import send_assignment_created_email
+    recipient_users = []
     if assigned_to_user_id:
         push_notification(
             db,
@@ -248,6 +250,26 @@ async def create_assignment(
             message=f"You have been assigned a new assignment: '{title}'",
             link=f"/assignments/{assignment.id}",
         )
+        assigned_user = db.get(User, assigned_to_user_id)
+        if assigned_user:
+            recipient_users.append(assigned_user)
+    elif cohort_id:
+        from models import CohortMember
+        members = db.query(CohortMember).filter_by(cohort_id=cohort_id).all()
+        for m in members:
+            u = db.get(User, m.user_id)
+            if u:
+                recipient_users.append(u)
+    else:
+        from models import OrganizationMembership
+        members = db.query(OrganizationMembership).filter_by(organization_id=org_id, role="intern", is_active=True).all()
+        for m in members:
+            u = db.get(User, m.user_id)
+            if u:
+                recipient_users.append(u)
+
+    if recipient_users:
+        send_assignment_created_email(db, org_id, assignment, recipient_users)
 
     return _assignment_to_dict(assignment, user=user, db=db)
 
@@ -523,6 +545,10 @@ async def submit_assignment(
             message=f"{user.name} submitted their response for '{assignment.title}'",
             link=f"/assignments/{assignment.id}",
         )
+        creator_user = db.get(User, assignment.created_by_id)
+        if creator_user:
+            from email_service import send_assignment_submitted_email
+            send_assignment_submitted_email(db, assignment.organization_id, assignment, submission, user, [creator_user])
 
     return {
         "success": True,
@@ -666,6 +692,11 @@ async def review_submission(
         message=f"Your submission for '{sub.assignment.title}' was reviewed. Status: {sub.status}, Score: {sub.score}",
         link=f"/assignments/{sub.assignment_id}",
     )
+
+    intern_user = db.get(User, sub.user_id)
+    if intern_user and sub.assignment:
+        from email_service import send_assignment_graded_email
+        send_assignment_graded_email(db, sub.assignment.organization_id, sub.assignment, sub, intern_user, user)
 
     return {
         "success": True,

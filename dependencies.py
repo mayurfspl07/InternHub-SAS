@@ -276,3 +276,27 @@ def csrf_token_valid(request: Request) -> bool:
     if not cookie_token or not header_token:
         return False
     return secrets.compare_digest(cookie_token, header_token)
+
+
+def _resolve_request_org_id(request: Request, user: User | None = None, db: DbSession | None = None) -> int | None:
+    """Helper to resolve active organization ID from headers, query params, or user membership."""
+    org_header = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+    if org_header and str(org_header).isdigit():
+        return int(org_header)
+
+    if user and db:
+        m = (
+            db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == user.id,
+                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_deleted == False,
+            )
+            .order_by(OrganizationMembership.id.asc())
+            .first()
+        )
+        if m:
+            return m.organization_id
+
+    return None
+

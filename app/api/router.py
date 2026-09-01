@@ -20,6 +20,7 @@ from routes.api import (
     projects,
     reviews,
     search,
+    smtp,
     standup,
     student_attendance,
     uploads,
@@ -58,6 +59,7 @@ api_router.include_router(notifications.router)
 api_router.include_router(profile.router)
 api_router.include_router(reviews.router)
 api_router.include_router(search.router)
+api_router.include_router(smtp.router)
 api_router.include_router(standup.router)
 api_router.include_router(student_attendance.router)
 api_router.include_router(student_attendance.admin_attendance_router)

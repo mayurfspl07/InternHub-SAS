@@ -59,6 +59,10 @@ def sync_schema() -> None:
         "migrations.20260901_masters_assignments_and_leaves"
     )
     masters_migration.upgrade(engine)
+    smtp_migration = importlib.import_module(
+        "migrations.20260901_tenant_smtp_and_email_logs"
+    )
+    smtp_migration.upgrade(engine)
     print("[OK] Schema sync complete.")
 
 
