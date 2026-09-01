@@ -3,7 +3,7 @@ import secrets
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -611,7 +611,13 @@ def _intern_signup_request_dict(intern: User, db: Session) -> dict:
 
 
 @router.get("/intern-signup-requests")
-async def list_intern_signup_requests(request: Request, db: DbSession):
+async def list_intern_signup_requests(
+    request: Request,
+    db: DbSession,
+    page: int = 1,
+    page_size: int = 20,
+    search: str | None = None,
+):
     user = get_optional_user(request, db)
     if not user or user.role not in ("admin", "mentor"):
         raise HTTPException(status_code=403)
@@ -623,19 +629,45 @@ async def list_intern_signup_requests(request: Request, db: DbSession):
             User.is_active.is_(False),
             User.signup_invite_link_id.isnot(None),
         )
-        .order_by(User.created_at.desc())
     )
+
+    p = _clean_param_int(page, 1)
+    ps = _clean_param_int(page_size, 20)
+    s = _clean_param_str(search)
 
     if user.is_mentor:
         link_ids = _mentor_link_ids_for_user(db, user)
         if not link_ids:
-            return {"requests": [], "total": 0}
+            return {
+                "requests": [],
+                "items": [],
+                "total": 0,
+                "page": p,
+                "page_size": ps,
+                "total_pages": 1,
+            }
         query = query.filter(User.signup_invite_link_id.in_(link_ids))
 
-    interns = query.all()
+    if s:
+        search_pattern = f"%{s}%"
+        query = query.filter(or_(User.name.ilike(search_pattern), User.email.ilike(search_pattern)))
+
+    total = query.count()
+    total_pages = max(1, (total + ps - 1) // ps) if total else 1
+    interns = (
+        query.order_by(User.created_at.desc())
+        .offset((p - 1) * ps)
+        .limit(ps)
+        .all()
+    )
+    items = [_intern_signup_request_dict(i, db) for i in interns]
     return {
-        "requests": [_intern_signup_request_dict(i, db) for i in interns],
-        "total": len(interns),
+        "requests": items,
+        "items": items,
+        "total": total,
+        "page": p,
+        "page_size": ps,
+        "total_pages": total_pages,
     }
 
 
@@ -922,8 +954,33 @@ def _resolve_admin_org_id(request: Request, user: User, db: Session) -> int:
     return 1
 
 
+def _clean_param_int(val, default: int = 1) -> int:
+    if hasattr(val, "default"):
+        val = val.default
+    try:
+        return max(1, int(val))
+    except (TypeError, ValueError):
+        return default
+
+
+def _clean_param_str(val) -> str | None:
+    if hasattr(val, "default"):
+        val = val.default
+    if val is None:
+        return None
+    s = str(val).strip()
+    return s if s else None
+
+
 @router.get("/task-statuses")
-async def list_task_statuses(request: Request, db: DbSession):
+async def list_task_statuses(
+    request: Request,
+    db: DbSession,
+    page: int = 1,
+    page_size: int = 20,
+    search: str | None = None,
+    category: str | None = None,
+):
     user = get_optional_user(request, db)
     if not user or not user.is_admin:
         raise HTTPException(status_code=403, detail="Admin privileges required.")
@@ -940,11 +997,36 @@ async def list_task_statuses(request: Request, db: DbSession):
     )
     task_counts = {status: count for status, count in task_counts_rows}
 
-    return {
-        "statuses": [
-            b.to_dict(task_count=task_counts.get(b.slug, 0))
-            for b in buckets
+    p = _clean_param_int(page, 1)
+    ps = _clean_param_int(page_size, 20)
+    s = _clean_param_str(search)
+    cat = _clean_param_str(category)
+
+    filtered_buckets = buckets
+    if cat:
+        cat_lower = cat.lower()
+        filtered_buckets = [b for b in filtered_buckets if b.status_category.lower() == cat_lower]
+    if s:
+        s_lower = s.lower()
+        filtered_buckets = [
+            b for b in filtered_buckets
+            if s_lower in b.name.lower() or s_lower in b.slug.lower() or (getattr(b, "description", None) and s_lower in b.description.lower())
         ]
+
+    total = len(filtered_buckets)
+    total_pages = max(1, (total + ps - 1) // ps) if total else 1
+    paginated_items = [
+        b.to_dict(task_count=task_counts.get(b.slug, 0))
+        for b in filtered_buckets[(p - 1) * ps : p * ps]
+    ]
+
+    return {
+        "statuses": paginated_items,
+        "items": paginated_items,
+        "total": total,
+        "page": p,
+        "page_size": ps,
+        "total_pages": total_pages,
     }
 
 
@@ -1213,7 +1295,13 @@ async def delete_task_status(status_id: int, request: Request, db: DbSession):
 # Project Status Masters Endpoints
 # ==============================================================================
 @router.get("/project-statuses")
-async def list_project_statuses(request: Request, db: DbSession):
+async def list_project_statuses(
+    request: Request,
+    db: DbSession,
+    page: int = 1,
+    page_size: int = 20,
+    search: str | None = None,
+):
     user = get_optional_user(request, db)
     if not user or not user.is_admin:
         raise HTTPException(status_code=403, detail="Admin privileges required.")
@@ -1230,11 +1318,32 @@ async def list_project_statuses(request: Request, db: DbSession):
     )
     project_counts = {status: count for status, count in proj_counts_rows}
 
-    return {
-        "statuses": [
-            b.to_dict(project_count=project_counts.get(b.slug, 0))
-            for b in buckets
+    p = _clean_param_int(page, 1)
+    ps = _clean_param_int(page_size, 20)
+    s = _clean_param_str(search)
+
+    filtered_buckets = buckets
+    if s:
+        s_lower = s.lower()
+        filtered_buckets = [
+            b for b in filtered_buckets
+            if s_lower in b.name.lower() or s_lower in b.slug.lower() or (getattr(b, "description", None) and s_lower in b.description.lower())
         ]
+
+    total = len(filtered_buckets)
+    total_pages = max(1, (total + ps - 1) // ps) if total else 1
+    paginated_items = [
+        b.to_dict(project_count=project_counts.get(b.slug, 0))
+        for b in filtered_buckets[(p - 1) * ps : p * ps]
+    ]
+
+    return {
+        "statuses": paginated_items,
+        "items": paginated_items,
+        "total": total,
+        "page": p,
+        "page_size": ps,
+        "total_pages": total_pages,
     }
 
 
@@ -1494,7 +1603,14 @@ async def delete_project_status(status_id: int, request: Request, db: DbSession)
 # ==============================================================================
 @router.get("/internship-durations")
 @router.get("/internship-durations/dropdown")
-async def list_internship_durations(request: Request, db: DbSession):
+async def list_internship_durations(
+    request: Request,
+    db: DbSession,
+    page: int = 1,
+    page_size: int = 20,
+    search: str | None = None,
+    is_active: bool | None = None,
+):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
@@ -1511,12 +1627,46 @@ async def list_internship_durations(request: Request, db: DbSession):
     )
     intern_counts = {dur: count for dur, count in intern_counts_rows if dur is not None}
 
-    return {
-        "durations": [
-            d.to_dict(intern_count=intern_counts.get(d.duration_months, 0))
-            for d in durations
-            if d.is_active or user.is_admin
+    filtered_durations = [d for d in durations if d.is_active or user.is_admin]
+    if is_active is not None and not hasattr(is_active, "default"):
+        filtered_durations = [d for d in filtered_durations if d.is_active == bool(is_active)]
+
+    s = _clean_param_str(search)
+    if s:
+        s_lower = s.lower()
+        filtered_durations = [
+            d for d in filtered_durations
+            if s_lower in d.title.lower() or s_lower in str(d.duration_months) or (getattr(d, "description", None) and s_lower in d.description.lower())
         ]
+
+    # For dropdown endpoint, return unpaginated active list
+    if request.url.path.endswith("/dropdown"):
+        items = [
+            d.to_dict(intern_count=intern_counts.get(d.duration_months, 0))
+            for d in filtered_durations if d.is_active
+        ]
+        return {
+            "durations": items,
+            "items": items,
+            "total": len(items),
+        }
+
+    p = _clean_param_int(page, 1)
+    ps = _clean_param_int(page_size, 20)
+    total = len(filtered_durations)
+    total_pages = max(1, (total + ps - 1) // ps) if total else 1
+    paginated_items = [
+        d.to_dict(intern_count=intern_counts.get(d.duration_months, 0))
+        for d in filtered_durations[(p - 1) * ps : p * ps]
+    ]
+
+    return {
+        "durations": paginated_items,
+        "items": paginated_items,
+        "total": total,
+        "page": p,
+        "page_size": ps,
+        "total_pages": total_pages,
     }
 
 

@@ -3,7 +3,7 @@ from datetime import date, datetime, timezone
 import os
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_, func
@@ -45,52 +45,64 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 
 def _resolve_org_id(request: Request, user: User, db: Session) -> int:
-    header_org = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
-    if header_org and str(header_org).isdigit():
-        return int(header_org)
+    header_val = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+    if header_val and str(header_val).isdigit():
+        return int(header_val)
     from models import OrganizationMembership
-    membership = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True).first()
-    if membership:
-        return membership.organization_id
-    return 1
+    mem = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True, is_deleted=False).first()
+    return mem.organization_id if mem else 1
 
 
-def _assignment_to_dict(
-    assignment: Assignment,
-    user: User | None = None,
-    db: Session | None = None,
-) -> dict:
-    data = assignment.to_dict()
-
+def _assignment_to_dict(a: Assignment, user: User | None = None, db: Session | None = None) -> dict:
+    data = a.to_dict()
+    # If requesting user is intern, attach their submission status if exists
     if user and user.role == UserRole.INTERN and db:
         sub = (
             db.query(AssignmentSubmission)
-            .filter_by(assignment_id=assignment.id, user_id=user.id)
+            .filter_by(assignment_id=a.id, user_id=user.id)
             .order_by(AssignmentSubmission.id.desc())
             .first()
         )
         data["my_submission"] = sub.to_dict() if sub else None
+        data["has_submitted"] = sub is not None
         data["is_submitted"] = sub is not None
         data["submission_status"] = sub.status if sub else "not_submitted"
         data["my_score"] = sub.score if sub else None
-    elif user and user.role in (UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.MENTOR) and db:
-        total_sub = db.query(AssignmentSubmission).filter_by(assignment_id=assignment.id).count()
-        reviewed_sub = (
+    elif db:
+        # Total submissions count for mentors/admins
+        sub_count = db.query(AssignmentSubmission).filter_by(assignment_id=a.id).count()
+        reviewed_count = (
             db.query(AssignmentSubmission)
             .filter(
-                AssignmentSubmission.assignment_id == assignment.id,
-                AssignmentSubmission.status.in_([
-                    AssignmentSubmissionStatus.APPROVED,
-                    AssignmentSubmissionStatus.REJECTED,
-                ]),
+                AssignmentSubmission.assignment_id == a.id,
+                AssignmentSubmission.status.in_([AssignmentSubmissionStatus.APPROVED, AssignmentSubmissionStatus.REJECTED]),
             )
             .count()
         )
-        data["submission_count"] = total_sub
-        data["reviewed_count"] = reviewed_sub
-        data["pending_review_count"] = total_sub - reviewed_sub
-
+        data["submissions_count"] = sub_count
+        data["submission_count"] = sub_count
+        data["graded_count"] = reviewed_count
+        data["reviewed_count"] = reviewed_count
+        data["pending_review_count"] = sub_count - reviewed_count
     return data
+
+
+def _clean_param_int(val, default: int = 1) -> int:
+    if hasattr(val, "default"):
+        val = val.default
+    try:
+        return max(1, int(val))
+    except (TypeError, ValueError):
+        return default
+
+
+def _clean_param_str(val) -> str | None:
+    if hasattr(val, "default"):
+        val = val.default
+    if val is None:
+        return None
+    s = str(val).strip()
+    return s if s else None
 
 
 # ==============================================================================
@@ -105,6 +117,9 @@ async def list_assignments(
     project_id: int | None = None,
     cohort_id: int | None = None,
     assigned_to_user_id: int | None = None,
+    search: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
 ):
     user = get_optional_user(request, db)
     if not user:
@@ -125,17 +140,23 @@ async def list_assignments(
         )
     )
 
-    if status:
-        query = query.filter(Assignment.status == status)
+    st = _clean_param_str(status)
+    if st:
+        query = query.filter(Assignment.status == st.lower())
 
-    if project_id:
-        query = query.filter(Assignment.project_id == project_id)
+    if project_id and not hasattr(project_id, "default"):
+        query = query.filter(Assignment.project_id == int(project_id))
 
-    if cohort_id:
-        query = query.filter(Assignment.cohort_id == cohort_id)
+    if cohort_id and not hasattr(cohort_id, "default"):
+        query = query.filter(Assignment.cohort_id == int(cohort_id))
 
-    if assigned_to_user_id:
-        query = query.filter(Assignment.assigned_to_user_id == assigned_to_user_id)
+    if assigned_to_user_id and not hasattr(assigned_to_user_id, "default"):
+        query = query.filter(Assignment.assigned_to_user_id == int(assigned_to_user_id))
+
+    s = _clean_param_str(search)
+    if s:
+        search_pattern = f"%{s}%"
+        query = query.filter(or_(Assignment.title.ilike(search_pattern), Assignment.description.ilike(search_pattern)))
 
     if user.role == UserRole.INTERN:
         user_proj_ids = [
@@ -167,11 +188,21 @@ async def list_assignments(
             Assignment.status != AssignmentStatus.DRAFT,
         )
 
-    assignments = query.order_by(Assignment.created_at.desc()).all()
+    p = _clean_param_int(page, 1)
+    ps = _clean_param_int(page_size, 20)
+    total = query.count()
+    total_pages = max(1, (total + ps - 1) // ps) if total else 1
+    assignments = query.order_by(Assignment.created_at.desc()).offset((p - 1) * ps).limit(ps).all()
+    paginated_items = [
+        _assignment_to_dict(a, user=user, db=db) for a in assignments
+    ]
     return {
-        "assignments": [
-            _assignment_to_dict(a, user=user, db=db) for a in assignments
-        ]
+        "assignments": paginated_items,
+        "items": paginated_items,
+        "total": total,
+        "page": p,
+        "page_size": ps,
+        "total_pages": total_pages,
     }
 
 
@@ -562,6 +593,9 @@ async def list_assignment_submissions(
     assignment_id: int,
     request: Request,
     db: DbSession,
+    status: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
 ):
     user = get_optional_user(request, db)
     if not user or user.role == UserRole.INTERN:
@@ -571,20 +605,39 @@ async def list_assignment_submissions(
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found.")
 
-    submissions = (
+    query = (
         db.query(AssignmentSubmission)
         .options(
             joinedload(AssignmentSubmission.user),
             joinedload(AssignmentSubmission.reviewed_by),
         )
         .filter_by(assignment_id=assignment.id)
-        .order_by(AssignmentSubmission.submitted_at.desc())
+    )
+
+    st = _clean_param_str(status)
+    if st:
+        query = query.filter(AssignmentSubmission.status == st.lower())
+
+    p = _clean_param_int(page, 1)
+    ps = _clean_param_int(page_size, 20)
+    total = query.count()
+    total_pages = max(1, (total + ps - 1) // ps) if total else 1
+    submissions = (
+        query.order_by(AssignmentSubmission.submitted_at.desc())
+        .offset((p - 1) * ps)
+        .limit(ps)
         .all()
     )
 
+    paginated_items = [s.to_dict() for s in submissions]
     return {
         "assignment": assignment.to_dict(),
-        "submissions": [s.to_dict() for s in submissions],
+        "submissions": paginated_items,
+        "items": paginated_items,
+        "total": total,
+        "page": p,
+        "page_size": ps,
+        "total_pages": total_pages,
     }
 
 
