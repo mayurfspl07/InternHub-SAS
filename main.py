@@ -159,9 +159,28 @@ def _run_overdue_task_notifications() -> None:
         db.close()
 
 
+def _run_leave_deduction_reconciliation() -> None:
+    """Daily / startup reconciliation — ensures past approved leave dates are properly
+    recorded as ON_LEAVE in attendance if the intern did not attend, automatically deducting them."""
+    from database import SessionLocal
+    from utils import reconcile_past_approved_leaves
+
+    db = SessionLocal()
+    try:
+        stats = reconcile_past_approved_leaves(db)
+        if stats.get("leave_days_settled", 0) > 0 or stats.get("attended_days", 0) > 0:
+            print(f"[INFO] Reconciled approved leaves: {stats}")
+    except Exception as exc:
+        print(f"[WARNING] Leave reconciliation sweep failed: {exc}")
+    finally:
+        db.close()
+
+
 def _start_attendance_scheduler() -> None:
     if _attendance_scheduler.get_job("auto_checkout"):
         _attendance_scheduler.remove_job("auto_checkout")
+    if _attendance_scheduler.get_job("leave_reconciliation"):
+        _attendance_scheduler.remove_job("leave_reconciliation")
     if _attendance_scheduler.get_job("bin_purge"):
         _attendance_scheduler.remove_job("bin_purge")
     if _attendance_scheduler.get_job("overdue_tasks"):
@@ -174,6 +193,11 @@ def _start_attendance_scheduler() -> None:
         func=_run_auto_checkout,
         trigger=CronTrigger(hour=0, minute=0, timezone=Config.TIMEZONE),
         id="auto_checkout",
+    )
+    _attendance_scheduler.add_job(
+        func=_run_leave_deduction_reconciliation,
+        trigger=CronTrigger(hour=0, minute=2, timezone=Config.TIMEZONE),
+        id="leave_reconciliation",
     )
     _attendance_scheduler.add_job(
         func=_run_bin_purge,
@@ -238,6 +262,7 @@ async def lifespan(app: FastAPI):
         db.close()
 
     await asyncio.to_thread(_run_auto_checkout)
+    await asyncio.to_thread(_run_leave_deduction_reconciliation)
     await asyncio.to_thread(_run_bin_purge)
     await asyncio.to_thread(_run_overdue_task_notifications)
     await asyncio.to_thread(_start_attendance_scheduler)

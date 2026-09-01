@@ -218,6 +218,88 @@ class TaskStatusBucketReorderPayload(BaseModel):
     status_ids: list[int] = Field(..., description="List of status IDs in desired order", json_schema_extra={"example": [1, 3, 2, 4]})
 
 
+# ==============================================================================
+# Project Status Master Schemas
+# ==============================================================================
+class ProjectStatusBucketCreatePayload(BaseModel):
+    name: str = Field(..., description="Project status name", json_schema_extra={"example": "In Review"})
+    slug: Optional[str] = Field(None, description="Optional custom slug (auto-generated if omitted)", json_schema_extra={"example": "in_review"})
+    color: Optional[str] = Field("#3B82F6", description="Hex color code", json_schema_extra={"example": "#6366F1"})
+    is_default: Optional[bool] = Field(False, description="Whether this is default status for new projects")
+    order_index: Optional[int] = Field(None, description="Sequence order for display")
+
+
+class ProjectStatusBucketUpdatePayload(BaseModel):
+    name: Optional[str] = Field(None, description="Project status name")
+    color: Optional[str] = Field(None, description="Hex color code")
+    is_default: Optional[bool] = Field(None, description="Whether this is default status")
+    order_index: Optional[int] = Field(None, description="Sequence order for display")
+
+
+class ProjectStatusBucketReorderPayload(BaseModel):
+    status_ids: list[int] = Field(..., description="List of status IDs in desired order", json_schema_extra={"example": [1, 2, 3, 4]})
+
+
+# ==============================================================================
+# Internship Duration Master Schemas
+# ==============================================================================
+class InternshipDurationCreatePayload(BaseModel):
+    title: str = Field(..., description="Duration tier title", json_schema_extra={"example": "3 Months Standard"})
+    internship_duration: Optional[int] = Field(None, description="Duration in months (or use duration_months)", json_schema_extra={"example": 3})
+    duration_months: Optional[int] = Field(None, description="Duration in months", json_schema_extra={"example": 3})
+    duration_days: Optional[int] = Field(None, description="Optional duration in days")
+    leaves: int = Field(..., description="Allowed leave days quota", json_schema_extra={"example": 5})
+    is_default: Optional[bool] = Field(False, description="Whether this is the default duration for new interns")
+    order_index: Optional[int] = Field(None, description="Sequence order for display")
+
+
+class InternshipDurationUpdatePayload(BaseModel):
+    title: Optional[str] = Field(None, description="Duration tier title")
+    internship_duration: Optional[int] = Field(None, description="Duration in months")
+    duration_months: Optional[int] = Field(None, description="Duration in months")
+    duration_days: Optional[int] = Field(None, description="Optional duration in days")
+    leaves: Optional[int] = Field(None, description="Allowed leave days quota")
+    is_default: Optional[bool] = Field(None, description="Whether this is default duration")
+    is_active: Optional[bool] = Field(None, description="Whether this duration option is active")
+    order_index: Optional[int] = Field(None, description="Sequence order for display")
+
+
+# ==============================================================================
+# Assignment Module Schemas
+# ==============================================================================
+class AssignmentCreatePayload(BaseModel):
+    title: str = Field(..., description="Assignment title", json_schema_extra={"example": "Build REST API Module"})
+    description: Optional[str] = Field("", description="Assignment requirements and guidelines", json_schema_extra={"example": "Create endpoints with proper authentication."})
+    project_id: Optional[int] = Field(None, description="Project ID to assign to", json_schema_extra={"example": 1})
+    cohort_id: Optional[int] = Field(None, description="Cohort ID to assign to", json_schema_extra={"example": 1})
+    assigned_to_user_id: Optional[int] = Field(None, description="Specific intern ID", json_schema_extra={"example": 4})
+    due_date: Optional[str] = Field(None, description="Due date (YYYY-MM-DD)", json_schema_extra={"example": "2026-09-15"})
+    max_score: Optional[int] = Field(100, description="Maximum points/score", json_schema_extra={"example": 100})
+    status: Optional[str] = Field("active", description="Status: draft, active, closed, archived")
+
+
+class AssignmentUpdatePayload(BaseModel):
+    title: Optional[str] = Field(None, description="Assignment title")
+    description: Optional[str] = Field(None, description="Assignment requirements")
+    project_id: Optional[int] = Field(None, description="Project ID")
+    cohort_id: Optional[int] = Field(None, description="Cohort ID")
+    assigned_to_user_id: Optional[int] = Field(None, description="Specific intern ID")
+    due_date: Optional[str] = Field(None, description="Due date (YYYY-MM-DD)")
+    max_score: Optional[int] = Field(None, description="Maximum points/score")
+    status: Optional[str] = Field(None, description="Status: draft, active, closed, archived")
+
+
+class AssignmentSubmitPayload(BaseModel):
+    submission_text: Optional[str] = Field(None, description="Written submission notes / response", json_schema_extra={"example": "Completed all backend tasks."})
+    github_url: Optional[str] = Field(None, description="GitHub repository or commit link", json_schema_extra={"example": "https://github.com/intern/project"})
+
+
+class AssignmentReviewPayload(BaseModel):
+    score: Optional[float] = Field(None, ge=0, description="Awarded score / marks", json_schema_extra={"example": 95.0})
+    feedback: Optional[str] = Field(None, description="Mentor review feedback", json_schema_extra={"example": "Great structure and clean test coverage!"})
+    status: Optional[str] = Field("approved", description="Review status: approved, rejected, resubmitted, under_review", json_schema_extra={"example": "approved"})
+
+
 class TaskCommentPayload(BaseModel):
     body: str = Field(..., description="Comment content", json_schema_extra={"example": "Completed the integration test suite."})
 

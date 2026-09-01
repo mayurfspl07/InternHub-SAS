@@ -16,6 +16,7 @@ from models import (
     ProjectLink,
     ProjectMentorAssignment,
     ProjectStatus,
+    ProjectStatusBucket,
     Task,
     TaskAttachment,
     TaskComment,
@@ -33,6 +34,7 @@ from utils import (
     record_audit,
     isoformat_utc,
     get_or_seed_org_task_statuses,
+    get_or_seed_org_project_statuses,
     get_org_done_statuses,
     save_task_attachment,
     attachment_abs_path,
@@ -84,6 +86,33 @@ def _validate_org_task_status(db: Session, org_id: int | None, status: str) -> s
     if norm_status in TaskStatus.ALL:
         return norm_status
     raise HTTPException(status_code=422, detail="Invalid status.")
+
+
+def _validate_org_project_status(db: Session, org_id: int | None, status: str) -> str:
+    """Validate project status against organization buckets, with fallback to ProjectStatus.ALL."""
+    norm_status = str(status).strip()
+    if org_id is not None:
+        buckets = get_or_seed_org_project_statuses(db, org_id)
+        valid_slugs = {b.slug for b in buckets}.union(ProjectStatus.ALL)
+        if norm_status in valid_slugs:
+            return norm_status
+        raise HTTPException(status_code=422, detail=f"Invalid project status '{norm_status}'.")
+
+    if norm_status in ProjectStatus.ALL:
+        return norm_status
+    raise HTTPException(status_code=422, detail=f"Invalid project status '{norm_status}'.")
+
+
+@router.get("/project-statuses")
+@router.get("/statuses")
+async def get_project_statuses_dropdown(request: Request, db: DbSession):
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+
+    org_id = _resolve_request_org_id(request, user, db) or 1
+    buckets = get_or_seed_org_project_statuses(db, org_id)
+    return {"statuses": [b.to_dict() for b in buckets]}
 
 
 @router.get("/task-statuses")
@@ -688,11 +717,9 @@ async def create_project(request: Request, db: DbSession, data: ProjectCreatePay
         except ValueError:
             pass
     mentor_ids = _resolve_mentor_ids(db, payload, user=user, required=True)
-    status = str(payload.get("status", "planning"))
-    if status not in ProjectStatus.ALL:
-        status = ProjectStatus.PLANNING
-
     org_id = _resolve_request_org_id(request, user, db)
+    status = _validate_org_project_status(db, org_id, payload.get("status", "planning"))
+
     project = Project(
         organization_id=org_id,
         name=name,
@@ -852,9 +879,7 @@ async def update_project(project_id: int, request: Request, db: DbSession, data:
         else:
             project.end_date = None  # explicit null/empty clears it
     if payload.get("status"):
-        status = str(payload["status"])
-        if status in ProjectStatus.ALL:
-            project.status = status
+        project.status = _validate_org_project_status(db, project.organization_id, payload["status"])
     if "mentor_ids" in payload or "mentor_id" in payload:
         mentor_ids = _resolve_mentor_ids(
             db,

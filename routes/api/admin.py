@@ -15,6 +15,8 @@ from models import (
     LeaveRequest,
     Project,
     ProjectAssignment,
+    ProjectStatusBucket,
+    InternshipDurationMaster,
     Task,
     TaskStatusBucket,
     TaskStatusCategory,
@@ -35,6 +37,8 @@ from models import BinEntityType
 from utils import (
     clear_all_database_data,
     get_or_seed_org_task_statuses,
+    get_or_seed_org_project_statuses,
+    get_or_seed_org_internship_durations,
     push_notification,
     record_audit,
     isoformat_utc,
@@ -51,6 +55,11 @@ from routes.api.schemas import (
     TaskStatusBucketCreatePayload,
     TaskStatusBucketUpdatePayload,
     TaskStatusBucketReorderPayload,
+    ProjectStatusBucketCreatePayload,
+    ProjectStatusBucketUpdatePayload,
+    ProjectStatusBucketReorderPayload,
+    InternshipDurationCreatePayload,
+    InternshipDurationUpdatePayload,
     get_payload,
 )
 
@@ -1198,3 +1207,552 @@ async def delete_task_status(status_id: int, request: Request, db: DbSession):
         target_id=status_id,
     )
     return {"success": True, "message": f"Status bucket '{bucket_name}' deleted."}
+
+
+# ==============================================================================
+# Project Status Masters Endpoints
+# ==============================================================================
+@router.get("/project-statuses")
+async def list_project_statuses(request: Request, db: DbSession):
+    user = get_optional_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+
+    org_id = _resolve_admin_org_id(request, user, db)
+    buckets = get_or_seed_org_project_statuses(db, org_id)
+
+    from sqlalchemy import func
+    proj_counts_rows = (
+        db.query(Project.status, func.count(Project.id))
+        .filter(Project.organization_id == org_id, Project.is_deleted == False)
+        .group_by(Project.status)
+        .all()
+    )
+    project_counts = {status: count for status, count in proj_counts_rows}
+
+    return {
+        "statuses": [
+            b.to_dict(project_count=project_counts.get(b.slug, 0))
+            for b in buckets
+        ]
+    }
+
+
+@router.post("/project-statuses")
+async def create_project_status(
+    request: Request,
+    db: DbSession,
+    data: ProjectStatusBucketCreatePayload | None = Body(None),
+):
+    user = get_optional_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+
+    org_id = _resolve_admin_org_id(request, user, db)
+    payload = await get_payload(request, data)
+
+    name = str(payload.get("name", "")).strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Project status bucket name is required.")
+
+    slug_raw = payload.get("slug")
+    slug = str(slug_raw).strip() if slug_raw else slugify_status_name(name)
+    if not slug:
+        slug = slugify_status_name(name)
+
+    existing_slug = (
+        db.query(ProjectStatusBucket)
+        .filter_by(organization_id=org_id, slug=slug)
+        .first()
+    )
+    if existing_slug:
+        raise HTTPException(
+            status_code=422,
+            detail=f"A project status with key '{slug}' already exists in this organization.",
+        )
+
+    existing_name = (
+        db.query(ProjectStatusBucket)
+        .filter_by(organization_id=org_id, name=name)
+        .first()
+    )
+    if existing_name:
+        raise HTTPException(
+            status_code=422,
+            detail=f"A project status named '{name}' already exists in this organization.",
+        )
+
+    is_default = bool(payload.get("is_default", False))
+    if is_default:
+        db.query(ProjectStatusBucket).filter_by(organization_id=org_id).update(
+            {ProjectStatusBucket.is_default: False}
+        )
+
+    from sqlalchemy import func
+    order_index = payload.get("order_index")
+    if order_index is None:
+        max_order = (
+            db.query(func.max(ProjectStatusBucket.order_index))
+            .filter_by(organization_id=org_id)
+            .scalar()
+        )
+        order_index = (max_order + 1) if max_order is not None else 0
+    else:
+        try:
+            order_index = int(order_index)
+        except (TypeError, ValueError):
+            order_index = 0
+
+    color = str(payload.get("color", "#3B82F6")).strip() or "#3B82F6"
+
+    bucket = ProjectStatusBucket(
+        organization_id=org_id,
+        name=name,
+        slug=slug,
+        color=color,
+        order_index=order_index,
+        is_default=is_default,
+        is_system=False,
+    )
+    db.add(bucket)
+    db.commit()
+    db.refresh(bucket)
+
+    record_audit(
+        db,
+        user,
+        "project_status.create",
+        "created project status bucket",
+        name,
+        target_id=bucket.id,
+    )
+
+    return bucket.to_dict(project_count=0)
+
+
+@router.put("/project-statuses/reorder")
+async def reorder_project_statuses(
+    request: Request,
+    db: DbSession,
+    data: ProjectStatusBucketReorderPayload | None = Body(None),
+):
+    user = get_optional_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+
+    org_id = _resolve_admin_org_id(request, user, db)
+    payload = await get_payload(request, data)
+    status_ids = payload.get("status_ids")
+    if not isinstance(status_ids, list):
+        raise HTTPException(status_code=422, detail="status_ids list is required.")
+
+    for index, sid in enumerate(status_ids):
+        try:
+            s_id = int(sid)
+        except (TypeError, ValueError):
+            continue
+        db.query(ProjectStatusBucket).filter_by(id=s_id, organization_id=org_id).update(
+            {ProjectStatusBucket.order_index: index}
+        )
+    db.commit()
+
+    buckets = (
+        db.query(ProjectStatusBucket)
+        .filter_by(organization_id=org_id)
+        .order_by(ProjectStatusBucket.order_index.asc(), ProjectStatusBucket.id.asc())
+        .all()
+    )
+    return {"statuses": [b.to_dict() for b in buckets]}
+
+
+@router.put("/project-statuses/{status_id}")
+async def update_project_status(
+    status_id: int,
+    request: Request,
+    db: DbSession,
+    data: ProjectStatusBucketUpdatePayload | None = Body(None),
+):
+    user = get_optional_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+
+    org_id = _resolve_admin_org_id(request, user, db)
+    bucket = db.query(ProjectStatusBucket).filter_by(id=status_id, organization_id=org_id).first()
+    if not bucket:
+        raise HTTPException(status_code=404, detail="Project status bucket not found.")
+
+    payload = await get_payload(request, data)
+
+    if "name" in payload and payload["name"] is not None:
+        name = str(payload["name"]).strip()
+        if not name:
+            raise HTTPException(status_code=422, detail="Name cannot be empty.")
+        existing_name = (
+            db.query(ProjectStatusBucket)
+            .filter(
+                ProjectStatusBucket.organization_id == org_id,
+                ProjectStatusBucket.name == name,
+                ProjectStatusBucket.id != status_id,
+            )
+            .first()
+        )
+        if existing_name:
+            raise HTTPException(status_code=422, detail=f"A project status named '{name}' already exists.")
+        bucket.name = name
+
+    if "color" in payload and payload["color"] is not None:
+        bucket.color = str(payload["color"]).strip()
+
+    if "is_default" in payload and payload["is_default"] is not None:
+        is_def = bool(payload["is_default"])
+        if is_def:
+            db.query(ProjectStatusBucket).filter(
+                ProjectStatusBucket.organization_id == org_id,
+                ProjectStatusBucket.id != status_id,
+            ).update({ProjectStatusBucket.is_default: False})
+            bucket.is_default = True
+        else:
+            bucket.is_default = False
+
+    if "order_index" in payload and payload["order_index"] is not None:
+        try:
+            bucket.order_index = int(payload["order_index"])
+        except (TypeError, ValueError):
+            pass
+
+    db.commit()
+    db.refresh(bucket)
+
+    record_audit(
+        db,
+        user,
+        "project_status.update",
+        "updated project status bucket",
+        bucket.name,
+        target_id=bucket.id,
+    )
+    return bucket.to_dict()
+
+
+@router.delete("/project-statuses/{status_id}")
+async def delete_project_status(status_id: int, request: Request, db: DbSession):
+    user = get_optional_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+
+    org_id = _resolve_admin_org_id(request, user, db)
+    bucket = db.query(ProjectStatusBucket).filter_by(id=status_id, organization_id=org_id).first()
+    if not bucket:
+        raise HTTPException(status_code=404, detail="Project status bucket not found.")
+
+    active_projects_count = (
+        db.query(Project)
+        .filter(
+            Project.organization_id == org_id,
+            Project.is_deleted == False,
+            Project.status == bucket.slug,
+        )
+        .count()
+    )
+    if active_projects_count > 0:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot delete project status '{bucket.name}' because {active_projects_count} active project(s) are currently in this status. Please update them first.",
+        )
+
+    if bucket.is_default:
+        other_bucket = (
+            db.query(ProjectStatusBucket)
+            .filter(ProjectStatusBucket.organization_id == org_id, ProjectStatusBucket.id != bucket.id)
+            .first()
+        )
+        if other_bucket:
+            other_bucket.is_default = True
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail="Cannot delete the organization's only remaining project status bucket.",
+            )
+
+    bucket_name = bucket.name
+    db.delete(bucket)
+    db.commit()
+
+    record_audit(
+        db,
+        user,
+        "project_status.delete",
+        "deleted project status bucket",
+        bucket_name,
+        target_id=status_id,
+    )
+    return {"success": True, "message": f"Project status bucket '{bucket_name}' deleted."}
+
+
+# ==============================================================================
+# Internship Duration Masters Endpoints
+# ==============================================================================
+@router.get("/internship-durations")
+@router.get("/internship-durations/dropdown")
+async def list_internship_durations(request: Request, db: DbSession):
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+
+    org_id = _resolve_admin_org_id(request, user, db) if user.is_admin else 1
+    durations = get_or_seed_org_internship_durations(db, org_id)
+
+    from sqlalchemy import func
+    intern_counts_rows = (
+        db.query(User.internship_duration_months, func.count(User.id))
+        .filter(User.role == UserRole.INTERN, User.is_deleted == False)
+        .group_by(User.internship_duration_months)
+        .all()
+    )
+    intern_counts = {dur: count for dur, count in intern_counts_rows if dur is not None}
+
+    return {
+        "durations": [
+            d.to_dict(intern_count=intern_counts.get(d.duration_months, 0))
+            for d in durations
+            if d.is_active or user.is_admin
+        ]
+    }
+
+
+@router.post("/internship-durations")
+async def create_internship_duration(
+    request: Request,
+    db: DbSession,
+    data: InternshipDurationCreatePayload | None = Body(None),
+):
+    user = get_optional_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+
+    org_id = _resolve_admin_org_id(request, user, db)
+    payload = await get_payload(request, data)
+
+    title = str(payload.get("title", "")).strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Duration title is required.")
+
+    duration_val = payload.get("duration_months") or payload.get("internship_duration")
+    if duration_val is None:
+        raise HTTPException(status_code=422, detail="internship_duration / duration_months is required.")
+    try:
+        duration_months = int(duration_val)
+        if duration_months <= 0:
+            raise ValueError()
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="Duration in months must be a positive integer.")
+
+    leaves_val = payload.get("leaves")
+    if leaves_val is None:
+        raise HTTPException(status_code=422, detail="leaves quota is required.")
+    try:
+        leaves = int(leaves_val)
+        if leaves < 0:
+            raise ValueError()
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="Leaves quota must be a non-negative integer.")
+
+    existing_months = (
+        db.query(InternshipDurationMaster)
+        .filter_by(organization_id=org_id, duration_months=duration_months)
+        .first()
+    )
+    if existing_months:
+        raise HTTPException(
+            status_code=422,
+            detail=f"A duration tier for {duration_months} month(s) already exists in this organization.",
+        )
+
+    existing_title = (
+        db.query(InternshipDurationMaster)
+        .filter_by(organization_id=org_id, title=title)
+        .first()
+    )
+    if existing_title:
+        raise HTTPException(
+            status_code=422,
+            detail=f"A duration tier titled '{title}' already exists in this organization.",
+        )
+
+    is_default = bool(payload.get("is_default", False))
+    if is_default:
+        db.query(InternshipDurationMaster).filter_by(organization_id=org_id).update(
+            {InternshipDurationMaster.is_default: False}
+        )
+
+    from sqlalchemy import func
+    order_index = payload.get("order_index")
+    if order_index is None:
+        max_order = (
+            db.query(func.max(InternshipDurationMaster.order_index))
+            .filter_by(organization_id=org_id)
+            .scalar()
+        )
+        order_index = (max_order + 1) if max_order is not None else 0
+    else:
+        try:
+            order_index = int(order_index)
+        except (TypeError, ValueError):
+            order_index = 0
+
+    duration_days = payload.get("duration_days")
+    if duration_days is not None:
+        try:
+            duration_days = int(duration_days)
+        except (TypeError, ValueError):
+            duration_days = None
+
+    master = InternshipDurationMaster(
+        organization_id=org_id,
+        title=title,
+        duration_months=duration_months,
+        duration_days=duration_days,
+        leaves=leaves,
+        is_default=is_default,
+        order_index=order_index,
+        is_active=True,
+    )
+    db.add(master)
+    db.commit()
+    db.refresh(master)
+
+    record_audit(
+        db,
+        user,
+        "internship_duration.create",
+        "created internship duration tier",
+        f"{title} ({duration_months} mos, {leaves} leaves)",
+        target_id=master.id,
+    )
+
+    return master.to_dict(intern_count=0)
+
+
+@router.put("/internship-durations/{duration_id}")
+async def update_internship_duration(
+    duration_id: int,
+    request: Request,
+    db: DbSession,
+    data: InternshipDurationUpdatePayload | None = Body(None),
+):
+    user = get_optional_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+
+    org_id = _resolve_admin_org_id(request, user, db)
+    master = db.query(InternshipDurationMaster).filter_by(id=duration_id, organization_id=org_id).first()
+    if not master:
+        raise HTTPException(status_code=404, detail="Internship duration tier not found.")
+
+    payload = await get_payload(request, data)
+
+    if "title" in payload and payload["title"] is not None:
+        title = str(payload["title"]).strip()
+        if not title:
+            raise HTTPException(status_code=422, detail="Title cannot be empty.")
+        existing_title = (
+            db.query(InternshipDurationMaster)
+            .filter(
+                InternshipDurationMaster.organization_id == org_id,
+                InternshipDurationMaster.title == title,
+                InternshipDurationMaster.id != duration_id,
+            )
+            .first()
+        )
+        if existing_title:
+            raise HTTPException(status_code=422, detail=f"A duration tier titled '{title}' already exists.")
+        master.title = title
+
+    duration_val = payload.get("duration_months") or payload.get("internship_duration")
+    if duration_val is not None:
+        try:
+            dur = int(duration_val)
+            if dur <= 0:
+                raise ValueError()
+            existing_months = (
+                db.query(InternshipDurationMaster)
+                .filter(
+                    InternshipDurationMaster.organization_id == org_id,
+                    InternshipDurationMaster.duration_months == dur,
+                    InternshipDurationMaster.id != duration_id,
+                )
+                .first()
+            )
+            if existing_months:
+                raise HTTPException(status_code=422, detail=f"A duration tier for {dur} months already exists.")
+            master.duration_months = dur
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=422, detail="duration_months must be a positive integer.")
+
+    if "leaves" in payload and payload["leaves"] is not None:
+        try:
+            l_val = int(payload["leaves"])
+            if l_val < 0:
+                raise ValueError()
+            master.leaves = l_val
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=422, detail="leaves must be a non-negative integer.")
+
+    if "is_default" in payload and payload["is_default"] is not None:
+        is_def = bool(payload["is_default"])
+        if is_def:
+            db.query(InternshipDurationMaster).filter(
+                InternshipDurationMaster.organization_id == org_id,
+                InternshipDurationMaster.id != duration_id,
+            ).update({InternshipDurationMaster.is_default: False})
+            master.is_default = True
+        else:
+            master.is_default = False
+
+    if "is_active" in payload and payload["is_active"] is not None:
+        master.is_active = bool(payload["is_active"])
+
+    if "order_index" in payload and payload["order_index"] is not None:
+        try:
+            master.order_index = int(payload["order_index"])
+        except (TypeError, ValueError):
+            pass
+
+    db.commit()
+    db.refresh(master)
+
+    record_audit(
+        db,
+        user,
+        "internship_duration.update",
+        "updated internship duration tier",
+        master.title,
+        target_id=master.id,
+    )
+    return master.to_dict()
+
+
+@router.delete("/internship-durations/{duration_id}")
+async def delete_internship_duration(duration_id: int, request: Request, db: DbSession):
+    user = get_optional_user(request, db)
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+
+    org_id = _resolve_admin_org_id(request, user, db)
+    master = db.query(InternshipDurationMaster).filter_by(id=duration_id, organization_id=org_id).first()
+    if not master:
+        raise HTTPException(status_code=404, detail="Internship duration tier not found.")
+
+    title = master.title
+    db.delete(master)
+    db.commit()
+
+    record_audit(
+        db,
+        user,
+        "internship_duration.delete",
+        "deleted internship duration tier",
+        title,
+        target_id=duration_id,
+    )
+    return {"success": True, "message": f"Internship duration tier '{title}' deleted."}

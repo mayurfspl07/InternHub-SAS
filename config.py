@@ -242,6 +242,13 @@ class Config:
         )
     )
 
+    # Cloudinary image storage settings
+    CLOUDINARY_URL: str = os.environ.get("CLOUDINARY_URL", "").strip()
+    CLOUDINARY_CLOUD_NAME: str = _env("CLOUDINARY_CLOUD_NAME", default="").strip()
+    CLOUDINARY_API_KEY: str = _env("CLOUDINARY_API_KEY", default="").strip()
+    CLOUDINARY_API_SECRET: str = _env("CLOUDINARY_API_SECRET", default="").strip()
+    CLOUDINARY_FOLDER: str = _env("CLOUDINARY_FOLDER", default="internhub").strip()
+
     # Optional override when the Vite build is not in the sibling frontend folder
     # (common when deploying the backend folder alone on Railway).
     FRONTEND_DIST_DIR: str = os.path.abspath(

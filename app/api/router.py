@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from routes.api import (
     admin,
     announcements,
+    assignments,
     attendance,
     audit,
     auth,
@@ -21,6 +22,7 @@ from routes.api import (
     search,
     standup,
     student_attendance,
+    uploads,
     users,
 )
 
@@ -31,6 +33,7 @@ api_router.include_router(auth.router)
 api_router.include_router(platform.router)
 api_router.include_router(org.router)
 api_router.include_router(admin.router)
+api_router.include_router(assignments.router)
 api_router.include_router(attendance.router)
 api_router.include_router(leave.router)
 api_router.include_router(projects.router)
@@ -60,4 +63,5 @@ api_router.include_router(student_attendance.router)
 api_router.include_router(student_attendance.admin_attendance_router)
 api_router.include_router(student_attendance.mentor_router)
 api_router.include_router(student_attendance.mentor_attendance_router)
+api_router.include_router(uploads.router)
 api_router.include_router(users.router)

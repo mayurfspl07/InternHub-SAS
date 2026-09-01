@@ -55,6 +55,10 @@ def sync_schema() -> None:
         "migrations.20260831_features_2_to_5"
     )
     features_2_to_5_migration.upgrade(engine)
+    masters_migration = importlib.import_module(
+        "migrations.20260901_masters_assignments_and_leaves"
+    )
+    masters_migration.upgrade(engine)
     print("[OK] Schema sync complete.")
 
 

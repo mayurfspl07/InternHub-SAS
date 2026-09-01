@@ -98,8 +98,8 @@ def _att_dict(r: Attendance) -> dict:
         ),
         "check_out_photo_url": (
             r.check_out_photo
-            if show_checkout and r.check_out_photo and r.check_out_photo.startswith(("http://", "https://"))
-            else (f"/api/attendance/{r.id}/photo/checkout" if show_checkout and r.check_out_photo else None)
+            if r.check_out_photo and r.check_out_photo.startswith(("http://", "https://"))
+            else (f"/api/attendance/{r.id}/photo/checkout" if r.check_out_photo else None)
         ),
     }
 

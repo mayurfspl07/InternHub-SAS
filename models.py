@@ -95,6 +95,23 @@ class LeaveType:
     ALL = (CASUAL, SICK, EARNED, COMP)
 
 
+class AssignmentStatus:
+    DRAFT = "draft"
+    ACTIVE = "active"
+    CLOSED = "closed"
+    ARCHIVED = "archived"
+    ALL = (DRAFT, ACTIVE, CLOSED, ARCHIVED)
+
+
+class AssignmentSubmissionStatus:
+    SUBMITTED = "submitted"
+    UNDER_REVIEW = "under_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    RESUBMITTED = "resubmitted"
+    ALL = (SUBMITTED, UNDER_REVIEW, APPROVED, REJECTED, RESUBMITTED)
+
+
 # ---------------------------------------------------------------------------
 # Helper functions for datetime handling
 # ---------------------------------------------------------------------------
@@ -143,6 +160,18 @@ class Organization(Base):
         back_populates="organization",
         cascade="all, delete-orphan",
         order_by="TaskStatusBucket.order_index",
+    )
+    project_status_buckets = relationship(
+        "ProjectStatusBucket",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        order_by="ProjectStatusBucket.order_index",
+    )
+    internship_durations = relationship(
+        "InternshipDurationMaster",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        order_by="InternshipDurationMaster.order_index",
     )
 
     def to_dict(self) -> dict:
@@ -697,6 +726,227 @@ class TaskStatusBucket(Base):
         if task_count is not None:
             data["task_count"] = task_count
         return data
+
+
+class ProjectStatusBucket(Base):
+    __tablename__ = "project_status_buckets"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "slug", name="uq_org_proj_status_slug"),
+        UniqueConstraint("organization_id", "name", name="uq_org_proj_status_name"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(60), nullable=False)
+    slug: Mapped[str] = mapped_column(String(60), nullable=False)
+    color: Mapped[str] = mapped_column(String(20), nullable=False, default="#3B82F6")
+    order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow, nullable=False
+    )
+
+    organization = relationship("Organization", back_populates="project_status_buckets")
+
+    def to_dict(self, project_count: int | None = None) -> dict:
+        data = {
+            "id": self.id,
+            "organization_id": self.organization_id,
+            "name": self.name,
+            "slug": self.slug,
+            "color": self.color,
+            "order_index": self.order_index,
+            "is_default": self.is_default,
+            "is_system": self.is_system,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+        if project_count is not None:
+            data["project_count"] = project_count
+        return data
+
+
+class InternshipDurationMaster(Base):
+    __tablename__ = "internship_duration_masters"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "duration_months", name="uq_org_duration_months"),
+        UniqueConstraint("organization_id", "title", name="uq_org_duration_title"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String(120), nullable=False)
+    duration_months: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    duration_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    leaves: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow, nullable=False
+    )
+
+    organization = relationship("Organization", back_populates="internship_durations")
+
+    def to_dict(self, intern_count: int | None = None) -> dict:
+        data = {
+            "id": self.id,
+            "organization_id": self.organization_id,
+            "title": self.title,
+            "internship_duration": self.duration_months,
+            "duration_months": self.duration_months,
+            "duration_days": self.duration_days,
+            "leaves": self.leaves,
+            "is_default": self.is_default,
+            "order_index": self.order_index,
+            "is_active": self.is_active,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+        if intern_count is not None:
+            data["intern_count"] = intern_count
+        return data
+
+
+class Assignment(Base):
+    __tablename__ = "assignments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True, default=1
+    )
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    project_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    cohort_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("cohorts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    assigned_to_user_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    max_score: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    attachment_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    attachment_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default=AssignmentStatus.ACTIVE)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    organization = relationship("Organization", foreign_keys=[organization_id])
+    creator = relationship("User", foreign_keys=[created_by_id])
+    created_by = relationship("User", foreign_keys=[created_by_id], overlaps="creator")
+    project = relationship("Project", foreign_keys=[project_id])
+    cohort = relationship("Cohort", foreign_keys=[cohort_id])
+    assigned_user = relationship("User", foreign_keys=[assigned_to_user_id])
+    assigned_to_user = relationship("User", foreign_keys=[assigned_to_user_id], overlaps="assigned_user")
+    submissions = relationship(
+        "AssignmentSubmission", back_populates="assignment", cascade="all, delete-orphan"
+    )
+
+    def to_dict(self, user_submission: dict | None = None, submission_count: int | None = None) -> dict:
+        data = {
+            "id": self.id,
+            "organization_id": self.organization_id,
+            "title": self.title,
+            "description": self.description,
+            "created_by_id": self.created_by_id,
+            "creator_name": self.creator.name if self.creator else None,
+            "project_id": self.project_id,
+            "project_name": self.project.name if self.project else None,
+            "cohort_id": self.cohort_id,
+            "cohort_name": self.cohort.name if self.cohort else None,
+            "assigned_to_user_id": self.assigned_to_user_id,
+            "assigned_user_name": self.assigned_user.name if self.assigned_user else None,
+            "due_date": self.due_date.isoformat() if self.due_date else None,
+            "max_score": self.max_score,
+            "has_attachment": bool(self.attachment_path),
+            "attachment_name": self.attachment_name if self.attachment_path else None,
+            "attachment_url": f"/api/assignments/{self.id}/attachment" if self.attachment_path else None,
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+        if user_submission is not None:
+            data["my_submission"] = user_submission
+        if submission_count is not None:
+            data["submission_count"] = submission_count
+        return data
+
+
+class AssignmentSubmission(Base):
+    __tablename__ = "assignment_submissions"
+    __table_args__ = (
+        UniqueConstraint("assignment_id", "user_id", name="uq_assignment_user_submission"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    assignment_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("assignments.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    submission_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    github_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=AssignmentSubmissionStatus.SUBMITTED
+    )
+    score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_by_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=_utcnow, onupdate=_utcnow, nullable=False
+    )
+
+    assignment = relationship("Assignment", back_populates="submissions")
+    user = relationship("User", foreign_keys=[user_id])
+    reviewer = relationship("User", foreign_keys=[reviewed_by_id])
+    reviewed_by = relationship("User", foreign_keys=[reviewed_by_id], overlaps="reviewer")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "assignment_id": self.assignment_id,
+            "assignment_title": self.assignment.title if self.assignment else None,
+            "user_id": self.user_id,
+            "user_name": self.user.name if self.user else None,
+            "user_email": self.user.email if self.user else None,
+            "submission_text": self.submission_text,
+            "github_url": self.github_url,
+            "has_file": bool(self.file_path),
+            "file_name": self.file_name,
+            "file_size": self.file_size,
+            "file_url": f"/api/assignments/submissions/{self.id}/file" if self.file_path else None,
+            "submitted_at": self.submitted_at.isoformat() if self.submitted_at else None,
+            "status": self.status,
+            "score": self.score,
+            "feedback": self.feedback,
+            "reviewed_by_id": self.reviewed_by_id,
+            "reviewer_name": self.reviewer.name if self.reviewer else None,
+            "reviewed_at": self.reviewed_at.isoformat() if self.reviewed_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
 
 
 class LeaveRequest(Base):

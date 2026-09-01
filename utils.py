@@ -515,28 +515,150 @@ def sync_attendance_for_approved_leave(db: "Session", leave_request) -> int:
     return synced
 
 
-def get_leave_balance(db: "Session", user_id: int) -> dict:
-    from models import LeaveRequest
+def resolve_user_leave_quota(db: "Session", user_id: int, org_id: int | None = None) -> int:
+    """Resolve leave quota for a user:
+    1. Check InternshipDurationMaster matching user.internship_duration_months
+    2. Check OrganizationSettings.leave_quota_days
+    3. Fallback to Config.LEAVE_QUOTA_DAYS (15)
+    """
+    from models import User, OrganizationMembership, OrganizationSettings, InternshipDurationMaster
     from config import Config
-    year = local_today().year
+
+    user = db.get(User, user_id)
+    if not user:
+        return Config.LEAVE_QUOTA_DAYS
+
+    resolved_org_id = org_id
+    if resolved_org_id is None:
+        membership = db.query(OrganizationMembership).filter_by(user_id=user_id, is_active=True).first()
+        if membership:
+            resolved_org_id = membership.organization_id
+
+    duration_months = user.internship_duration_months
+    if duration_months is not None and resolved_org_id is not None:
+        duration_master = (
+            db.query(InternshipDurationMaster)
+            .filter_by(organization_id=resolved_org_id, duration_months=duration_months, is_active=True)
+            .first()
+        )
+        if duration_master:
+            return duration_master.leaves
+
+    if resolved_org_id is not None:
+        settings = db.query(OrganizationSettings).filter_by(organization_id=resolved_org_id).first()
+        if settings and settings.leave_quota_days is not None:
+            return settings.leave_quota_days
+
+    return Config.LEAVE_QUOTA_DAYS
+
+
+def get_leave_balance(db: "Session", user_id: int, org_id: int | None = None) -> dict:
+    from models import LeaveRequest, Attendance, AttendanceStatus, LeaveStatus
+    from config import Config
+
+    today = local_today()
+    year = today.year
     leaves = db.query(LeaveRequest).filter(
         LeaveRequest.user_id == user_id,
         LeaveRequest.is_deleted == False,
         LeaveRequest.start_date >= date(year, 1, 1),
         LeaveRequest.start_date <= date(year, 12, 31),
     ).all()
-    approved = [lr for lr in leaves if lr.status == "approved"]
-    pending = [lr for lr in leaves if lr.status == "pending"]
-    used = sum(_business_days(lr.start_date, lr.end_date) for lr in approved)
+
+    approved = [lr for lr in leaves if lr.status in (LeaveStatus.APPROVED, "approved")]
+    pending = [lr for lr in leaves if lr.status in (LeaveStatus.PENDING, "pending")]
     pending_days = sum(_business_days(lr.start_date, lr.end_date) for lr in pending)
-    quota = Config.LEAVE_QUOTA_DAYS
-    remaining = max(0, quota - used)
+
+    used_deducted = 0
+    future_approved = 0
+    attended_saved = 0
+
+    for lr in approved:
+        for day in iter_weekdays(lr.start_date, lr.end_date):
+            if day > today:
+                future_approved += 1
+            else:
+                att = db.query(Attendance).filter_by(user_id=user_id, date=day).first()
+                if att and att.status in (AttendanceStatus.PRESENT, AttendanceStatus.LATE, AttendanceStatus.HALF_DAY) and ((att.hours_worked and att.hours_worked > 0) or att.check_in_lat is not None):
+                    attended_saved += 1
+                else:
+                    used_deducted += 1
+
+    quota = resolve_user_leave_quota(db, user_id, org_id)
+    total_approved = used_deducted + future_approved
+    remaining = max(0, quota - total_approved)
+
     return {
-        "used": used,
+        "used": total_approved,
+        "deducted_used": used_deducted,
+        "future_approved": future_approved,
+        "attended_saved": attended_saved,
         "pending": pending_days,
         "quota": quota,
         "remaining": remaining,
         "available_after_pending": max(0, remaining - pending_days),
+    }
+
+
+def reconcile_past_approved_leaves(db: "Session", target_date: date | None = None) -> dict:
+    """Reconcile past approved leave dates:
+    - If leave date has passed (or is today) and no attendance check-in exists: ensure Attendance status is ON_LEAVE.
+    - If intern actually checked in with present/late/half_day: preserve attendance.
+    """
+    from models import LeaveRequest, LeaveStatus, Attendance, AttendanceStatus
+    from config import Config
+
+    target = target_date or local_today()
+    approved_leaves = (
+        db.query(LeaveRequest)
+        .filter(
+            LeaveRequest.status.in_([LeaveStatus.APPROVED, "approved"]),
+            LeaveRequest.is_deleted == False,
+            LeaveRequest.start_date <= target,
+        )
+        .all()
+    )
+
+    reconciled_count = 0
+    leave_days_settled = 0
+    attended_days = 0
+
+    for lr in approved_leaves:
+        end_bound = min(lr.end_date, target)
+        for day in iter_weekdays(lr.start_date, end_bound):
+            att = db.query(Attendance).filter_by(user_id=lr.user_id, date=day).first()
+            if att:
+                if att.status in (AttendanceStatus.PRESENT, AttendanceStatus.LATE, AttendanceStatus.HALF_DAY) and ((att.hours_worked and att.hours_worked > 0) or att.check_in_lat is not None):
+                    attended_days += 1
+                else:
+                    if att.status != AttendanceStatus.ON_LEAVE:
+                        att.status = AttendanceStatus.ON_LEAVE
+                        att.hours_worked = 0.0
+                        leave_days_settled += 1
+            else:
+                check_in_dt = datetime.combine(day, Config.SHIFT_START)
+                att = Attendance(
+                    organization_id=lr.organization_id or 1,
+                    user_id=lr.user_id,
+                    date=day,
+                    check_in=check_in_dt,
+                    status=AttendanceStatus.ON_LEAVE,
+                    hours_worked=0.0,
+                    checkout_missed=False,
+                )
+                db.add(att)
+                leave_days_settled += 1
+        reconciled_count += 1
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    return {
+        "reconciled_requests": reconciled_count,
+        "leave_days_settled": leave_days_settled,
+        "attended_days": attended_days,
     }
 
 
@@ -905,6 +1027,131 @@ def get_org_done_statuses(db: "Session", org_id: int | None) -> set[str]:
     return base_done.union({r[0] for r in done_rows})
 
 
+def get_or_seed_org_project_statuses(db: "Session", org_id: int):
+    """Retrieve all ProjectStatusBucket entries for an organization, auto-seeding defaults if none exist."""
+    from models import ProjectStatusBucket
+
+    statuses = (
+        db.query(ProjectStatusBucket)
+        .filter_by(organization_id=org_id)
+        .order_by(ProjectStatusBucket.order_index.asc(), ProjectStatusBucket.id.asc())
+        .all()
+    )
+    if statuses:
+        return statuses
+
+    defaults = [
+        ProjectStatusBucket(
+            organization_id=org_id,
+            name="Planning",
+            slug="planning",
+            color="#94A3B8",
+            order_index=0,
+            is_default=True,
+            is_system=True,
+        ),
+        ProjectStatusBucket(
+            organization_id=org_id,
+            name="Active",
+            slug="active",
+            color="#3B82F6",
+            order_index=1,
+            is_default=False,
+            is_system=True,
+        ),
+        ProjectStatusBucket(
+            organization_id=org_id,
+            name="On Hold",
+            slug="on_hold",
+            color="#F59E0B",
+            order_index=2,
+            is_default=False,
+            is_system=False,
+        ),
+        ProjectStatusBucket(
+            organization_id=org_id,
+            name="Completed",
+            slug="completed",
+            color="#10B981",
+            order_index=3,
+            is_default=False,
+            is_system=True,
+        ),
+    ]
+    db.add_all(defaults)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        return (
+            db.query(ProjectStatusBucket)
+            .filter_by(organization_id=org_id)
+            .order_by(ProjectStatusBucket.order_index.asc(), ProjectStatusBucket.id.asc())
+            .all()
+        )
+    for d in defaults:
+        db.refresh(d)
+    return defaults
+
+
+def get_or_seed_org_internship_durations(db: "Session", org_id: int):
+    """Retrieve all InternshipDurationMaster entries for an organization, auto-seeding defaults if none exist."""
+    from models import InternshipDurationMaster
+
+    durations = (
+        db.query(InternshipDurationMaster)
+        .filter_by(organization_id=org_id)
+        .order_by(InternshipDurationMaster.order_index.asc(), InternshipDurationMaster.id.asc())
+        .all()
+    )
+    if durations:
+        return durations
+
+    defaults = [
+        InternshipDurationMaster(
+            organization_id=org_id,
+            title="1 Month",
+            duration_months=1,
+            leaves=2,
+            order_index=0,
+            is_default=False,
+            is_active=True,
+        ),
+        InternshipDurationMaster(
+            organization_id=org_id,
+            title="3 Months",
+            duration_months=3,
+            leaves=5,
+            order_index=1,
+            is_default=True,
+            is_active=True,
+        ),
+        InternshipDurationMaster(
+            organization_id=org_id,
+            title="6 Months",
+            duration_months=6,
+            leaves=10,
+            order_index=2,
+            is_default=False,
+            is_active=True,
+        ),
+    ]
+    db.add_all(defaults)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        return (
+            db.query(InternshipDurationMaster)
+            .filter_by(organization_id=org_id)
+            .order_by(InternshipDurationMaster.order_index.asc(), InternshipDurationMaster.id.asc())
+            .all()
+        )
+    for d in defaults:
+        db.refresh(d)
+    return defaults
+
+
 # ---------------------------------------------------------------------------
 # Internship Summary & Attachments
 # ---------------------------------------------------------------------------
@@ -936,7 +1183,8 @@ def get_internship_summary(db: "Session", user: "User", org_id: int | None = Non
     approved_leaves = sum(lr.days for lr in leaves if lr.status == LeaveStatus.APPROVED)
     pending_leaves = sum(lr.days for lr in leaves if lr.status == LeaveStatus.PENDING)
     total_quota = Config.LEAVE_QUOTA_DAYS
-    balance_info = get_leave_balance(db, user.id)
+    balance_info = get_leave_balance(db, user.id, org_id)
+    total_quota = balance_info.get("quota", Config.LEAVE_QUOTA_DAYS)
     remaining_balance = balance_info.get("remaining", 0)
 
     today = local_today()
@@ -991,6 +1239,74 @@ def save_task_attachment(
     stored_name = f"{timestamp_prefix}_{safe_name}"
 
     rel_path = os.path.join("tasks", str(task_id), stored_name)
+    base_dir = os.path.abspath(Config.UPLOADS_DIR)
+    abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
+
+    if not abs_path.startswith(base_dir):
+        raise ValueError("Invalid target path.")
+
+    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+    with open(abs_path, "wb") as f:
+        f.write(content)
+
+    return rel_path.replace("\\", "/"), file_name, len(content)
+
+
+def save_assignment_attachment(
+    assignment_id: int,
+    user_id: int | None,
+    file_name: str,
+    content: bytes,
+) -> tuple[str, str, int]:
+    """Persist assignment brief/resources file safely on disk.
+
+    Returns: (rel_path, safe_file_name, file_size)
+    """
+    import os
+    if not content:
+        raise ValueError("Attachment content cannot be empty.")
+    if len(content) > 25 * 1024 * 1024:
+        raise ValueError("File size exceeds 25 MB limit.")
+
+    safe_name = _slugify_filename(file_name)
+    timestamp_prefix = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stored_name = f"{timestamp_prefix}_{safe_name}"
+
+    rel_path = os.path.join("assignments", str(assignment_id), stored_name)
+    base_dir = os.path.abspath(Config.UPLOADS_DIR)
+    abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
+
+    if not abs_path.startswith(base_dir):
+        raise ValueError("Invalid target path.")
+
+    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+    with open(abs_path, "wb") as f:
+        f.write(content)
+
+    return rel_path.replace("\\", "/"), file_name, len(content)
+
+
+def save_submission_file(
+    submission_id: int,
+    user_id: int,
+    file_name: str,
+    content: bytes,
+) -> tuple[str, str, int]:
+    """Persist assignment solution submission file safely on disk.
+
+    Returns: (rel_path, safe_file_name, file_size)
+    """
+    import os
+    if not content:
+        raise ValueError("Submission file content cannot be empty.")
+    if len(content) > 25 * 1024 * 1024:
+        raise ValueError("File size exceeds 25 MB limit.")
+
+    safe_name = _slugify_filename(file_name)
+    timestamp_prefix = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stored_name = f"{timestamp_prefix}_{safe_name}"
+
+    rel_path = os.path.join("submissions", f"{submission_id}_{user_id}", stored_name)
     base_dir = os.path.abspath(Config.UPLOADS_DIR)
     abs_path = os.path.abspath(os.path.join(base_dir, rel_path))
 
