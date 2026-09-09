@@ -1,4 +1,5 @@
 """JSON admin endpoints."""
+import math
 import secrets
 from datetime import date
 from typing import Annotated
@@ -13,6 +14,7 @@ from dependencies import get_optional_user, generate_token, issue_session_cookie
 from models import (
     InternInviteLink,
     LeaveRequest,
+    OrganizationMembership,
     Project,
     ProjectAssignment,
     ProjectStatusBucket,
@@ -36,14 +38,18 @@ from recycle_bin import (
 from models import BinEntityType
 from utils import (
     clear_all_database_data,
+    compute_internship_end_date,
     get_or_seed_org_task_statuses,
     get_or_seed_org_project_statuses,
     get_or_seed_org_internship_durations,
+    get_org_duration_tier,
     push_notification,
     record_audit,
     isoformat_utc,
     slugify_status_name,
+    validate_org_internship_duration,
 )
+from app.core.pagination import get_page_params
 
 from routes.api.schemas import (
     AdminCreateUserRequest,
@@ -86,6 +92,8 @@ def _user_dict(u: User, mentor_names: dict[int, str] | None = None) -> dict:
         "phone": u.phone,
         "job_title": u.job_title,
         "joining_date": u.joining_date.isoformat() if u.joining_date else None,
+        "internship_duration_months": u.internship_duration_months,
+        "internship_end_date": u.internship_end_date.isoformat() if u.internship_end_date else None,
         "skills": u.skills_list(),
         "created_at": isoformat_utc(u.created_at),
         "mentor_id": u.mentor_id,
@@ -106,6 +114,23 @@ def _intern_brief(u: User, mentor_names: dict[int, str] | None = None) -> dict:
     }
 
 
+# Never expose these accounts in the user-management list: superadmins are out of
+# scope for tenant admins entirely, and platform-admin rows are only visible to
+# other platform admins.
+_HIDDEN_LIST_ROLES = (UserRole.SUPERADMIN,)
+MAX_PAGE_SIZE = 100
+
+
+def _listable_users_q(db: Session, viewer: User):
+    q = db.query(User).filter(
+        User.is_deleted == False,
+        User.role.notin_(_HIDDEN_LIST_ROLES),
+    )
+    if not viewer.is_platform_admin:
+        q = q.filter(User.is_platform_admin == False)
+    return q
+
+
 @router.get("/users")
 async def list_users(request: Request, db: DbSession):
     user = get_optional_user(request, db)
@@ -114,6 +139,8 @@ async def list_users(request: Request, db: DbSession):
 
     role_filter = request.query_params.get("role")
     search_query = request.query_params.get("search", "").strip()
+    unassigned_only = str(request.query_params.get("unassigned", "")).strip().lower() in ("1", "true", "yes")
+    mentor_id_param = request.query_params.get("mentor_id", "").strip().lower()
 
     try:
         page = int(request.query_params.get("page", 1))
@@ -122,13 +149,17 @@ async def list_users(request: Request, db: DbSession):
             page = 1
         if page_size < 1:
             page_size = 15
+        page_size = min(page_size, MAX_PAGE_SIZE)
     except ValueError:
         page = 1
         page_size = 15
 
+    if role_filter == UserRole.SUPERADMIN:
+        raise HTTPException(status_code=422, detail="Invalid role filter.")
+
     is_mentor = user.role == "mentor"
 
-    base_q = db.query(User).filter(User.is_deleted == False)
+    base_q = _listable_users_q(db, user)
     if is_mentor:
         base_q = base_q.filter(User.role == UserRole.INTERN, User.mentor_id == user.id)
 
@@ -141,6 +172,10 @@ async def list_users(request: Request, db: DbSession):
     if role_filter and role_filter != "all":
         q = q.filter(User.role == role_filter)
 
+    # InternAssignmentsPanel support: list interns that have no mentor assigned.
+    if unassigned_only or mentor_id_param in ("null", "none"):
+        q = q.filter(User.role == UserRole.INTERN, User.mentor_id.is_(None))
+
     if search_query:
         search_pattern = f"%{search_query}%"
         q = q.filter(
@@ -151,21 +186,24 @@ async def list_users(request: Request, db: DbSession):
         )
 
     total = q.count()
-    import math
     total_pages = math.ceil(total / page_size) if total > 0 else 1
 
     paginated_users = (
-        q.order_by(User.role, User.name)
+        # Newest accounts first — a freshly created user must appear on page 1.
+        q.order_by(User.created_at.desc(), User.id.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
         .all()
     )
 
     mentor_names = _mentor_names(db)
+    paginated_items = [_user_dict(u, mentor_names) for u in paginated_users]
 
     return {
-        "users": [_user_dict(u, mentor_names) for u in paginated_users],
+        "users": paginated_items,
+        "items": paginated_items,
         "page": page,
+        "page_size": page_size,
         "total_pages": total_pages,
         "total": total,
         "counts": {
@@ -193,18 +231,30 @@ async def intern_assignments(request: Request, db: DbSession):
         raise HTTPException(status_code=403)
 
     mentor_names = _mentor_names(db)
-    interns = (
-        db.query(User)
-        .filter(User.role == UserRole.INTERN)
-        .order_by(User.name)
-        .all()
-    )
-    mentors = (
-        db.query(User)
-        .filter(User.role == UserRole.MENTOR)
-        .order_by(User.name)
-        .all()
-    )
+
+    # Org scoping: admins see their organization's people only (unless the caller
+    # is a platform admin, who may pass ?organization_id explicitly).
+    org_id = _resolve_admin_org_id(request, user, db)
+    if user.is_platform_admin:
+        org_filter = request.query_params.get("organization_id")
+        scoped_org_id = int(org_filter) if org_filter and str(org_filter).isdigit() else None
+    else:
+        scoped_org_id = org_id
+
+    intern_q = db.query(User).filter(User.role == UserRole.INTERN)
+    mentor_q = db.query(User).filter(User.role == UserRole.MENTOR)
+    if scoped_org_id is not None:
+        member_user_ids = [
+            m.user_id
+            for m in db.query(OrganizationMembership.user_id)
+            .filter_by(organization_id=scoped_org_id, is_active=True, is_deleted=False)
+            .all()
+        ]
+        intern_q = intern_q.filter(User.id.in_(member_user_ids))
+        mentor_q = mentor_q.filter(User.id.in_(member_user_ids))
+
+    interns = intern_q.order_by(User.name).all()
+    mentors = mentor_q.order_by(User.name).all()
 
     # Interns on board but not staffed on any (non-deleted) project — a separate signal
     # from mentor assignment above: an intern can have a mentor and still have zero
@@ -240,8 +290,25 @@ async def intern_assignments(request: Request, db: DbSession):
 
     unassigned = [i for i in interns if not i.mentor_id]
     no_project = [i for i in interns if i.id not in interns_with_a_project]
+
+    # by_mentor is paginated over mentors (page/page_size, optional ?search on
+    # mentor name/email) so the full mentor↔intern map is never dumped at once.
+    mentor_search = request.query_params.get("search", "").strip()
+    page, page_size = get_page_params(request, default_page_size=20)
+    total_mentors = len(mentors)
+    mentor_rows = mentors
+    if mentor_search:
+        pattern = f"%{mentor_search}%"
+        mentor_rows = [
+            m for m in mentor_rows
+            if pattern.lower().strip("%") in (m.name or "").lower()
+            or pattern.lower().strip("%") in (m.email or "").lower()
+        ]
+        total_mentors = len(mentor_rows)
+    paged_mentors = mentor_rows[(page - 1) * page_size : page * page_size]
+
     by_mentor = []
-    for mentor in mentors:
+    for mentor in paged_mentors:
         mentees = [i for i in interns if i.mentor_id == mentor.id]
         by_mentor.append(
             {
@@ -259,6 +326,11 @@ async def intern_assignments(request: Request, db: DbSession):
         "no_project_count": len(no_project),
         "no_project": [_intern_brief(i, mentor_names) for i in no_project],
         "by_mentor": by_mentor,
+        "page": page,
+        "page_size": page_size,
+        "total": total_mentors,
+        "total_pages": math.ceil(total_mentors / page_size) if total_mentors > 0 else 1,
+        "organization_id": scoped_org_id,
         "scope": "admin",
     }
 
@@ -281,7 +353,8 @@ async def create_user(request: Request, db: DbSession, data: AdminCreateUserRequ
         raise HTTPException(status_code=422, detail="Name, email, and password are required.")
     if len(password) < 8:
         raise HTTPException(status_code=422, detail="Password must be at least 8 characters.")
-    if role not in UserRole.ALL:
+    # Superadmin accounts are only created server-side (bootstrap) — never via this endpoint.
+    if role not in (UserRole.ADMIN, UserRole.MENTOR, UserRole.INTERN):
         raise HTTPException(status_code=422, detail="Invalid role.")
     # Mentors can only create interns
     if user.is_mentor and role != UserRole.INTERN:
@@ -302,6 +375,31 @@ async def create_user(request: Request, db: DbSession, data: AdminCreateUserRequ
     elif role == UserRole.INTERN and user.is_mentor:
         resolved_mentor_id = user.id
 
+    # Internship duration (tenant-wise validation against this org's tiers)
+    raw_duration = payload.get("internship_duration_months", payload.get("internship_duration"))
+    duration_months: int | None = None
+    if raw_duration not in (None, "", "null", "undefined"):
+        try:
+            duration_months = int(raw_duration)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=422, detail="Internship duration must be a whole number of months.")
+
+    joining_date: date | None = None
+    raw_joining = payload.get("joining_date")
+    if raw_joining not in (None, "", "null", "undefined"):
+        try:
+            joining_date = date.fromisoformat(str(raw_joining).strip())
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Invalid joining date format. Use YYYY-MM-DD.")
+
+    internship_end_date: date | None = None
+    if duration_months is not None:
+        org_id = _resolve_admin_org_id(request, user, db)
+        tier, duration_error = validate_org_internship_duration(db, org_id, duration_months)
+        if duration_error:
+            raise HTTPException(status_code=422, detail=duration_error)
+        internship_end_date = compute_internship_end_date(joining_date, duration_months)
+
     new_user = User(
         name=name,
         email=email,
@@ -311,17 +409,45 @@ async def create_user(request: Request, db: DbSession, data: AdminCreateUserRequ
         phone=phone or None,
         job_title=job_title or None,
         department=department or None,
+        joining_date=joining_date,
+        internship_duration_months=duration_months,
+        internship_end_date=internship_end_date,
         mentor_id=resolved_mentor_id,
     )
     new_user.set_password(password)
     new_user.session_version = 1
     db.add(new_user)
     db.flush()  # assign new_user.id so the audit row references it
+    # Attach the account to the creator's organization so duration-tier leave
+    # resolution and org-scoped queries work for the new user.
+    org_id = _resolve_admin_org_id(request, user, db)
+    db.add(
+        OrganizationMembership(
+            organization_id=org_id,
+            user_id=new_user.id,
+            role=role,
+            department=department or None,
+            job_title=job_title or None,
+            joining_date=joining_date,
+            internship_duration_months=duration_months,
+            internship_end_date=internship_end_date,
+            is_active=True,
+            activated_at=_utcnow(),
+        )
+    )
     record_audit(db, user, "user.create", f"created {role} account for", name, affected_user_id=new_user.id)
     db.commit()
     db.refresh(new_user)
     mentor_names = _mentor_names(db)
-    return _user_dict(new_user, mentor_names)
+    result = _user_dict(new_user, mentor_names)
+    if duration_months is not None:
+        tier = get_org_duration_tier(db, org_id, duration_months)
+        result["internship_duration"] = {
+            "duration_months": duration_months,
+            "title": tier.title if tier else None,
+            "leaves": tier.leaves if tier else None,
+        }
+    return result
 
 
 @router.put("/users/{user_id}")
@@ -360,6 +486,31 @@ async def update_user(user_id: int, request: Request, response: Response, db: Db
                 raise HTTPException(status_code=422, detail="Invalid joining date format. Use YYYY-MM-DD.")
         else:
             target.joining_date = None
+    if "internship_duration_months" in payload:
+        raw_duration = payload.get("internship_duration_months", payload.get("internship_duration"))
+        if raw_duration in (None, "", "null", "undefined"):
+            target.internship_duration_months = None
+            target.internship_end_date = None
+        else:
+            try:
+                new_duration = int(raw_duration)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=422, detail="Internship duration must be a whole number of months.")
+            org_id = _resolve_admin_org_id(request, user, db)
+            tier, duration_error = validate_org_internship_duration(db, org_id, new_duration)
+            if duration_error:
+                raise HTTPException(status_code=422, detail=duration_error)
+            target.internship_duration_months = new_duration
+            target.internship_end_date = compute_internship_end_date(target.joining_date, new_duration)
+            # Keep the org membership row in sync so tier/leave lookups stay consistent
+            membership = (
+                db.query(OrganizationMembership)
+                .filter_by(user_id=target.id, is_active=True, is_deleted=False)
+                .first()
+            )
+            if membership:
+                membership.internship_duration_months = new_duration
+                membership.internship_end_date = target.internship_end_date
     if user.role in ("admin", "mentor") and "mentor_id" in payload and payload["mentor_id"] is not None and target.role == UserRole.INTERN:
         raw_mentor = payload["mentor_id"]
         if raw_mentor in (None, "", 0, "0"):
@@ -416,8 +567,12 @@ async def change_role(user_id: int, request: Request, db: DbSession, data: Admin
         raise HTTPException(status_code=400, detail="Cannot change your own role.")
     payload = await get_payload(request, data)
     new_role = str(payload.get("role", ""))
-    if new_role not in UserRole.ALL:
+    # Superadmin is never assignable via this endpoint and superadmin accounts
+    # cannot be retargeted by tenant admins.
+    if new_role not in (UserRole.ADMIN, UserRole.MENTOR, UserRole.INTERN):
         raise HTTPException(status_code=422, detail="Invalid role.")
+    if target.is_superadmin and not user.is_platform_admin:
+        raise HTTPException(status_code=403, detail="Cannot change the role of a superadmin account.")
     old_role = target.role
     target.role = new_role
     push_notification(db, target.id, f"Your role was changed from {old_role} to {new_role} by an admin.")

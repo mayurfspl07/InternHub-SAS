@@ -276,6 +276,13 @@ class Config:
     )
     del _cookie_secure
 
+    # Return a Bearer token in the login/change-password response body. Off by
+    # default: the web SPA authenticates with the HttpOnly session cookie and
+    # must NOT persist tokens in Web Storage. Enable only for mobile/CLI
+    # clients that cannot use cookies; the body token is always short-lived
+    # (SESSION_DEFAULT_AGE, "remember" is ignored for tokens).
+    AUTH_RETURN_BEARER_TOKEN: bool = os.environ.get("AUTH_RETURN_BEARER_TOKEN", "").strip().lower() in ("1", "true", "yes")
+
     @classmethod
     def cors_origins(cls) -> list[str]:
         raw = os.environ.get(

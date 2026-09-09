@@ -17,6 +17,7 @@ from dependencies import get_optional_user
 from models import Attendance, AttendanceAuditLog, AttendanceStatus, User, UserRole
 from utils import (
     apply_checkout_to_record,
+    attendance_photo_url,
     auto_checkout_missed_sessions,
     export_attendance_csv,
     fmt_dt,
@@ -77,16 +78,8 @@ def _att_dict(r: Attendance) -> dict:
             if show_checkout and r.check_out_lat is not None and r.check_out_lng is not None
             else None
         ),
-        "check_in_photo_url": (
-            r.check_in_photo
-            if r.check_in_photo and r.check_in_photo.startswith(("http://", "https://"))
-            else (f"/api/attendance/{r.id}/photo/checkin" if r.check_in_photo else None)
-        ),
-        "check_out_photo_url": (
-            r.check_out_photo
-            if r.check_out_photo and r.check_out_photo.startswith(("http://", "https://"))
-            else (f"/api/attendance/{r.id}/photo/checkout" if r.check_out_photo else None)
-        ),
+        "check_in_photo_url": attendance_photo_url(r.check_in_photo, r.id, "checkin"),
+        "check_out_photo_url": attendance_photo_url(r.check_out_photo, r.id, "checkout"),
     }
 
 

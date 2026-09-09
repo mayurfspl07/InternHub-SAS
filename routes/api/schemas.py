@@ -79,6 +79,12 @@ class AdminCreateUserRequest(BaseModel):
     department: Optional[str] = Field(None, description="Department", json_schema_extra={"example": "Engineering"})
     job_title: Optional[str] = Field(None, description="Job title", json_schema_extra={"example": "Frontend Intern"})
     joining_date: Optional[str] = Field(None, description="Joining date (YYYY-MM-DD)", json_schema_extra={"example": "2026-06-01"})
+    internship_duration_months: Optional[int] = Field(
+        None,
+        ge=1,
+        description="Internship duration in months (must match one of the organization's configured internship duration tiers)",
+        json_schema_extra={"example": 6},
+    )
     mentor_id: Optional[int] = Field(None, description="Assigned mentor ID for intern", json_schema_extra={"example": 2})
 
 
@@ -89,6 +95,12 @@ class AdminUpdateUserRequest(BaseModel):
     department: Optional[str] = Field(None, description="Department", json_schema_extra={"example": "QA"})
     job_title: Optional[str] = Field(None, description="Job title", json_schema_extra={"example": "QA Engineer"})
     joining_date: Optional[str] = Field(None, description="Joining date (YYYY-MM-DD)", json_schema_extra={"example": "2026-06-01"})
+    internship_duration_months: Optional[int] = Field(
+        None,
+        ge=1,
+        description="Internship duration in months (must match one of the organization's configured internship duration tiers)",
+        json_schema_extra={"example": 6},
+    )
     mentor_id: Optional[int] = Field(None, description="Assigned mentor ID", json_schema_extra={"example": 2})
 
 

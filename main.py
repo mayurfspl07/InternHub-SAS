@@ -312,16 +312,26 @@ async def csrf_guard(request: Request, call_next):
 
 # Security response headers (defense in depth — not a substitute for output escaping,
 # server-side authorization, etc., which remain the primary controls).
+# script-src 'unsafe-inline' stays enabled until the SPA's inline theme bootstrap is
+# removed from the Vite build (external FE repo); flip CSP_ALLOW_INLINE_SCRIPTS=false
+# in the environment to tighten it to 'self' only. cdn.jsdelivr.net is pinned and only
+# serves the /docs Scalar reference assets.
+_CSP_SCRIPT_SRC = (
+    "'self' 'unsafe-inline' https://cdn.jsdelivr.net"
+    if os.environ.get("CSP_ALLOW_INLINE_SCRIPTS", "1").strip().lower() in ("1", "true", "yes", "")
+    else "'self' https://cdn.jsdelivr.net"
+)
 _CSP = (
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+    f"script-src {_CSP_SCRIPT_SRC}; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
     "font-src 'self' https://fonts.gstatic.com data:; "
-    "img-src 'self' data: https://fastapi.tiangolo.com https://cdn.jsdelivr.net; "
+    "img-src 'self' data: blob: https:; "
     "connect-src 'self' https://cdn.jsdelivr.net; "
+    "object-src 'none'; "
     "base-uri 'self'; "
     "form-action 'self'; "
-    "frame-ancestors 'none'"
+    "frame-ancestors 'self'"
 )
 
 

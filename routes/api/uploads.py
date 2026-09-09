@@ -11,7 +11,7 @@ from config import Config
 from database import get_db
 from dependencies import get_optional_user
 from models import Organization, User, _utcnow
-from utils import record_audit
+from utils import record_audit, validate_image_upload
 from cloudinary_service import is_cloudinary_configured, upload_image
 
 logger = logging.getLogger(__name__)
@@ -19,23 +19,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/upload", tags=["Image Uploads"])
 DbSession = Annotated[Session, Depends(get_db)]
 
-ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"}
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 def _validate_image_file(file: UploadFile, content: bytes) -> str:
-    if not content:
-        raise HTTPException(status_code=422, detail="Uploaded file is empty.")
-    if len(content) > MAX_IMAGE_SIZE:
-        raise HTTPException(status_code=422, detail="Image size exceeds 10 MB limit.")
-
-    ext = os.path.splitext(file.filename or "")[1].lower()
-    if ext not in ALLOWED_IMAGE_EXTENSIONS:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Unsupported file format '{ext}'. Allowed: {', '.join(sorted(ALLOWED_IMAGE_EXTENSIONS))}",
-        )
-    return ext
+    """Extension allowlist + magic-byte content check (SVG is not allowed)."""
+    try:
+        return validate_image_upload(file.filename or "", content, max_mb=10)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
 
 def _save_local_fallback(content: bytes, subfolder: str, filename: str) -> str:

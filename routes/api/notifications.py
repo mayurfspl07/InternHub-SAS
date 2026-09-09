@@ -1,10 +1,13 @@
 """JSON notification endpoints."""
+import asyncio
+import json
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from database import get_db
+from database import get_db, SessionLocal
 from dependencies import get_optional_user
 from models import Notification
 from utils import isoformat_utc, unread_notification_count
@@ -13,6 +16,9 @@ router = APIRouter(prefix="/api/notifications", tags=["Notifications"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 PAGE_SIZE = 20
+
+# SSE poll interval for the unread-count push channel.
+SSE_POLL_SECONDS = 15
 
 
 def _notif_dict(n: Notification) -> dict:
@@ -76,3 +82,50 @@ async def delete_notification(notif_id: int, request: Request, db: DbSession):
         db.delete(notif)
         db.commit()
     return {"ok": True}
+
+
+@router.get("/stream")
+async def notifications_stream(request: Request, db: DbSession):
+    """Server-Sent Events push channel for the unread notification count.
+
+    Replaces unread-count polling: the SPA opens one EventSource (same-origin,
+    cookie-authenticated) and receives `unread` events whenever the count
+    changes (checked every SSE_POLL_SECONDS), plus a keepalive ping.
+    """
+    user = get_optional_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+    user_id = user.id
+
+    async def event_gen():
+        last_count: int | None = None
+        # Each tick uses a short-lived session (SSE connections outlive requests)
+        # and runs the DB query off the event loop.
+        while True:
+            if await request.is_disconnected():
+                return
+            try:
+                session = SessionLocal()
+                try:
+                    count = await asyncio.to_thread(unread_notification_count, session, user_id)
+                finally:
+                    session.close()
+                if count != last_count:
+                    last_count = count
+                    payload = json.dumps({"unread_count": count})
+                    yield f"event: unread\ndata: {payload}\n\n"
+                else:
+                    yield ": keepalive\n\n"
+            except Exception:
+                yield ": error\n\n"
+            await asyncio.sleep(SSE_POLL_SECONDS)
+
+    return StreamingResponse(
+        event_gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )

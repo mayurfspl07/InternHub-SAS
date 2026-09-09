@@ -23,6 +23,7 @@ from models import (
     User,
 )
 from utils import (
+    attendance_photo_url,
     compute_streak,
     fmt_time_ist,
     get_internship_summary,
@@ -34,6 +35,14 @@ from utils import (
     scoped_audit_query,
     to_ist,
 )
+from app.core.pagination import get_page_params
+
+# Response caps for dashboard array payloads — keep the first page of data and
+# ship the full count alongside so metric cards stay accurate.
+DASHBOARD_LIST_CAP = 50
+DASHBOARD_PRESENT_CAP = 100
+DASHBOARD_ORG_CAP = 100
+DASHBOARD_PENDING_LEAVES_CAP = 20
 
 # Domain routers
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
@@ -124,7 +133,7 @@ def _build_admin_dashboard(request: Request, user: User, db: Session) -> dict:
     on_leave_today_count = sum(1 for att in today_attendances if att.status == "on_leave")
     absent_today_count = max(0, len(intern_ids) - present_today_count - on_leave_today_count)
 
-    present_today_list = [
+    present_today_all = [
         {
             "user_id": att.user_id,
             "name": att.user.name if att.user else f"Intern #{att.user_id}",
@@ -134,15 +143,13 @@ def _build_admin_dashboard(request: Request, user: User, db: Session) -> dict:
             "check_in": att.check_in.strftime("%H:%M") if att.check_in else None,
             "check_out": att.check_out.strftime("%H:%M") if att.check_out else None,
             "hours_worked": att.duration_hours,
-            "check_in_photo_url": (
-                att.check_in_photo
-                if att.check_in_photo and att.check_in_photo.startswith(("http://", "https://"))
-                else (f"/api/attendance/{att.id}/photo/checkin" if att.check_in_photo else None)
-            ),
+            "check_in_photo_url": attendance_photo_url(att.check_in_photo, att.id, "checkin"),
         }
         for att in today_attendances
         if att.status in present_statuses
     ]
+    present_today_total = len(present_today_all)
+    present_today_list = present_today_all[:DASHBOARD_PRESENT_CAP]
 
     # 3. Projects & Project Status
     proj_q = db.query(Project).filter_by(is_deleted=False)
@@ -319,6 +326,7 @@ def _build_admin_dashboard(request: Request, user: User, db: Session) -> dict:
         } if org else None,
         "stats": stats,
         "present_today_list": present_today_list,
+        "present_today_total": present_today_total,
         "open_tasks": open_tasks_list,
         "active_projects": active_projects_list,
         "pending_leave_requests": pending_leave_list,
@@ -380,7 +388,7 @@ def _build_mentor_dashboard(request: Request, user: User, db: Session) -> dict:
     )
     open_tasks_by_mentee = dict(mentee_tasks_q)
 
-    assigned_interns_list = [
+    assigned_interns_all = [
         {
             "user_id": u.id,
             "name": u.name,
@@ -391,19 +399,24 @@ def _build_mentor_dashboard(request: Request, user: User, db: Session) -> dict:
             "check_out": fmt_time_ist(today_att_map[u.id].check_out, use_12h=False) if (u.id in today_att_map and today_att_map[u.id].check_out) else None,
             "hours_worked": today_att_map[u.id].duration_hours if u.id in today_att_map else 0.0,
             "check_in_photo_url": (
-                today_att_map[u.id].check_in_photo
-                if (u.id in today_att_map and today_att_map[u.id].check_in_photo and today_att_map[u.id].check_in_photo.startswith(("http://", "https://")))
-                else (f"/api/attendance/{today_att_map[u.id].id}/photo/checkin" if (u.id in today_att_map and today_att_map[u.id].check_in_photo) else None)
-            ) if u.id in today_att_map else None,
+                attendance_photo_url(today_att_map[u.id].check_in_photo, today_att_map[u.id].id, "checkin")
+                if u.id in today_att_map else None
+            ),
             "open_tasks_count": open_tasks_by_mentee.get(u.id, 0),
             "streak": compute_streak(db, u.id),
         }
         for u in mentee_users
     ]
+    assigned_interns_total = len(assigned_interns_all)
+    # Cap the serialized list (streak computation is per-intern) — full count ships alongside.
+    assigned_interns_list = assigned_interns_all[:DASHBOARD_LIST_CAP]
 
     present_today_list = [
         m for m in assigned_interns_list if m["today_status"] in present_statuses
     ]
+    present_today_total = sum(
+        1 for m in assigned_interns_all if m["today_status"] in present_statuses
+    )
 
     # 5. Open Tasks in Mentor's Projects / Mentees
     tasks_q = (
@@ -446,12 +459,13 @@ def _build_mentor_dashboard(request: Request, user: User, db: Session) -> dict:
     )
     task_status = dict(all_mentor_tasks)
 
-    # 7. Pending Leave Requests for Mentees
+    # 7. Pending Leave Requests for Mentees (capped — full count in stats)
     pending_leaves = (
         db.query(LeaveRequest)
         .options(joinedload(LeaveRequest.user))
         .filter(LeaveRequest.user_id.in_(mentee_scope), LeaveRequest.status == "pending", LeaveRequest.is_deleted == False)
         .order_by(LeaveRequest.created_at.desc())
+        .limit(DASHBOARD_PENDING_LEAVES_CAP)
         .all()
     )
     pending_leave_list = [
@@ -565,11 +579,14 @@ def _build_mentor_dashboard(request: Request, user: User, db: Session) -> dict:
         "role": "mentor",
         "stats": stats,
         "assigned_interns": assigned_interns_list,
+        "assigned_interns_total": assigned_interns_total,
         "present_today_list": present_today_list,
+        "present_today_total": present_today_total,
         "projects": projects_list,
         "active_projects": projects_list,
         "open_tasks": open_tasks_list,
         "pending_leave_requests": pending_leave_list,
+        "pending_leave_requests_total": len(pending_leaves),
         "attendance_chart": attendance_chart,
         "project_status": project_status,
         "task_status": task_status,
@@ -592,16 +609,8 @@ def _build_intern_dashboard(request: Request, user: User, db: Session) -> dict:
         "check_in": fmt_time_ist(today_att.check_in, use_12h=False) if (today_att and today_att.check_in) else None,
         "check_out": fmt_time_ist(today_att.check_out, use_12h=False) if (today_att and today_att.check_out) else None,
         "hours_worked": today_att.duration_hours if today_att else 0.0,
-        "check_in_photo_url": (
-            today_att.check_in_photo
-            if (today_att and today_att.check_in_photo and today_att.check_in_photo.startswith(("http://", "https://")))
-            else (f"/api/attendance/{today_att.id}/photo/checkin" if (today_att and today_att.check_in_photo) else None)
-        ) if today_att else None,
-        "check_out_photo_url": (
-            today_att.check_out_photo
-            if (today_att and today_att.check_out_photo and today_att.check_out_photo.startswith(("http://", "https://")))
-            else (f"/api/attendance/{today_att.id}/photo/checkout" if (today_att and today_att.check_out_photo) else None)
-        ) if today_att else None,
+        "check_in_photo_url": attendance_photo_url(today_att.check_in_photo, today_att.id, "checkin") if today_att else None,
+        "check_out_photo_url": attendance_photo_url(today_att.check_out_photo, today_att.id, "checkout") if today_att else None,
         "check_in_address": today_att.check_in_address if today_att else None,
     }
 
@@ -661,6 +670,7 @@ def _build_intern_dashboard(request: Request, user: User, db: Session) -> dict:
     for t in tasks_db:
         task_status[t.status] = task_status.get(t.status, 0) + 1
 
+    assigned_tasks_total = len(tasks_db)
     assigned_tasks = [
         {
             "id": t.id,
@@ -674,7 +684,7 @@ def _build_intern_dashboard(request: Request, user: User, db: Session) -> dict:
             "project_name": t.project.name if t.project else None,
             "created_at": isoformat_utc(t.created_at),
         }
-        for t in tasks_db
+        for t in tasks_db[:DASHBOARD_LIST_CAP]
     ]
     open_tasks = [t for t in assigned_tasks if t["status"] not in ("done", "completed")]
     completed_tasks = [t for t in assigned_tasks if t["status"] in ("done", "completed")]
@@ -766,6 +776,7 @@ def _build_intern_dashboard(request: Request, user: User, db: Session) -> dict:
         "assigned_projects": assigned_projects,
         "active_projects": assigned_projects,
         "assigned_tasks": assigned_tasks,
+        "assigned_tasks_total": assigned_tasks_total,
         "open_tasks": open_tasks,
         "attendance_chart": attendance_chart,
         "project_status": project_status,
@@ -830,7 +841,7 @@ def _build_superadmin_dashboard(request: Request, user: User, db: Session) -> di
             "project_count": projects_by_org.get(o.id, 0),
             "created_at": isoformat_utc(o.created_at),
         }
-        for o in all_orgs
+        for o in all_orgs[:DASHBOARD_ORG_CAP]
     ]
 
     # 5. Recent Platform Activity
@@ -870,6 +881,7 @@ def _build_superadmin_dashboard(request: Request, user: User, db: Session) -> di
         "role": "superadmin",
         "stats": stats,
         "organizations": orgs_list,
+        "organizations_total": total_orgs,
         "recent_activity": recent_activity,
         "system_health": {
             "status": "operational",
@@ -963,7 +975,7 @@ async def present_today_list(request: Request, db: DbSession):
         ] or [-1]
 
     present_statuses = ("present", "late", "half_day")
-    rows = (
+    q = (
         db.query(Attendance)
         .join(User, Attendance.user_id == User.id)
         .filter(
@@ -971,7 +983,13 @@ async def present_today_list(request: Request, db: DbSession):
             Attendance.date == today,
             Attendance.status.in_(present_statuses),
         )
-        .order_by(User.name)
+    )
+    total = q.count()
+    page, page_size = get_page_params(request)
+    rows = (
+        q.order_by(User.name)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
         .all()
     )
     return {
@@ -984,7 +1002,21 @@ async def present_today_list(request: Request, db: DbSession):
                 "check_in": r.check_in.strftime("%H:%M") if r.check_in else None,
             }
             for r in rows
-        ]
+        ],
+        "items": [
+            {
+                "id": r.user_id,
+                "name": r.user.name if r.user else None,
+                "department": r.user.department if r.user else None,
+                "status": r.status,
+                "check_in": r.check_in.strftime("%H:%M") if r.check_in else None,
+            }
+            for r in rows
+        ],
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "total_pages": max(1, (total + page_size - 1) // page_size) if total else 1,
     }
 
 
@@ -1008,27 +1040,37 @@ async def open_tasks_list(request: Request, db: DbSession):
         task_q = task_q.filter(Project.id.in_(mentor_project_ids))
 
     today = local_today()
+    total = task_q.count()
+    page, page_size = get_page_params(request)
     tasks = (
         task_q.options(joinedload(Task.project), joinedload(Task.assignee))
         .order_by(Project.name, Task.deadline.is_(None), Task.deadline)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
         .all()
     )
+    serialized = [
+        {
+            "id": t.id,
+            "title": t.title,
+            "status": t.status,
+            "priority": t.priority,
+            "deadline": t.deadline.isoformat() if t.deadline else None,
+            "is_overdue": t.deadline is not None and t.deadline < today,
+            "project_id": t.project_id,
+            "project_name": t.project.name if t.project else None,
+            "assignee_id": t.assigned_to,
+            "assignee_name": t.assignee.name if t.assignee else None,
+        }
+        for t in tasks
+    ]
     return {
-        "tasks": [
-            {
-                "id": t.id,
-                "title": t.title,
-                "status": t.status,
-                "priority": t.priority,
-                "deadline": t.deadline.isoformat() if t.deadline else None,
-                "is_overdue": t.deadline is not None and t.deadline < today,
-                "project_id": t.project_id,
-                "project_name": t.project.name if t.project else None,
-                "assignee_id": t.assigned_to,
-                "assignee_name": t.assignee.name if t.assignee else None,
-            }
-            for t in tasks
-        ]
+        "tasks": serialized,
+        "items": serialized,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "total_pages": max(1, (total + page_size - 1) // page_size) if total else 1,
     }
 
 

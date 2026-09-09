@@ -120,3 +120,36 @@ def delete_image(public_id: str) -> bool:
     except Exception as e:
         logger.warning("Cloudinary delete failed for %s: %s", public_id, e)
         return False
+
+
+def signed_delivery_url(url: str | None) -> str | None:
+    """Return a signed Cloudinary CDN delivery URL for a stored Cloudinary asset.
+
+    Lets the frontend render attendance photos with a plain <img src> even when
+    unsigned delivery is restricted on the cloud. Non-Cloudinary URLs (local
+    file paths, third-party hosts) pass through unchanged, as does anything
+    when Cloudinary is not configured.
+    """
+    if not url:
+        return url
+    raw = str(url).strip()
+    if not raw.startswith(("http://", "https://")) or "/upload/" not in raw:
+        return raw
+    if not is_cloudinary_configured():
+        return raw
+
+    try:
+        import cloudinary
+
+        _init_cloudinary()
+        public_id = raw.split("/upload/", 1)[1]
+        # Drop the version segment (v1234567890/) if present.
+        if public_id.startswith("v") and "/" in public_id and public_id.split("/", 1)[0][1:].isdigit():
+            public_id = public_id.split("/", 1)[1]
+        # Drop any transformation segments and the file extension.
+        if "." in public_id.rsplit("/", 1)[-1]:
+            public_id = public_id.rsplit(".", 1)[0]
+        return cloudinary.CloudinaryImage(public_id).build_url(sign_url=True, secure=True)
+    except Exception as e:
+        logger.warning("Could not sign Cloudinary URL (%s): %s", raw, e)
+        return raw

@@ -84,14 +84,14 @@ class RecycleBinTests(unittest.IsolatedAsyncioTestCase):
         ann_id = created["id"]
 
         listed = await list_announcements(make_request(self.admin, "GET"), self.db)
-        self.assertEqual(len(listed), 1)
+        self.assertEqual(len(listed["items"]), 1)
 
         await delete_announcement(ann_id, make_request(self.admin, "DELETE"), self.db)
 
         listed_after_delete = await list_announcements(
             make_request(self.admin, "GET"), self.db
         )
-        self.assertEqual(listed_after_delete, [])
+        self.assertEqual(listed_after_delete["items"], [])
 
         bin_list = await list_recycle_bin(make_request(self.admin, "GET"), self.db)
         self.assertEqual(bin_list["total"], 1)
@@ -110,8 +110,8 @@ class RecycleBinTests(unittest.IsolatedAsyncioTestCase):
         listed_after_restore = await list_announcements(
             make_request(self.admin, "GET"), self.db
         )
-        self.assertEqual(len(listed_after_restore), 1)
-        self.assertEqual(listed_after_restore[0]["id"], ann_id)
+        self.assertEqual(len(listed_after_restore["items"]), 1)
+        self.assertEqual(listed_after_restore["items"][0]["id"], ann_id)
 
     async def test_non_admin_cannot_access_bin(self):
         with self.assertRaises(HTTPException) as ctx:

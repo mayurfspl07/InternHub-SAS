@@ -12,3 +12,4 @@ python-dotenv==1.0.1
 apscheduler==3.10.4
 scalar-fastapi>=1.8.0
 cloudinary==1.46.2
+nh3==0.2.18

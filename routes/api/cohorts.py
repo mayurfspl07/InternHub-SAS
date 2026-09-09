@@ -2,6 +2,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 from datetime import date
 
@@ -11,9 +12,30 @@ from models import Cohort, CohortMember, User, BinEntityType
 from recycle_bin import move_to_bin
 from utils import push_notification, record_audit, isoformat_utc
 from routes.api.schemas import CohortCreatePayload, CohortUpdatePayload, CohortMemberPayload, get_payload
+from app.core.pagination import get_page_params, build_page_response
 
 router = APIRouter(prefix="/api/cohorts", tags=["Cohorts"])
 DbSession = Annotated[Session, Depends(get_db)]
+
+
+def _resolve_org_id(request: Request, user: User, db: Session) -> int | None:
+    """Viewer's org id from the X-Organization-Id header or their membership."""
+    from dependencies import _resolve_request_org_id
+
+    return _resolve_request_org_id(request, user, db)
+
+
+def _apply_org_scope(q, org_id: int | None):
+    """Filter cohorts to the viewer's tenant (NULL org rows stay visible for
+    backwards compatibility with pre-tenancy data)."""
+    if org_id is None:
+        return q
+    return q.filter(or_(Cohort.organization_id == org_id, Cohort.organization_id.is_(None)))
+
+
+def _assert_cohort_visible(cohort: Cohort, org_id: int | None) -> None:
+    if org_id is not None and cohort.organization_id is not None and cohort.organization_id != org_id:
+        raise HTTPException(status_code=404)  # 404 avoids revealing cross-tenant cohorts
 
 
 def _member_dict(m: CohortMember) -> dict:
@@ -57,15 +79,37 @@ async def list_cohorts(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
+    org_id = _resolve_org_id(request, user, db)
     q = db.query(Cohort).options(joinedload(Cohort.members).joinedload(CohortMember.user)).filter(
         Cohort.is_deleted == False
     )
+    q = _apply_org_scope(q, org_id)
     if user.is_intern:
         # Interns only see cohorts they are a member of
         cohort_ids = [m.cohort_id for m in db.query(CohortMember.cohort_id).filter_by(user_id=user.id).all()]
         q = q.filter(Cohort.id.in_(cohort_ids))
-    cohorts = q.order_by(Cohort.created_at.desc()).all()
-    return [_cohort_dict(c, include_members=True) for c in cohorts]
+
+    search_query = request.query_params.get("search", "").strip()
+    if search_query:
+        search_pattern = f"%{search_query}%"
+        q = q.filter(
+            or_(
+                Cohort.name.ilike(search_pattern),
+                Cohort.description.ilike(search_pattern),
+            )
+        )
+
+    page, page_size = get_page_params(request)
+    total = q.count()
+    cohorts = (
+        q.order_by(Cohort.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    # List items stay lightweight (member_count only); GET /{id} returns full members.
+    items = [_cohort_dict(c, include_members=False) for c in cohorts]
+    return build_page_response(items, page, page_size, total)
 
 
 @router.post("")
@@ -96,6 +140,7 @@ async def create_cohort(request: Request, db: DbSession, data: CohortCreatePaylo
         description=str(payload.get("description") or "").strip() or None,
         start_date=start_date,
         end_date=end_date,
+        organization_id=_resolve_org_id(request, user, db),
         created_by_id=user.id,
     )
     db.add(cohort)
@@ -114,6 +159,7 @@ async def get_cohort(cohort_id: int, request: Request, db: DbSession):
     cohort = db.query(Cohort).options(joinedload(Cohort.members).joinedload(CohortMember.user)).filter_by(id=cohort_id).first()
     if not cohort:
         raise HTTPException(status_code=404)
+    _assert_cohort_visible(cohort, _resolve_org_id(request, user, db))
     if user.is_intern:
         is_member = db.query(CohortMember).filter_by(cohort_id=cohort_id, user_id=user.id).first()
         if not is_member:
@@ -129,6 +175,7 @@ async def update_cohort(cohort_id: int, request: Request, db: DbSession, data: C
     cohort = db.get(Cohort, cohort_id)
     if not cohort or cohort.is_deleted:
         raise HTTPException(status_code=404)
+    _assert_cohort_visible(cohort, _resolve_org_id(request, user, db))
     # Only admins or the cohort creator can update
     if user.is_mentor and cohort.created_by_id != user.id:
         raise HTTPException(status_code=403, detail="Only the cohort creator or an admin can update this cohort.")
@@ -161,6 +208,7 @@ async def delete_cohort(cohort_id: int, request: Request, db: DbSession):
     cohort = db.get(Cohort, cohort_id)
     if not cohort or cohort.is_deleted:
         raise HTTPException(status_code=404)
+    _assert_cohort_visible(cohort, _resolve_org_id(request, user, db))
     # Only admins or the cohort creator can delete
     if user.is_mentor and cohort.created_by_id != user.id:
         raise HTTPException(status_code=403, detail="Only the cohort creator or an admin can delete this cohort.")
@@ -178,6 +226,7 @@ async def add_member(cohort_id: int, request: Request, db: DbSession, data: Coho
     cohort = db.get(Cohort, cohort_id)
     if not cohort or cohort.is_deleted:
         raise HTTPException(status_code=404)
+    _assert_cohort_visible(cohort, _resolve_org_id(request, user, db))
     if user.is_mentor and cohort.created_by_id != user.id:
         raise HTTPException(status_code=403, detail="Only the cohort creator or an admin can add members.")
 

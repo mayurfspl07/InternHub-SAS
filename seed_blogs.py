@@ -1,6 +1,7 @@
 """Seed script for SEO-focused marketing blog posts. Idempotent — skips slugs that already exist."""
 from datetime import datetime, timedelta, timezone
 
+from app.core.sanitize import sanitize_html, validate_http_url
 from database import SessionLocal
 from models import BlogPost, User, UserRole
 
@@ -284,8 +285,10 @@ def seed_blogs() -> None:
                 title=spec["title"],
                 slug=spec["slug"],
                 excerpt=spec["excerpt"],
-                content=spec["content"].strip(),
-                cover_image_url=spec["cover_image_url"],
+                # Same write-path sanitization as the admin API — stored blog
+                # HTML must be safe regardless of how it entered the system.
+                content=sanitize_html(spec["content"].strip()),
+                cover_image_url=validate_http_url(spec["cover_image_url"]),
                 tags=",".join(spec["tags"]),
                 status="published",
                 author_id=author_id,

@@ -13,6 +13,7 @@ from database import get_db
 from dependencies import get_optional_user
 from models import BlogPost, BinEntityType
 from recycle_bin import move_to_bin
+from app.core.sanitize import sanitize_html, validate_http_url
 from routes.api.schemas import BlogCreatePayload, BlogUpdatePayload, get_payload
 from utils import record_audit, isoformat_utc
 
@@ -213,7 +214,8 @@ async def create_blog(request: Request, db: DbSession, data: BlogCreatePayload |
 
     payload = await get_payload(request, data)
     title = str(payload.get("title", "")).strip()
-    content = str(payload.get("content", "")).strip()
+    # Sanitize on write: stored HTML is always safe to render.
+    content = sanitize_html(str(payload.get("content", "")).strip())
     if not title or not content:
         raise HTTPException(status_code=422, detail="Title and content are required.")
 
@@ -227,12 +229,16 @@ async def create_blog(request: Request, db: DbSession, data: BlogCreatePayload |
 
     tags = _parse_tags(payload.get("tags"))
 
+    cover_image_url = validate_http_url(_clean_optional_str(payload.get("cover_image_url")))
+    if cover_image_url is None and _clean_optional_str(payload.get("cover_image_url")):
+        raise HTTPException(status_code=422, detail="cover_image_url must be an absolute http(s) URL.")
+
     post = BlogPost(
         title=title[:200],
         slug=slug,
-        excerpt=_clean_optional_str(payload.get("excerpt")),
+        excerpt=_clean_optional_str(sanitize_html(_clean_optional_str(payload.get("excerpt")))),
         content=content,
-        cover_image_url=_clean_optional_str(payload.get("cover_image_url")),
+        cover_image_url=cover_image_url,
         tags=",".join(tags) if tags else None,
         status=status,
         author_id=user.id,
@@ -286,17 +292,20 @@ async def update_blog(post_id: int, request: Request, db: DbSession, data: BlogU
 
     new_content = payload.get("content")
     if new_content is not None:
-        content_text = str(new_content).strip()
+        content_text = sanitize_html(str(new_content).strip())
         if not content_text:
             raise HTTPException(status_code=422, detail="Content cannot be empty.")
         post.content = content_text
         changed = True
 
     if "excerpt" in payload:
-        post.excerpt = _clean_optional_str(payload.get("excerpt"))
+        post.excerpt = _clean_optional_str(sanitize_html(_clean_optional_str(payload.get("excerpt"))))
         changed = True
     if "cover_image_url" in payload:
-        post.cover_image_url = _clean_optional_str(payload.get("cover_image_url"))
+        cleaned_cover = validate_http_url(_clean_optional_str(payload.get("cover_image_url")))
+        if cleaned_cover is None and _clean_optional_str(payload.get("cover_image_url")):
+            raise HTTPException(status_code=422, detail="cover_image_url must be an absolute http(s) URL.")
+        post.cover_image_url = cleaned_cover
         changed = True
     if "tags" in payload:
         tags = _parse_tags(payload.get("tags"))

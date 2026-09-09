@@ -8,7 +8,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from database import Base, get_db
-from dependencies import generate_token
+from config import Config
+from dependencies import generate_token, verify_token
 from main import app
 from models import (
     Announcement,
@@ -242,14 +243,25 @@ def test_auth_me_unauthenticated(api_env):
     assert resp.status_code == 401
 
 
-def test_auth_login_and_logout(api_env):
+def test_auth_login_and_logout(api_env, monkeypatch):
     client, intern = api_env["client"], api_env["intern"]
     headers = api_env["auth_headers"](intern)
-    # Valid login
+    # Default (web SPA): login sets HttpOnly cookies and does NOT return a token.
     resp = client.post("/api/auth/login", json={"email": intern.email, "password": "InternPass123!"})
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
+    assert "token" not in resp.json()
+    assert "ih_session" in resp.headers.get("set-cookie", "")
+
+    # With AUTH_RETURN_BEARER_TOKEN enabled (mobile/CLI): short-lived body token.
+    monkeypatch.setattr(Config, "AUTH_RETURN_BEARER_TOKEN", True)
+    resp = client.post("/api/auth/login", json={"email": intern.email, "password": "InternPass123!", "remember": True})
+    assert resp.status_code == 200
     assert "token" in resp.json()
+    token = resp.json()["token"]
+    data = verify_token(token)
+    assert data is not None and data["remember"] is False  # remember ignored for body tokens
+    monkeypatch.setattr(Config, "AUTH_RETURN_BEARER_TOKEN", False)
 
     # Invalid password
     resp = client.post("/api/auth/login", json={"email": intern.email, "password": "WrongPassword123!"})

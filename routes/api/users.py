@@ -67,7 +67,7 @@ def _leave_summary(requests: list[LeaveRequest]) -> dict:
     }
 
 
-def _intern_leave_payload(db: Session, target: User) -> dict:
+def _intern_leave_payload(db: Session, target: User, org_id: int | None = None) -> dict:
     leave_rows = (
         db.query(LeaveRequest)
         .options(joinedload(LeaveRequest.reviewer))
@@ -79,7 +79,9 @@ def _intern_leave_payload(db: Session, target: User) -> dict:
     return {
         "leave_requests": [_profile_leave_dict(lr) for lr in leave_rows],
         "leave_summary": summary,
-        "leave_balance": get_leave_balance(db, target.id),
+        # Quota is resolved against the org so the intern's assigned duration
+        # tier (InternshipDurationMaster) drives the balance.
+        "leave_balance": get_leave_balance(db, target.id, org_id),
         "leave_stats": {
             "leave_total": summary["total"],
             "leave_approved": summary["approved"],
@@ -404,7 +406,8 @@ async def user_overview(user_id: int, request: Request, db: DbSession):
     }
 
     if target.is_intern and _can_view_leave_data(viewer, target):
-        leave_data = _intern_leave_payload(db, target)
+        from dependencies import _resolve_request_org_id
+        leave_data = _intern_leave_payload(db, target, _resolve_request_org_id(request, viewer, db))
         payload["leave_requests"] = leave_data["leave_requests"]
         payload["leave_summary"] = leave_data["leave_summary"]
         payload["leave_balance"] = leave_data["leave_balance"]
@@ -426,7 +429,10 @@ async def user_leave(user_id: int, request: Request, db: DbSession):
     if not target.is_intern or not _can_view_leave_data(viewer, target):
         raise HTTPException(status_code=403, detail="You cannot view this user's leave history.")
 
-    leave_data = _intern_leave_payload(db, target)
+    from dependencies import _resolve_request_org_id
+    leave_data = _intern_leave_payload(
+        db, target, _resolve_request_org_id(request, viewer, db)
+    )
     return {
         "requests": leave_data["leave_requests"],
         "summary": leave_data["leave_summary"],

@@ -11,6 +11,7 @@ from dependencies import get_optional_user
 from models import Announcement, Project, ProjectAssignment, ProjectMentorAssignment, BinEntityType
 from recycle_bin import move_to_bin
 from routes.api.schemas import AnnouncementCreatePayload, AnnouncementUpdatePayload, get_payload
+from app.core.pagination import get_page_params, build_page_response
 from utils import record_audit, isoformat_utc
 
 router = APIRouter(prefix="/api/announcements", tags=["Announcements"])
@@ -63,8 +64,33 @@ async def list_announcements(request: Request, db: DbSession):
         except ValueError:
             pass
 
-    announcements = q.order_by(Announcement.is_pinned.desc(), Announcement.created_at.desc()).limit(50).all()
-    return [_ann_dict(a) for a in announcements]
+    # pinned=true / pinned=false filter (pinned ordering already puts pinned first)
+    pinned_param = str(request.query_params.get("pinned", "")).strip().lower()
+    if pinned_param in ("1", "true", "yes"):
+        q = q.filter(Announcement.is_pinned == True)
+    elif pinned_param in ("0", "false", "no"):
+        q = q.filter(Announcement.is_pinned == False)
+
+    search_query = request.query_params.get("search", "").strip()
+    if search_query:
+        search_pattern = f"%{search_query}%"
+        q = q.filter(
+            or_(
+                Announcement.title.ilike(search_pattern),
+                Announcement.body.ilike(search_pattern),
+            )
+        )
+
+    page, page_size = get_page_params(request)
+    total = q.count()
+    announcements = (
+        q.order_by(Announcement.is_pinned.desc(), Announcement.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    items = [_ann_dict(a) for a in announcements]
+    return build_page_response(items, page, page_size, total)
 
 
 @router.post("")

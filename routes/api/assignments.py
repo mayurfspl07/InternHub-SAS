@@ -32,6 +32,8 @@ from utils import (
     save_assignment_attachment,
     save_submission_file,
 )
+from app.core.pagination import get_page_params
+from app.core.sanitize import validate_http_url
 from routes.api.schemas import (
     AssignmentCreatePayload,
     AssignmentUpdatePayload,
@@ -139,7 +141,6 @@ async def list_assignments(
             Assignment.is_deleted == False,
         )
     )
-
     st = _clean_param_str(status)
     if st:
         query = query.filter(Assignment.status == st.lower())
@@ -188,21 +189,60 @@ async def list_assignments(
             Assignment.status != AssignmentStatus.DRAFT,
         )
 
-    p = _clean_param_int(page, 1)
-    ps = _clean_param_int(page_size, 20)
+    p, ps = get_page_params(request, default_page_size=20)
     total = query.count()
-    total_pages = max(1, (total + ps - 1) // ps) if total else 1
     assignments = query.order_by(Assignment.created_at.desc()).offset((p - 1) * ps).limit(ps).all()
     paginated_items = [
         _assignment_to_dict(a, user=user, db=db) for a in assignments
     ]
+
+    # Aggregate status counts (same visibility scope as the list, before the
+    # status/project/search filters) for dashboard metric cards.
+    counts_q = (
+        db.query(Assignment)
+        .filter(
+            Assignment.organization_id == org_id,
+            Assignment.is_deleted == False,
+        )
+    )
+    if user.role == UserRole.INTERN:
+        counts_q = counts_q.filter(or_(*intern_filters), Assignment.status != AssignmentStatus.DRAFT)
+    status_counts = dict(
+        counts_q.with_entities(Assignment.status, func.count(Assignment.id)).group_by(Assignment.status).all()
+    )
+    pending_reviews = (
+        db.query(func.count(AssignmentSubmission.id))
+        .join(Assignment, AssignmentSubmission.assignment_id == Assignment.id)
+        .filter(
+            Assignment.organization_id == org_id,
+            Assignment.is_deleted == False,
+            AssignmentSubmission.status.in_(
+                [
+                    AssignmentSubmissionStatus.SUBMITTED,
+                    AssignmentSubmissionStatus.UNDER_REVIEW,
+                    AssignmentSubmissionStatus.RESUBMITTED,
+                ]
+            ),
+        )
+        .scalar()
+        or 0
+    )
+
     return {
         "assignments": paginated_items,
         "items": paginated_items,
         "total": total,
         "page": p,
         "page_size": ps,
-        "total_pages": total_pages,
+        "total_pages": max(1, (total + ps - 1) // ps) if total else 1,
+        "counts": {
+            "all": sum(status_counts.values()),
+            "draft": status_counts.get(AssignmentStatus.DRAFT, 0),
+            "active": status_counts.get(AssignmentStatus.ACTIVE, 0),
+            "closed": status_counts.get(AssignmentStatus.CLOSED, 0),
+            "archived": status_counts.get(AssignmentStatus.ARCHIVED, 0),
+            "pending_reviews": pending_reviews,
+        },
     }
 
 
@@ -535,17 +575,23 @@ async def submit_assignment(
     if text_content is not None:
         submission.submission_text = str(text_content).strip()
     if gh_url is not None:
-        submission.github_url = str(gh_url).strip()
+        cleaned_url = validate_http_url(str(gh_url).strip())
+        if cleaned_url is None and str(gh_url).strip():
+            raise HTTPException(status_code=422, detail="github_url must be an absolute http(s) URL.")
+        submission.github_url = cleaned_url
 
     if file and file.filename:
         file_bytes = await file.read()
         if file_bytes:
-            rel_path, safe_name, size = save_submission_file(
-                submission_id=submission.id,
-                user_id=user.id,
-                file_name=file.filename,
-                content=file_bytes,
-            )
+            try:
+                rel_path, safe_name, size = save_submission_file(
+                    submission_id=submission.id,
+                    user_id=user.id,
+                    file_name=file.filename,
+                    content=file_bytes,
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc))
             submission.file_path = rel_path
             submission.file_name = safe_name
             submission.file_size = size

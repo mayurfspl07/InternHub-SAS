@@ -36,6 +36,7 @@ from models import (
     UserRole,
 )
 from utils import (
+    attendance_photo_url,
     export_attendance_csv,
     get_mentor_intern_ids,
     isoformat_utc,
@@ -91,16 +92,8 @@ def _att_dict(r: Attendance) -> dict:
             if show_checkout and r.check_out_lat is not None and r.check_out_lng is not None
             else None
         ),
-        "check_in_photo_url": (
-            r.check_in_photo
-            if r.check_in_photo and r.check_in_photo.startswith(("http://", "https://"))
-            else (f"/api/attendance/{r.id}/photo/checkin" if r.check_in_photo else None)
-        ),
-        "check_out_photo_url": (
-            r.check_out_photo
-            if r.check_out_photo and r.check_out_photo.startswith(("http://", "https://"))
-            else (f"/api/attendance/{r.id}/photo/checkout" if r.check_out_photo else None)
-        ),
+        "check_in_photo_url": attendance_photo_url(r.check_in_photo, r.id, "checkin"),
+        "check_out_photo_url": attendance_photo_url(r.check_out_photo, r.id, "checkout"),
     }
 
 

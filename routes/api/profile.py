@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
+from config import Config
 from database import get_db
 from dependencies import (
     SESSION_COOKIE_NAME,
@@ -14,14 +15,19 @@ from dependencies import (
     verify_token,
 )
 from models import User
-from utils import record_audit, isoformat_utc, get_internship_summary
+from utils import (
+    record_audit,
+    isoformat_utc,
+    get_internship_summary,
+    get_org_duration_tier,
+)
 from routes.api.schemas import ProfileUpdatePayload, ChangePasswordPayload, get_payload
 
 router = APIRouter(prefix="/api/profile", tags=["Profile"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
-def _user_dict(u: User, db: Session | None = None) -> dict:
+def _user_dict(u: User, db: Session | None = None, org_id: int | None = None) -> dict:
     data = {
         "id": u.id,
         "name": u.name,
@@ -39,7 +45,16 @@ def _user_dict(u: User, db: Session | None = None) -> dict:
         "created_at": isoformat_utc(u.created_at),
     }
     if db is not None:
-        data["internship_summary"] = get_internship_summary(db, u)
+        data["internship_summary"] = get_internship_summary(db, u, org_id)
+        # Duration tier detail (title + leave quota) for the assigned duration
+        if u.is_intern and u.internship_duration_months and org_id:
+            tier = get_org_duration_tier(db, org_id, u.internship_duration_months)
+            if tier:
+                data["internship_duration"] = {
+                    "duration_months": tier.duration_months,
+                    "title": tier.title,
+                    "leaves": tier.leaves,
+                }
     return data
 
 
@@ -48,7 +63,9 @@ async def get_profile(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
-    return _user_dict(user, db=db)
+    from dependencies import _resolve_request_org_id
+    org_id = _resolve_request_org_id(request, user, db)
+    return _user_dict(user, db=db, org_id=org_id)
 
 
 @router.put("")
@@ -125,4 +142,8 @@ async def change_password(request: Request, response: Response, db: DbSession, d
     remember = token_data.get("remember", False) if token_data else False
     new_token = generate_token(user.id, user.session_version, remember=remember)
     issue_session_cookies(request, response, new_token, remember=remember)
-    return {"ok": True, "token": new_token, "message": "Password changed successfully."}
+    result: dict = {"ok": True, "message": "Password changed successfully."}
+    if Config.AUTH_RETURN_BEARER_TOKEN:
+        # Short-lived body token for mobile/CLI clients only (see /auth/login).
+        result["token"] = generate_token(user.id, user.session_version, remember=False)
+    return result

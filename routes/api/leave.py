@@ -81,7 +81,11 @@ async def my_requests(request: Request, db: DbSession):
     pending = [r for r in request_dicts if r["status"] == LeaveStatus.PENDING]
     approved = [r for r in request_dicts if r["status"] == LeaveStatus.APPROVED]
     rejected = [r for r in request_dicts if r["status"] == LeaveStatus.REJECTED]
-    balance = get_leave_balance(db, user.id)
+    # Resolve org up front so the leave quota comes from the intern's assigned
+    # duration tier (InternshipDurationMaster) rather than falling back blindly.
+    from dependencies import _resolve_request_org_id
+    org_id = _resolve_request_org_id(request, user, db)
+    balance = get_leave_balance(db, user.id, org_id)
 
     return {
         "requests": request_dicts,
@@ -97,7 +101,7 @@ async def my_requests(request: Request, db: DbSession):
             "days_pending": sum(r["days"] for r in pending),
         },
         "balance": balance,
-        "internship_summary": get_internship_summary(db, user),
+        "internship_summary": get_internship_summary(db, user, org_id),
     }
 
 
@@ -170,15 +174,17 @@ async def apply(
             detail="You already have a pending or approved leave overlapping these dates."
         )
 
-    balance = get_leave_balance(db, user.id)
+    # Resolve org before the balance check: quota must come from the intern's
+    # assigned duration tier for this tenant.
+    from dependencies import _resolve_request_org_id
+    org_id = _resolve_request_org_id(request, user, db)
+
+    balance = get_leave_balance(db, user.id, org_id)
     if days_requested > balance["remaining"]:
         raise HTTPException(
             status_code=422,
             detail=f"Insufficient leave balance. You have {balance['remaining']} day(s) remaining, but requested {days_requested} working day(s)."
         )
-
-    from dependencies import _resolve_request_org_id
-    org_id = _resolve_request_org_id(request, user, db)
 
     lr = LeaveRequest(
         organization_id=org_id,
@@ -200,8 +206,11 @@ async def apply(
             )
             lr.attachment_path = rel_path
             lr.attachment_name = safe_name
-        except Exception:
-            pass
+        except ValueError as exc:
+            # Validation failures (size/type) must not silently drop the file —
+            # reject the request so the intern knows the attachment was refused.
+            db.rollback()
+            raise HTTPException(status_code=422, detail=str(exc))
 
     record_audit(db, user, "leave.request", "requested leave", f"{start} → {end}")
 
@@ -371,4 +380,6 @@ async def balance(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
-    return get_leave_balance(db, user.id)
+    from dependencies import _resolve_request_org_id
+    org_id = _resolve_request_org_id(request, user, db)
+    return get_leave_balance(db, user.id, org_id)

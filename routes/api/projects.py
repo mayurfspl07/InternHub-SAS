@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, or_, select
 
 from database import get_db
 from dependencies import get_optional_user, _resolve_request_org_id
@@ -51,11 +51,21 @@ from routes.api.schemas import (
     ProjectLinkPayload,
     get_payload,
 )
+from app.core.pagination import get_page_params, build_page_response
 
 router = APIRouter(prefix="/api/projects", tags=["Projects"])
 task_router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
 DbSession = Annotated[Session, Depends(get_db)]
 PAGE_SIZE = 12
+
+
+def _bounded_limit(raw, default: int, max_limit: int) -> int:
+    """Nested-resource list cap: ?limit= is honored up to max_limit."""
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return max(1, min(max_limit, value))
 
 _STATUS_LABELS = {
     "todo": "to do",
@@ -627,16 +637,26 @@ async def search_projects(request: Request, db: DbSession):
 @router.get("/interns")
 @router.get("/interns/dropdown")
 async def get_project_interns(request: Request, db: DbSession):
-    """Dropdown list of all active interns for project assignment."""
+    """Paginated list of all active interns for project assignment.
+
+    Dropdown aliases default to the max page size (100) so existing dropdown
+    consumers keep getting near-complete option lists without paging.
+    """
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
-    interns = (
-        db.query(User)
-        .filter(User.role == UserRole.INTERN, User.is_active == True, User.is_deleted == False)
-        .order_by(User.name.asc())
-        .all()
+    q = db.query(User).filter(
+        User.role == UserRole.INTERN, User.is_active == True, User.is_deleted == False
     )
+    search_query = request.query_params.get("search", "").strip()
+    if search_query:
+        search_pattern = f"%{search_query}%"
+        q = q.filter(or_(User.name.ilike(search_pattern), User.email.ilike(search_pattern)))
+
+    default_page_size = 100 if "/dropdown" in request.url.path else 20
+    page, page_size = get_page_params(request, default_page_size=default_page_size)
+    total = q.count()
+    interns = q.order_by(User.name.asc()).offset((page - 1) * page_size).limit(page_size).all()
     items = [
         {
             "id": u.id,
@@ -650,25 +670,31 @@ async def get_project_interns(request: Request, db: DbSession):
         }
         for u in interns
     ]
-    return {
-        "interns": items,
-        "total": len(items),
-    }
+    response = build_page_response(items, page, page_size, total)
+    response["interns"] = items
+    response["total"] = total
+    return response
 
 
 @router.get("/mentors")
 @router.get("/mentors/dropdown")
 async def get_project_mentors(request: Request, db: DbSession):
-    """Dropdown list of all active mentors for project mentor assignment."""
+    """Paginated list of all active mentors for project mentor assignment."""
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
-    mentors = (
-        db.query(User)
-        .filter(User.role == UserRole.MENTOR, User.is_active == True, User.is_deleted == False)
-        .order_by(User.name.asc())
-        .all()
+    q = db.query(User).filter(
+        User.role == UserRole.MENTOR, User.is_active == True, User.is_deleted == False
     )
+    search_query = request.query_params.get("search", "").strip()
+    if search_query:
+        search_pattern = f"%{search_query}%"
+        q = q.filter(or_(User.name.ilike(search_pattern), User.email.ilike(search_pattern)))
+
+    default_page_size = 100 if "/dropdown" in request.url.path else 20
+    page, page_size = get_page_params(request, default_page_size=default_page_size)
+    total = q.count()
+    mentors = q.order_by(User.name.asc()).offset((page - 1) * page_size).limit(page_size).all()
     items = [
         {
             "id": m.id,
@@ -680,10 +706,10 @@ async def get_project_mentors(request: Request, db: DbSession):
         }
         for m in mentors
     ]
-    return {
-        "mentors": items,
-        "total": len(items),
-    }
+    response = build_page_response(items, page, page_size, total)
+    response["mentors"] = items
+    response["total"] = total
+    return response
 
 
 @router.post("")
@@ -1213,11 +1239,13 @@ async def get_comments(task_id: int, request: Request, db: DbSession):
         raise HTTPException(status_code=404)
     if not _is_project_member(db, user, task.project):
         raise HTTPException(status_code=403)
+    limit = _bounded_limit(request.query_params.get("limit"), default=200, max_limit=500)
     comments = (
         db.query(TaskComment)
         .options(joinedload(TaskComment.author), joinedload(TaskComment.deleted_by))
         .filter_by(task_id=task_id)
         .order_by(TaskComment.created_at)
+        .limit(limit)
         .all()
     )
     return [_comment_dict(c) for c in comments]
@@ -1291,6 +1319,7 @@ async def list_task_attachments(task_id: int, request: Request, db: DbSession):
         .options(joinedload(TaskAttachment.user))
         .filter_by(task_id=task_id)
         .order_by(TaskAttachment.created_at.desc())
+        .limit(_bounded_limit(request.query_params.get("limit"), default=100, max_limit=500))
         .all()
     )
     return {
@@ -1317,10 +1346,13 @@ async def download_task_attachment(attachment_id: int, request: Request, db: DbS
     if not abs_path:
         raise HTTPException(status_code=404, detail="Attachment file not found on disk.")
 
+    # Never replay the client-supplied content_type (could be text/html) —
+    # serve as a forced download with a neutral media type.
     return FileResponse(
         path=abs_path,
-        media_type=attachment.file_type or "application/octet-stream",
+        media_type="application/octet-stream",
         filename=attachment.file_name,
+        headers={"Content-Disposition": f'attachment; filename="{attachment.file_name}"', "X-Content-Type-Options": "nosniff"},
     )
 
 
@@ -1415,8 +1447,10 @@ async def add_comment(
             db.add(att)
             db.flush()
             att_dict = att.to_dict()
-        except Exception:
-            pass
+        except ValueError as exc:
+            # Refused attachments (size/type) must not vanish silently.
+            db.rollback()
+            raise HTTPException(status_code=422, detail=str(exc))
 
     record_audit(db, user, "task.comment", "commented on task", task.title, project_id=task.project_id)
 
@@ -1483,11 +1517,13 @@ async def get_project_comments(project_id: int, request: Request, db: DbSession)
     if not (user.is_admin or user.is_mentor or _is_project_member(db, user, project)):
         raise HTTPException(status_code=403, detail="Not authorized.")
 
+    limit = _bounded_limit(request.query_params.get("limit"), default=200, max_limit=500)
     comments = (
         db.query(ProjectComment)
         .options(joinedload(ProjectComment.user), joinedload(ProjectComment.deleted_by))
         .filter_by(project_id=project_id)
         .order_by(ProjectComment.created_at.asc())
+        .limit(limit)
         .all()
     )
     return [
@@ -1620,11 +1656,13 @@ async def get_project_links(project_id: int, request: Request, db: DbSession):
     if not (user.is_admin or user.is_mentor or _is_project_member(db, user, project)):
         raise HTTPException(status_code=403, detail="Not authorized.")
 
+    limit = _bounded_limit(request.query_params.get("limit"), default=100, max_limit=500)
     links = (
         db.query(ProjectLink)
         .options(joinedload(ProjectLink.user), joinedload(ProjectLink.deleted_by))
         .filter_by(project_id=project_id)
         .order_by(ProjectLink.created_at.asc())
+        .limit(limit)
         .all()
     )
     return [

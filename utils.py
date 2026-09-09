@@ -805,6 +805,24 @@ def unread_notification_count(db: "Session", user_id: int) -> int:
     return db.query(Notification).filter_by(user_id=user_id, is_read=False).count()
 
 
+def attendance_photo_url(photo_ref: str | None, record_id: int, kind: str) -> str | None:
+    """Resolve a stored attendance photo reference into a renderable URL.
+
+    Cloudinary-hosted assets get a signed CDN delivery URL so the SPA can use a
+    plain <img src> without an authenticated blob fetch; every other reference
+    (local relative path, data URI) falls back to the authenticated
+    /api/attendance/{id}/photo/{kind} endpoint. `kind` is "checkin"|"checkout".
+    """
+    if not photo_ref:
+        return None
+    from cloudinary_service import signed_delivery_url
+
+    signed = signed_delivery_url(photo_ref)
+    if signed and signed.startswith(("http://", "https://")):
+        return signed
+    return f"/api/attendance/{record_id}/photo/{kind}"
+
+
 def record_audit(
     db: "Session",
     actor,
@@ -1152,6 +1170,52 @@ def get_or_seed_org_internship_durations(db: "Session", org_id: int):
     return defaults
 
 
+def get_org_duration_tier(db: "Session", org_id: int, duration_months: int):
+    """Return the active InternshipDurationMaster tier matching duration_months, or None."""
+    from models import InternshipDurationMaster
+
+    return (
+        db.query(InternshipDurationMaster)
+        .filter_by(organization_id=org_id, duration_months=duration_months, is_active=True)
+        .first()
+    )
+
+
+def validate_org_internship_duration(db: "Session", org_id: int, duration_months: int | None):
+    """Tenant-wise internship duration validation.
+
+    The supplied duration must match one of the organization's active
+    InternshipDurationMaster tiers (auto-seeded 1/3/6 month defaults when the
+    org has none). Returns (tier, error_detail) — tier is None on failure.
+    """
+    if duration_months is None:
+        return None, None
+    if duration_months < 1:
+        return None, "Internship duration must be at least 1 month."
+    tiers = get_or_seed_org_internship_durations(db, org_id)
+    valid = sorted({t.duration_months for t in tiers if t.is_active})
+    tier = next((t for t in tiers if t.is_active and t.duration_months == duration_months), None)
+    if not tier:
+        options = ", ".join(str(v) for v in valid) or "none"
+        return None, (
+            f"Invalid internship duration ({duration_months} months). "
+            f"Allowed durations for this organization: {options}."
+        )
+    return tier, None
+
+
+def compute_internship_end_date(joining_date, duration_months: int | None):
+    """joining_date + duration_months months, clamped to month end."""
+    import calendar
+    if not joining_date or not duration_months or duration_months < 1:
+        return None
+    total = joining_date.month + duration_months
+    new_year = joining_date.year + (total - 1) // 12
+    new_month = (total - 1) % 12 + 1
+    max_day = calendar.monthrange(new_year, new_month)[1]
+    return date(new_year, new_month, min(joining_date.day, max_day))
+
+
 # ---------------------------------------------------------------------------
 # Internship Summary & Attachments
 # ---------------------------------------------------------------------------
@@ -1218,6 +1282,94 @@ def _slugify_filename(name: str) -> str:
     return f"{clean_stem}{clean_ext}"
 
 
+# ---------------------------------------------------------------------------
+# Upload validation (extension allowlist + magic-byte sniffing + size caps)
+# ---------------------------------------------------------------------------
+
+IMAGE_MAGIC_BYTES = (
+    (b"\xff\xd8\xff", "jpeg"),
+    (b"\x89PNG\r\n\x1a\n", "png"),
+    (b"GIF87a", "gif"),
+    (b"GIF89a", "gif"),
+    (b"RIFF", "webp"),  # WEBP = RIFF....WEBP
+)
+
+# Extensions that would execute or be served inline by a browser — never accepted.
+BLOCKED_UPLOAD_EXTENSIONS = {
+    ".html", ".htm", ".xhtml", ".svg", ".xml", ".js", ".mjs",
+    ".exe", ".bat", ".cmd", ".com", ".scr", ".msi", ".ps1", ".sh", ".vbs",
+}
+
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+
+
+def _sniff_image_format(content: bytes) -> str | None:
+    """Return the detected image format from magic bytes, or None."""
+    for magic, fmt in IMAGE_MAGIC_BYTES:
+        if content.startswith(magic):
+            if fmt == "webp":
+                return "webp" if content[8:12] == b"WEBP" else None
+            return fmt
+    return None
+
+
+def validate_image_upload(file_name: str, content: bytes, max_mb: int = 10) -> str:
+    """Validate an image upload: extension allowlist + magic-byte check + size.
+
+    Returns the file extension. Raises ValueError with a user-safe message on
+    any failure. SVG is deliberately NOT allowed (stored-XSS vector).
+    """
+    import os
+
+    if not content:
+        raise ValueError("Uploaded file is empty.")
+    if len(content) > max_mb * 1024 * 1024:
+        raise ValueError(f"Image size exceeds {max_mb} MB limit.")
+
+    ext = os.path.splitext(file_name or "")[1].lower()
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        raise ValueError(
+            f"Unsupported image format '{ext or 'unknown'}'. "
+            f"Allowed: {', '.join(sorted(ALLOWED_IMAGE_EXTENSIONS))}"
+        )
+
+    detected = _sniff_image_format(content)
+    ext_format = {".jpg": "jpeg", ".jpeg": "jpeg", ".png": "png", ".gif": "gif", ".webp": "webp"}.get(ext)
+    if detected is None or (ext_format and detected != ext_format):
+        raise ValueError("Image content does not match its file extension.")
+    return ext
+
+
+def validate_attachment_upload(
+    file_name: str,
+    content: bytes,
+    *,
+    max_mb: int = 25,
+    allowed_extensions: set[str] | None = None,
+) -> str:
+    """Validate a generic attachment upload.
+
+    Blocks executable/inline-HTML extensions, enforces an optional stricter
+    allowlist, and checks size. Returns the file extension.
+    """
+    import os
+
+    if not content:
+        raise ValueError("Attachment content cannot be empty.")
+    if len(content) > max_mb * 1024 * 1024:
+        raise ValueError(f"File size exceeds {max_mb} MB limit.")
+
+    ext = os.path.splitext(file_name or "")[1].lower()
+    if ext in BLOCKED_UPLOAD_EXTENSIONS:
+        raise ValueError(f"File type '{ext}' is not allowed for security reasons.")
+    if allowed_extensions is not None and ext not in allowed_extensions:
+        raise ValueError(
+            f"Unsupported file type '{ext or 'unknown'}'. "
+            f"Allowed: {', '.join(sorted(allowed_extensions))}"
+        )
+    return ext
+
+
 def save_task_attachment(
     task_id: int,
     user_id: int | None,
@@ -1229,6 +1381,7 @@ def save_task_attachment(
     Returns: (rel_path, safe_file_name, file_size)
     """
     import os
+    validate_attachment_upload(file_name, content, max_mb=20)
     if not content:
         raise ValueError("Attachment content cannot be empty.")
     if len(content) > 20 * 1024 * 1024:
@@ -1263,6 +1416,7 @@ def save_assignment_attachment(
     Returns: (rel_path, safe_file_name, file_size)
     """
     import os
+    validate_attachment_upload(file_name, content, max_mb=25)
     if not content:
         raise ValueError("Attachment content cannot be empty.")
     if len(content) > 25 * 1024 * 1024:
@@ -1297,6 +1451,7 @@ def save_submission_file(
     Returns: (rel_path, safe_file_name, file_size)
     """
     import os
+    validate_attachment_upload(file_name, content, max_mb=25)
     if not content:
         raise ValueError("Submission file content cannot be empty.")
     if len(content) > 25 * 1024 * 1024:
@@ -1331,6 +1486,7 @@ def save_leave_attachment(
     Returns: (rel_path, safe_file_name, file_size)
     """
     import os
+    validate_attachment_upload(file_name, content, max_mb=20)
     if not content:
         raise ValueError("Attachment content cannot be empty.")
     if len(content) > 20 * 1024 * 1024:

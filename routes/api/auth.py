@@ -104,12 +104,14 @@ async def login(request: Request, response: Response, db: DbSession, data: Login
     reset_login_attempts(client_ip)
     token = login_user(request, found, remember=remember)
     issue_session_cookies(request, response, token, remember)
-    # Also returned in the body for cross-origin frontend deployments (VITE_API_BASE
-    # set), where the HttpOnly session cookie can't be relied on — SameSite=Lax cookies
-    # aren't sent on the next cross-site request. Those clients send this back as
-    # `Authorization: Bearer <token>`, which get_optional_user already prefers over the
-    # cookie and which the CSRF guard in main.py already exempts.
-    return {"user": _user_dict(found), "ok": True, "token": token}
+    # The web SPA authenticates with the HttpOnly session cookie and must not
+    # store tokens. A body token is returned only when AUTH_RETURN_BEARER_TOKEN
+    # is enabled (mobile/CLI clients), and is always short-lived — "remember"
+    # only extends the cookie Max-Age, never the token's own TTL.
+    body: dict = {"user": _user_dict(found), "ok": True}
+    if Config.AUTH_RETURN_BEARER_TOKEN:
+        body["token"] = login_user(request, found, remember=False)
+    return body
 
 
 @router.post("/logout")

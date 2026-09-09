@@ -299,6 +299,16 @@ class Features2To5Tests(unittest.IsolatedAsyncioTestCase):
 
     async def test_leave_application_with_and_without_attachment(self):
         """Leave application supports optional attachment upload and download."""
+        # Dynamic future dates — hardcoded dates become invalid as the calendar advances.
+        from datetime import timedelta
+
+        from utils import local_today
+
+        _today = local_today()
+        # Next Monday (strictly in the future, so the advance-notice check passes)
+        _monday = _today + timedelta(days=((7 - _today.weekday()) % 7) or 7)
+        _single = _monday + timedelta(days=7)
+
         # 1. Apply WITH attachment
         file_obj = UploadFile(
             file=io.BytesIO(b"Medical Certificate Document"),
@@ -310,8 +320,8 @@ class Features2To5Tests(unittest.IsolatedAsyncioTestCase):
         leave_res = await apply_leave(
             request=req_apply_with,
             db=self.db,
-            start_date="2026-09-10",
-            end_date="2026-09-11",
+            start_date=_monday.isoformat(),
+            end_date=(_monday + timedelta(days=2)).isoformat(),  # Mon-Wed: 3 business days
             reason="Doctor advised rest",
             leave_type="sick",
             attachment=file_obj,
@@ -331,8 +341,8 @@ class Features2To5Tests(unittest.IsolatedAsyncioTestCase):
         leave_res2 = await apply_leave(
             request=req_apply_without,
             db=self.db,
-            start_date="2026-09-18",
-            end_date="2026-09-18",
+            start_date=_single.isoformat(),
+            end_date=_single.isoformat(),
             reason="Family event",
             leave_type="casual",
             attachment=None,

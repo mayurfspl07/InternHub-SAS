@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from dependencies import DbSession, TenantContext
+from app.core.sanitize import validate_http_url
 from models import (
     Organization,
     OrganizationMembership,
@@ -84,7 +85,11 @@ def update_organization_profile(
     if req.timezone is not None:
         org.timezone = req.timezone.strip()
     if req.logo_url is not None:
-        org.logo_url = req.logo_url.strip()
+        # Stored URLs must be absolute http(s) — blocks javascript:/data: injections.
+        cleaned_logo = validate_http_url(req.logo_url.strip())
+        if cleaned_logo is None and req.logo_url.strip():
+            raise HTTPException(status_code=422, detail="logo_url must be an absolute http(s) URL.")
+        org.logo_url = cleaned_logo
 
     db.commit()
     return {"ok": True, "organization": org.to_dict()}

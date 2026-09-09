@@ -1,6 +1,7 @@
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -10,6 +11,7 @@ from models import PerformanceReview, Project, User, BinEntityType
 from recycle_bin import move_to_bin
 from utils import push_notification, record_audit, isoformat_utc
 from routes.api.schemas import ReviewCreatePayload, ReviewUpdatePayload, get_payload
+from app.core.pagination import get_page_params, build_page_response
 
 router = APIRouter(prefix="/api/reviews", tags=["Performance Reviews"])
 DbSession = Annotated[Session, Depends(get_db)]
@@ -50,8 +52,47 @@ async def list_reviews(request: Request, db: DbSession):
         q = q.filter(PerformanceReview.intern_id == user.id)
     elif user.is_mentor:
         q = q.filter(PerformanceReview.reviewer_id == user.id)
-    reviews = q.order_by(PerformanceReview.created_at.desc()).all()
-    return [_review_dict(r) for r in reviews]
+
+    # ?rating=1..5 (non-numeric values are ignored so "all" style clients keep working)
+    rating_param = request.query_params.get("rating")
+    if rating_param is not None and str(rating_param).strip():
+        try:
+            rating_val = int(rating_param)
+            if 1 <= rating_val <= 5:
+                q = q.filter(PerformanceReview.rating == rating_val)
+        except (TypeError, ValueError):
+            pass
+
+    project_id = request.query_params.get("project_id")
+    if project_id:
+        try:
+            q = q.filter(PerformanceReview.project_id == int(project_id))
+        except (TypeError, ValueError):
+            pass
+
+    search_query = request.query_params.get("search", "").strip()
+    if search_query:
+        search_pattern = f"%{search_query}%"
+        q = q.filter(
+            or_(
+                PerformanceReview.feedback.ilike(search_pattern),
+                PerformanceReview.strengths.ilike(search_pattern),
+                PerformanceReview.improvements.ilike(search_pattern),
+                PerformanceReview.period.ilike(search_pattern),
+                PerformanceReview.intern.has(User.name.ilike(search_pattern)),
+            )
+        )
+
+    page, page_size = get_page_params(request)
+    total = q.count()
+    reviews = (
+        q.order_by(PerformanceReview.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    items = [_review_dict(r) for r in reviews]
+    return build_page_response(items, page, page_size, total)
 
 
 @router.post("")
