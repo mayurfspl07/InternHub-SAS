@@ -4,7 +4,6 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/user_model.dart';
-import '../../shared/models/leave_model.dart';
 import '../../shared/widgets/app_avatar.dart';
 import '../../shared/widgets/user_360_profile_dialog.dart';
 import '../attendance/attendance_home_screen.dart';
@@ -476,7 +475,7 @@ class ProfileScreen extends ConsumerWidget {
           icon: Icons.how_to_reg_rounded,
           iconColor: AppColors.cardPink,
           title: 'Leave Approvals Queue',
-          subtitle: '${state.leaveRequests.where((l) => l.status == LeaveStatus.pending).length} Pending requests',
+          subtitle: '${state.leaveRequests.where((l) => l.isPending).length} Pending requests',
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const LeaveApprovalQueueScreen()),

@@ -99,6 +99,7 @@ class StatusChip extends StatelessWidget {
           icon: Icons.cancel_rounded,
         );
       case AttendanceStatus.leave:
+      case AttendanceStatus.onLeave:
         return const StatusChip(
           label: 'On Leave',
           backgroundColor: Color(0xFFEDE9FE),
@@ -111,6 +112,24 @@ class StatusChip extends StatelessWidget {
           backgroundColor: Color(0xFFE0F2FE),
           textColor: Color(0xFF075985),
           icon: Icons.info_outline_rounded,
+        );
+      case AttendanceStatus.weekOff:
+        return const StatusChip(
+          label: 'Off',
+          backgroundColor: Color(0xFFF3F4F6),
+          textColor: Color(0xFF4B5563),
+        );
+      case AttendanceStatus.notJoined:
+        return const StatusChip(
+          label: 'Not Joined',
+          backgroundColor: Color(0xFFF3F4F6),
+          textColor: Color(0xFF9CA3AF),
+        );
+      case AttendanceStatus.upcoming:
+        return const StatusChip(
+          label: 'Upcoming',
+          backgroundColor: Color(0xFFF3F4F6),
+          textColor: Color(0xFF9CA3AF),
         );
     }
   }

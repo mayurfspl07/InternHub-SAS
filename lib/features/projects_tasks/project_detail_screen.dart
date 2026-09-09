@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/api/api_client.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_spacing.dart';
 import '../../core/services/file_export_service.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/project_model.dart';
@@ -142,12 +144,20 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Project'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r20)),
+        title: const Text('Delete Project', style: TextStyle(fontWeight: FontWeight.bold)),
         content: Text('Are you sure you want to delete "${_project.name}"? This action cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r12)),
+            ),
             onPressed: () async {
               Navigator.pop(ctx);
               try {
@@ -166,7 +176,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                 }
               }
             },
-            child: const Text('Delete'),
+            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -345,9 +355,10 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                 }
                               },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4B5563), // Dark grey button from screenshot 5
+                          backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r12)),
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         ),
                         child: const Text('Assign Intern', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -464,7 +475,12 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3B82F6), foregroundColor: Colors.white),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r12)),
+                      ),
                       icon: const Icon(Icons.add_link_rounded, size: 16),
                       label: const Text('Add Link'),
                       onPressed: () async {
@@ -681,52 +697,110 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF9FAFC),
+      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : RefreshIndicator(
                 onRefresh: _loadProjectData,
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20, vertical: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Top Row: Back button & Link buttons
+                      // Top Row: Back button & Links button
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          OutlinedButton.icon(
-                            onPressed: () => Navigator.pop(context),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: isDark ? Colors.white : const Color(0xFF1F2937),
-                              side: BorderSide(color: isDark ? const Color(0xFF2C313E) : const Color(0xFF1F2937), width: 1.2),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                            ),
-                            icon: const Icon(Icons.arrow_back, size: 16),
-                            label: const Text('Back to projects', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          ),
-                          Row(
-                            children: [
-                              OutlinedButton.icon(
-                                onPressed: _openLinksModal,
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: isDark ? Colors.white : const Color(0xFF1F2937),
-                                  side: BorderSide(color: isDark ? const Color(0xFF2C313E) : const Color(0xFF1F2937), width: 1.2),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                ),
-                                icon: const Icon(Icons.link_rounded, size: 16),
-                                label: Text('Get Project Link (${_links.length})', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          InkWell(
+                            onTap: () => Navigator.pop(context),
+                            borderRadius: BorderRadius.circular(AppSpacing.rPill),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isDark ? AppColors.cardDark : Colors.white,
+                                borderRadius: BorderRadius.circular(AppSpacing.rPill),
+                                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                            ],
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.arrow_back_rounded, size: 16, color: isDark ? Colors.white : AppColors.textPrimaryLight),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Back to projects',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          InkWell(
+                            onTap: _openLinksModal,
+                            borderRadius: BorderRadius.circular(AppSpacing.rPill),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isDark ? AppColors.cardDark : Colors.white,
+                                borderRadius: BorderRadius.circular(AppSpacing.rPill),
+                                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.link_rounded, size: 16, color: AppColors.primary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Project Links',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? AppColors.primaryDark.withValues(alpha: 0.3) : AppColors.primaryLight,
+                                      borderRadius: BorderRadius.circular(AppSpacing.rPill),
+                                    ),
+                                    child: Text(
+                                      '${_links.length}',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: isDark ? AppColors.primaryLight : AppColors.primaryDark,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 18),
 
-                      // Project Name & Status Badge & Actions
+                      // Project Name & Status Badge & Description
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -740,32 +814,42 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                       child: Text(
                                         _project.name,
                                         style: TextStyle(
-                                          fontSize: 24,
+                                          fontSize: 26,
                                           fontWeight: FontWeight.w900,
                                           fontFamily: 'Outfit',
-                                          color: isDark ? Colors.white : const Color(0xFF111827),
+                                          letterSpacing: -0.5,
+                                          color: isDark ? Colors.white : AppColors.textPrimaryLight,
                                         ),
                                       ),
                                     ),
                                     const SizedBox(width: 10),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFE0E7FF),
-                                        borderRadius: BorderRadius.circular(16),
+                                        color: isDark ? AppColors.primaryDark.withValues(alpha: 0.3) : AppColors.primaryLight,
+                                        borderRadius: BorderRadius.circular(AppSpacing.rPill),
                                       ),
                                       child: Text(
                                         _project.status.toUpperCase(),
-                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF3B82F6)),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.5,
+                                          color: isDark ? AppColors.primaryLight : AppColors.primaryDark,
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
                                 if (_project.description.isNotEmpty) ...[
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 6),
                                   Text(
                                     _project.description,
-                                    style: TextStyle(fontSize: 13, color: isDark ? Colors.white60 : const Color(0xFF6B7280)),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      height: 1.4,
+                                      color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                                    ),
                                   ),
                                 ],
                               ],
@@ -773,13 +857,29 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
 
-                      // Actions Button Bar (matching screenshot 3: Edit, Assign, Unassign, Delete, Add task, Export)
+                      // Actions Button Bar (Edit, Assign, Unassign, Delete, Add task, Export)
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: [
+                            if (canManageTasks) ...[
+                              ElevatedButton.icon(
+                                onPressed: _openCreateTaskModal,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shadowColor: AppColors.primary.withValues(alpha: 0.4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r16)),
+                                ),
+                                icon: const Icon(Icons.add_rounded, size: 18),
+                                label: const Text('Add Task', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
                             if (canEditProject) ...[
                               _buildActionOutlineButton('Edit', Icons.edit_outlined, _openEditProjectDialog, isDark),
                               const SizedBox(width: 8),
@@ -787,50 +887,33 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                               const SizedBox(width: 8),
                               _buildActionOutlineButton('Unassign', Icons.person_remove_outlined, _openUnassignInternDialog, isDark),
                               const SizedBox(width: 8),
-                              ElevatedButton.icon(
-                                onPressed: _confirmDeleteProject,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFEF4444),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              InkWell(
+                                onTap: _confirmDeleteProject,
+                                borderRadius: BorderRadius.circular(AppSpacing.r16),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.danger.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(AppSpacing.r16),
+                                    border: Border.all(color: AppColors.danger.withValues(alpha: 0.25), width: 1.2),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.danger),
+                                      SizedBox(width: 6),
+                                      Text('Delete', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.danger)),
+                                    ],
+                                  ),
                                 ),
-                                icon: const Icon(Icons.delete_outline_rounded, size: 16),
-                                label: const Text('Delete', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                               ),
                               const SizedBox(width: 8),
                             ],
-                            if (canManageTasks) ...[
-                              ElevatedButton.icon(
-                                onPressed: _openCreateTaskModal,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF1F2937),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                ),
-                                icon: const Icon(Icons.add, size: 16),
-                                label: const Text('Add task', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              ),
-                              const SizedBox(width: 8),
-                            ],
-                            OutlinedButton.icon(
-                              onPressed: _exportProject,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: isDark ? Colors.white : const Color(0xFF1F2937),
-                                side: BorderSide(color: isDark ? const Color(0xFF2C313E) : const Color(0xFF1F2937)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              ),
-                              icon: const Icon(Icons.file_upload_outlined, size: 16),
-                              label: const Text('Export', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            ),
+                            _buildActionOutlineButton('Export', Icons.file_upload_outlined, _exportProject, isDark),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 20),
 
                       // Two Main Columns / Cards (Overview & Progress + Mentors & Leadership)
                       _buildOverviewSection(doneTasks, totalTasks, progressInt, isDark),
@@ -850,38 +933,65 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                   fontSize: 18,
                                   fontWeight: FontWeight.w900,
                                   fontFamily: 'Outfit',
-                                  color: isDark ? Colors.white : const Color(0xFF111827),
+                                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                '${filteredTasks.length} tasks',
-                                style: TextStyle(fontSize: 13, color: isDark ? Colors.white60 : const Color(0xFF6B7280)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: isDark ? AppColors.cardDark : AppColors.primaryLight,
+                                  borderRadius: BorderRadius.circular(AppSpacing.rPill),
+                                ),
+                                child: Text(
+                                  '${filteredTasks.length} tasks',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? Colors.white70 : AppColors.primaryDark,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                           const Spacer(),
 
                           // Filter button
-                          OutlinedButton.icon(
-                            onPressed: _showTaskFilterDialog,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: isDark ? Colors.white : const Color(0xFF1F2937),
-                              side: BorderSide(color: isDark ? const Color(0xFF2C313E) : const Color(0xFF1F2937)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          InkWell(
+                            onTap: _showTaskFilterDialog,
+                            borderRadius: BorderRadius.circular(AppSpacing.r12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: isDark ? AppColors.cardDark : Colors.white,
+                                borderRadius: BorderRadius.circular(AppSpacing.r12),
+                                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.filter_alt_outlined, size: 15, color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Filter',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            icon: const Icon(Icons.filter_alt_outlined, size: 16),
-                            label: const Text('Filter', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                           ),
                           const SizedBox(width: 8),
 
                           // Board / List toggle
                           Container(
-                            padding: const EdgeInsets.all(2),
+                            padding: const EdgeInsets.all(3),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1F232D) : const Color(0xFFE5E7EB),
-                              borderRadius: BorderRadius.circular(16),
+                              color: isDark ? AppColors.surfaceDark : const Color(0xFFEBEFF5),
+                              borderRadius: BorderRadius.circular(AppSpacing.r16),
                             ),
                             child: Row(
                               children: [
@@ -920,26 +1030,56 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   // ========================================
 
   Widget _buildActionOutlineButton(String label, IconData icon, VoidCallback onTap, bool isDark) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: isDark ? Colors.white : const Color(0xFF1F2937),
-        side: BorderSide(color: isDark ? const Color(0xFF2C313E) : const Color(0xFF1F2937), width: 1.2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppSpacing.r16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.cardDark : Colors.white,
+          borderRadius: BorderRadius.circular(AppSpacing.r16),
+          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight, width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: isDark ? Colors.white70 : AppColors.textPrimaryLight),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : AppColors.textPrimaryLight,
+              ),
+            ),
+          ],
+        ),
       ),
-      icon: Icon(icon, size: 16),
-      label: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
     );
   }
 
   Widget _buildOverviewSection(int doneTasks, int totalTasks, int progressInt, bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(AppSpacing.p20),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1D24) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? const Color(0xFF2C313E) : const Color(0xFF1F2937), width: 1.2),
+        color: isDark ? AppColors.cardDark : Colors.white,
+        borderRadius: BorderRadius.circular(AppSpacing.r24),
+        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -947,22 +1087,51 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Overview & Progress', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, fontFamily: 'Outfit')),
-              Text('$progressInt%', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
+              Text(
+                'Overview & Progress',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'Outfit',
+                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.primaryDark.withValues(alpha: 0.3) : AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(AppSpacing.rPill),
+                ),
+                child: Text(
+                  '$progressInt%',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: isDark ? AppColors.primaryLight : AppColors.primaryDark,
+                  ),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text('$doneTasks / $totalTasks tasks completed', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
+          Text(
+            '$doneTasks / $totalTasks tasks completed',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+            ),
+          ),
+          const SizedBox(height: 12),
 
           // Progress bar
           ClipRRect(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AppSpacing.r8),
             child: LinearProgressIndicator(
               value: _project.progress.clamp(0.0, 1.0),
               minHeight: 8,
-              backgroundColor: isDark ? const Color(0xFF2A2E3B) : const Color(0xFFE5E7EB),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
+              backgroundColor: isDark ? const Color(0xFF2A2E3B) : const Color(0xFFF1F4F9),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
           ),
           const SizedBox(height: 16),
@@ -975,25 +1144,25 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                   label: 'START DATE',
                   value: DateFormat('yyyy-MM-dd').format(_project.startDate),
                   icon: Icons.calendar_today_outlined,
-                  color: const Color(0xFFF3E8FF),
-                  textColor: const Color(0xFF7E22CE),
+                  bgColor: const Color(0xFFF5F3FF),
+                  accentColor: AppColors.primary,
                   isDark: isDark,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: _buildMetricPill(
                   label: 'END DATE',
                   value: DateFormat('yyyy-MM-dd').format(_project.endDate),
-                  icon: Icons.calendar_today_outlined,
-                  color: const Color(0xFFEFF6FF),
-                  textColor: const Color(0xFF1D4ED8),
+                  icon: Icons.event_available_outlined,
+                  bgColor: const Color(0xFFF0F9FF),
+                  accentColor: const Color(0xFF0284C7),
                   isDark: isDark,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
@@ -1001,19 +1170,19 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                   label: 'TASKS DONE',
                   value: '$doneTasks',
                   icon: Icons.check_circle_outline_rounded,
-                  color: const Color(0xFFECFDF5),
-                  textColor: const Color(0xFF047857),
+                  bgColor: const Color(0xFFECFDF5),
+                  accentColor: AppColors.success,
                   isDark: isDark,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: _buildMetricPill(
                   label: 'TOTAL TASKS',
                   value: '$totalTasks',
                   icon: Icons.assignment_outlined,
-                  color: const Color(0xFFFEF3C7),
-                  textColor: const Color(0xFFB45309),
+                  bgColor: const Color(0xFFFFFBEB),
+                  accentColor: const Color(0xFFD97706),
                   isDark: isDark,
                 ),
               ),
@@ -1028,33 +1197,54 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     required String label,
     required String value,
     required IconData icon,
-    required Color color,
-    required Color textColor,
+    required Color bgColor,
+    required Color accentColor,
     required bool isDark,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E232E) : color,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? const Color(0xFF2C313E) : const Color(0xFF1F2937), width: 1.2),
+        color: isDark ? AppColors.surfaceDark : bgColor,
+        borderRadius: BorderRadius.circular(AppSpacing.r16),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : accentColor.withValues(alpha: 0.15),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: isDark ? Colors.white70 : textColor),
-          const SizedBox(width: 8),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 16, color: accentColor),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isDark ? Colors.white60 : textColor)),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                    color: isDark ? Colors.white60 : accentColor,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    color: isDark ? Colors.white : const Color(0xFF1F2937),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
                   ),
                 ),
               ],
@@ -1067,17 +1257,32 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
 
   Widget _buildMentorsSection(bool canEditProject, bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(AppSpacing.p20),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1D24) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? const Color(0xFF2C313E) : const Color(0xFF1F2937), width: 1.2),
+        color: isDark ? AppColors.cardDark : Colors.white,
+        borderRadius: BorderRadius.circular(AppSpacing.r24),
+        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Mentors & Leadership', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, fontFamily: 'Outfit')),
-          const SizedBox(height: 12),
+          Text(
+            'Mentors & Leadership',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              fontFamily: 'Outfit',
+              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+            ),
+          ),
+          const SizedBox(height: 14),
           ..._project.mentors.map((m) {
             final name = m['name']?.toString() ?? 'Mentor';
             final role = m['role']?.toString() ?? 'Mentor';
@@ -1085,22 +1290,23 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: isDark ? const Color(0xFF2C313E) : const Color(0xFF1F2937), width: 1.2),
+                color: isDark ? AppColors.surfaceDark : const Color(0xFFF9FAFC),
+                borderRadius: BorderRadius.circular(AppSpacing.r16),
+                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight, width: 1),
               ),
               child: Row(
                 children: [
                   Container(
-                    width: 32,
-                    height: 32,
+                    width: 34,
+                    height: 34,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFFDE68A),
+                      color: AppColors.cardYellow,
                       shape: BoxShape.circle,
                     ),
                     child: Center(
                       child: Text(
                         name.isNotEmpty ? name[0].toUpperCase() : 'M',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF92400E)),
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF92400E)),
                       ),
                     ),
                   ),
@@ -1108,8 +1314,21 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      Text(role, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                        ),
+                      ),
+                      Text(
+                        role,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -1120,21 +1339,29 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             const SizedBox(height: 4),
             InkWell(
               onTap: _openEditProjectDialog,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AppSpacing.r16),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: const EdgeInsets.symmetric(vertical: 11),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: isDark ? const Color(0xFF2C313E) : const Color(0xFF1F2937), style: BorderStyle.solid),
+                  color: isDark ? AppColors.surfaceDark : const Color(0xFFF9FAFC),
+                  borderRadius: BorderRadius.circular(AppSpacing.r16),
+                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight, width: 1),
                 ),
-                child: const Center(
+                child: Center(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add, size: 16),
-                      SizedBox(width: 4),
-                      Text('Add another mentor', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      const Icon(Icons.add_rounded, size: 16, color: AppColors.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Add another mentor',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : AppColors.primary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1150,22 +1377,36 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     final isSel = _taskViewMode == mode;
     return GestureDetector(
       onTap: () => setState(() => _taskViewMode = mode),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: isSel ? const Color(0xFFFBBF24) : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
+          color: isSel ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppSpacing.r12),
+          boxShadow: isSel
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           children: [
-            Icon(icon, size: 14, color: isSel ? const Color(0xFF1F2937) : (isDark ? Colors.white60 : const Color(0xFF6B7280))),
+            Icon(
+              icon,
+              size: 14,
+              color: isSel ? Colors.white : (isDark ? Colors.white60 : AppColors.textSecondaryLight),
+            ),
             const SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                color: isSel ? const Color(0xFF1F2937) : (isDark ? Colors.white60 : const Color(0xFF6B7280)),
+                fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                color: isSel ? Colors.white : (isDark ? Colors.white60 : AppColors.textSecondaryLight),
               ),
             ),
           ],
@@ -1211,11 +1452,13 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                 margin: const EdgeInsets.only(right: 14),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1A1D24) : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                  color: isDark ? AppColors.cardDark : const Color(0xFFF3F5F9),
+                  borderRadius: BorderRadius.circular(AppSpacing.r20),
                   border: Border.all(
-                    color: candidateData.isNotEmpty ? const Color(0xFF3B82F6) : (isDark ? const Color(0xFF2C313E) : const Color(0xFF1F2937)),
-                    width: candidateData.isNotEmpty ? 2.0 : 1.2,
+                    color: candidateData.isNotEmpty
+                        ? AppColors.primary
+                        : (isDark ? AppColors.borderDark : const Color(0xFFE2E6EE)),
+                    width: candidateData.isNotEmpty ? 2.0 : 1.0,
                   ),
                 ),
                 child: Column(
@@ -1229,13 +1472,16 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                           children: [
                             Container(width: 8, height: 8, decoration: BoxDecoration(color: col.color, shape: BoxShape.circle)),
                             const SizedBox(width: 8),
-                            Text(col.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                            Text(col.title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: isDark ? Colors.white : AppColors.textPrimaryLight)),
                           ],
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(10)),
-                          child: Text('${colTasks.length}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87)),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.surfaceDark : Colors.white,
+                            borderRadius: BorderRadius.circular(AppSpacing.rPill),
+                          ),
+                          child: Text('${colTasks.length}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : AppColors.textPrimaryLight)),
                         ),
                       ],
                     ),
@@ -1247,11 +1493,11 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                         height: 100,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                          borderRadius: BorderRadius.circular(AppSpacing.r16),
+                          border: Border.all(color: isDark ? AppColors.borderDark : const Color(0xFFD8DDE6), style: BorderStyle.solid),
                         ),
                         child: Center(
-                          child: Text('No tasks in ${col.title}', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                          child: Text('No tasks in ${col.title}', style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : AppColors.textTertiaryLight)),
                         ),
                       )
                     else
@@ -1282,6 +1528,19 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   }
 
   Widget _buildTaskCard(TaskModel task, bool isDark) {
+    Color priorityBg;
+    Color priorityColor;
+    if (task.priority == TaskPriority.high) {
+      priorityBg = const Color(0xFFFEE2E2);
+      priorityColor = const Color(0xFFDC2626);
+    } else if (task.priority == TaskPriority.medium) {
+      priorityBg = const Color(0xFFFEF3C7);
+      priorityColor = const Color(0xFFD97706);
+    } else {
+      priorityBg = const Color(0xFFE0F2FE);
+      priorityColor = const Color(0xFF0284C7);
+    }
+
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -1294,13 +1553,21 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           ),
         ).then((_) => _loadProjectData());
       },
+      borderRadius: BorderRadius.circular(AppSpacing.r16),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: isDark ? const Color(0xFF2C313E) : const Color(0xFFE5E7EB)),
+          color: isDark ? AppColors.surfaceDark : Colors.white,
+          borderRadius: BorderRadius.circular(AppSpacing.r16),
+          border: Border.all(color: isDark ? AppColors.borderDark : const Color(0xFFE5E7EB)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1311,31 +1578,48 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: task.priority == TaskPriority.high ? const Color(0xFFFEE2E2) : const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(8),
+                    color: priorityBg,
+                    borderRadius: BorderRadius.circular(AppSpacing.r8),
                   ),
                   child: Text(
                     task.priority.name.toUpperCase(),
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
-                      color: task.priority == TaskPriority.high ? const Color(0xFFDC2626) : const Color(0xFFD97706),
+                      color: priorityColor,
                     ),
                   ),
                 ),
                 if (task.assigneeName != null)
-                  Text(task.assigneeName!, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey)),
+                  Text(
+                    task.assigneeName!,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 8),
-            Text(task.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            Text(
+              task.title,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: isDark ? Colors.white : AppColors.textPrimaryLight,
+              ),
+            ),
             if (task.description.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
                 task.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                ),
               ),
             ],
             const SizedBox(height: 8),
@@ -1344,23 +1628,26 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today_outlined, size: 12, color: Colors.grey),
+                    Icon(Icons.calendar_today_outlined, size: 12, color: isDark ? Colors.white38 : AppColors.textTertiaryLight),
                     const SizedBox(width: 4),
-                    Text(DateFormat('yyyy-MM-dd').format(task.dueDate), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                    Text(
+                      DateFormat('yyyy-MM-dd').format(task.dueDate),
+                      style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : AppColors.textSecondaryLight),
+                    ),
                   ],
                 ),
                 Row(
                   children: [
                     if (task.commentCount > 0) ...[
-                      const Icon(Icons.chat_bubble_outline_rounded, size: 12, color: Colors.grey),
+                      Icon(Icons.chat_bubble_outline_rounded, size: 12, color: isDark ? Colors.white38 : AppColors.textTertiaryLight),
                       const SizedBox(width: 2),
-                      Text('${task.commentCount}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                      Text('${task.commentCount}', style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : AppColors.textSecondaryLight)),
                       const SizedBox(width: 6),
                     ],
                     if (task.attachmentCount > 0) ...[
-                      const Icon(Icons.attach_file_rounded, size: 12, color: Colors.grey),
+                      Icon(Icons.attach_file_rounded, size: 12, color: isDark ? Colors.white38 : AppColors.textTertiaryLight),
                       const SizedBox(width: 2),
-                      Text('${task.attachmentCount}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                      Text('${task.attachmentCount}', style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : AppColors.textSecondaryLight)),
                     ],
                   ],
                 ),
@@ -1380,7 +1667,10 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
       return Container(
         height: 120,
         alignment: Alignment.center,
-        child: const Text('No tasks found matching filter.'),
+        child: Text(
+          'No tasks found matching filter.',
+          style: TextStyle(color: isDark ? Colors.white60 : AppColors.textSecondaryLight),
+        ),
       );
     }
 
@@ -1393,21 +1683,38 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         final t = taskList[i];
         return Card(
           elevation: 0,
-          color: isDark ? const Color(0xFF1A1D24) : Colors.white,
+          color: isDark ? AppColors.cardDark : Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: BorderSide(color: isDark ? const Color(0xFF2C313E) : const Color(0xFFE5E7EB)),
+            borderRadius: BorderRadius.circular(AppSpacing.r16),
+            side: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
           ),
           child: ListTile(
-            title: Text(t.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            subtitle: Text('Due: ${DateFormat('yyyy-MM-dd').format(t.dueDate)} • Assignee: ${t.assigneeName ?? 'Unassigned'}', style: const TextStyle(fontSize: 11)),
+            title: Text(
+              t.title,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: isDark ? Colors.white : AppColors.textPrimaryLight,
+              ),
+            ),
+            subtitle: Text(
+              'Due: ${DateFormat('yyyy-MM-dd').format(t.dueDate)} • Assignee: ${t.assigneeName ?? 'Unassigned'}',
+              style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : AppColors.textSecondaryLight),
+            ),
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFE0E7FF),
-                borderRadius: BorderRadius.circular(12),
+                color: isDark ? AppColors.primaryDark.withValues(alpha: 0.3) : AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(AppSpacing.r12),
               ),
-              child: Text(t.rawStatus.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6))),
+              child: Text(
+                t.rawStatus.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppColors.primaryLight : AppColors.primaryDark,
+                ),
+              ),
             ),
             onTap: () {
               Navigator.push(
@@ -1427,7 +1734,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           return AlertDialog(
-            title: const Text('Filter Tasks'),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r24)),
+            title: const Text('Filter Tasks', style: TextStyle(fontWeight: FontWeight.bold)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1463,11 +1771,16 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                 child: const Text('Reset'),
               ),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r12)),
+                ),
                 onPressed: () {
                   setState(() {});
                   Navigator.pop(ctx);
                 },
-                child: const Text('Apply'),
+                child: const Text('Apply', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -1481,11 +1794,18 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   // ========================================
   Widget _buildCommentsBoardSection(bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(AppSpacing.p20),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1D24) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? const Color(0xFF2C313E) : const Color(0xFF1F2937), width: 1.2),
+        color: isDark ? AppColors.cardDark : Colors.white,
+        borderRadius: BorderRadius.circular(AppSpacing.r24),
+        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1493,13 +1813,35 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Project Comments', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, fontFamily: 'Outfit')),
-              Text('${_comments.length} comments', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(
+                'Project Comments',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'Outfit',
+                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.surfaceDark : AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(AppSpacing.rPill),
+                ),
+                child: Text(
+                  '${_comments.length} comments',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white70 : AppColors.primaryDark,
+                  ),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // Inline composer matching screenshot 3 ("Write project message (max 100 chars)...")
+          // Inline composer
           Row(
             children: [
               Expanded(
@@ -1509,47 +1851,65 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                   style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black87),
                   decoration: InputDecoration(
                     hintText: 'Write project message (max 100 chars)...',
-                    hintStyle: const TextStyle(fontSize: 12),
+                    hintStyle: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : AppColors.textTertiaryLight),
                     counterText: '',
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     filled: true,
-                    fillColor: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    fillColor: isDark ? AppColors.surfaceDark : const Color(0xFFF9FAFB),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.r16),
+                      borderSide: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.r16),
+                      borderSide: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.r16),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              IconButton(
-                icon: _isPostingComment
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.send_rounded, color: Color(0xFF3B82F6)),
-                onPressed: _isPostingComment ? null : _postBoardComment,
+              Container(
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: _isPostingComment
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                  onPressed: _isPostingComment ? null : _postBoardComment,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           if (_comments.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Center(
-                child: Text('No project comments posted yet.', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                child: Text('No project comments posted yet.', style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : AppColors.textTertiaryLight)),
               ),
             )
           else
             ..._comments.map((c) {
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
-                  borderRadius: BorderRadius.circular(12),
+                  color: isDark ? AppColors.surfaceDark : const Color(0xFFF9FAFC),
+                  borderRadius: BorderRadius.circular(AppSpacing.r16),
+                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight.withValues(alpha: 0.6)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AppAvatar(url: c.userAvatar, size: 28, fallbackText: c.userName),
-                    const SizedBox(width: 8),
+                    AppAvatar(url: c.userAvatar, size: 30, fallbackText: c.userName),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1557,17 +1917,34 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(c.userName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                              Text(DateFormat('MMM d, h:mm a').format(c.createdAt), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                              Text(
+                                c.userName,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                ),
+                              ),
+                              Text(
+                                DateFormat('MMM d, h:mm a').format(c.createdAt),
+                                style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : AppColors.textTertiaryLight),
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 2),
-                          Text(c.body, style: const TextStyle(fontSize: 12)),
+                          const SizedBox(height: 3),
+                          Text(
+                            c.body,
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.3,
+                              color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, size: 14, color: Colors.grey),
+                      icon: Icon(Icons.delete_outline_rounded, size: 16, color: isDark ? Colors.white38 : AppColors.textTertiaryLight),
                       onPressed: () async {
                         await ApiClient().delete('/api/projects/comments-board/${c.id}');
                         _loadProjectData();
@@ -1586,44 +1963,84 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     final activity = _buildSyntheticActivity();
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(AppSpacing.p20),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1D24) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? const Color(0xFF2C313E) : const Color(0xFF1F2937), width: 1.2),
+        color: isDark ? AppColors.cardDark : Colors.white,
+        borderRadius: BorderRadius.circular(AppSpacing.r24),
+        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Recent Activity', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, fontFamily: 'Outfit')),
-          const SizedBox(height: 12),
+          Text(
+            'Recent Activity',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              fontFamily: 'Outfit',
+              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+            ),
+          ),
+          const SizedBox(height: 14),
           ...activity.map((a) {
+            IconData iconData = Icons.assignment_outlined;
+            Color iconColor = AppColors.primary;
+            Color iconBg = const Color(0xFFF3E8FF);
+
+            if (a['icon'] == 'folder') {
+              iconData = Icons.folder_open_rounded;
+              iconColor = const Color(0xFFD97706);
+              iconBg = const Color(0xFFFEF3C7);
+            } else if (a['icon'] == 'check') {
+              iconData = Icons.check_circle_outline_rounded;
+              iconColor = AppColors.success;
+              iconBg = const Color(0xFFECFDF5);
+            }
+
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
-                borderRadius: BorderRadius.circular(12),
+                color: isDark ? AppColors.surfaceDark : const Color(0xFFF9FAFC),
+                borderRadius: BorderRadius.circular(AppSpacing.r16),
+                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight.withValues(alpha: 0.6)),
               ),
               child: Row(
                 children: [
                   Container(
-                    width: 32,
-                    height: 32,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF3E8FF),
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: isDark ? iconColor.withValues(alpha: 0.2) : iconBg,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.assignment_outlined, size: 16, color: Color(0xFF7E22CE)),
+                    child: Icon(iconData, size: 16, color: iconColor),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(a['title']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        Text(
+                          a['title']!,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                          ),
+                        ),
                         const SizedBox(height: 2),
-                        Text(a['time']!, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                        Text(
+                          a['time']!,
+                          style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : AppColors.textTertiaryLight),
+                        ),
                       ],
                     ),
                   ),

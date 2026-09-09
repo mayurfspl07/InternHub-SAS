@@ -16,7 +16,7 @@ class AttendanceDetailsModal extends StatelessWidget {
     final checkOutStr = record.checkOutTime != null
         ? DateFormat('hh:mm a').format(record.checkOutTime!)
         : 'In Progress';
-    final dateStr = DateFormat('EEEE, MMMM d, yyyy').format(record.date);
+    final dateStr = DateFormat('EEEE, MMMM d, yyyy').format(record.dateTime);
 
     final hoursWorked = record.workingHours != null
         ? '${record.workingHours!.inHours}h ${record.workingHours!.inMinutes.remainder(60)}m'
@@ -71,7 +71,7 @@ class AttendanceDetailsModal extends StatelessWidget {
                     ),
                   ],
                 ),
-                StatusChip.fromAttendance(record.status),
+                StatusChip.fromAttendance(record.statusEnum),
               ],
             ),
             const SizedBox(height: 24),
@@ -97,7 +97,7 @@ class AttendanceDetailsModal extends StatelessWidget {
             const SizedBox(height: 20),
 
             // Audit Metadata
-            _buildAuditRow('User Name', record.userName, isDark),
+            _buildAuditRow('User Name', record.userName ?? '—', isDark),
             _buildAuditRow('GPS Coordinates', '${record.latitude.toStringAsFixed(5)}, ${record.longitude.toStringAsFixed(5)}', isDark),
             _buildAuditRow('Geofence Verification', record.isInsideGeofence ? 'Passed (Authorized)' : 'Outside Geofence', isDark),
             _buildAuditRow('Address', record.locationAddress, isDark),

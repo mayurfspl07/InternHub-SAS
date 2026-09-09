@@ -20,7 +20,7 @@ class MentorDashboardView extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final dashboard = state.mentorDashboard;
     final interns = state.allUsers.where((u) => u.role == UserRole.intern).toList();
-    final pendingLeaves = state.leaveRequests.where((l) => l.status.name == 'pending').toList();
+    final pendingLeaves = state.leaveRequests.where((l) => l.isPending).toList();
 
     final assignedCount = dashboard?.assignedInternsCount ?? interns.length;
     final presentToday = dashboard?.presentToday ?? 0;

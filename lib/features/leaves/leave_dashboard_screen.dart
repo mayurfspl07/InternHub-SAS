@@ -1,272 +1,219 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
+import '../../shared/models/leave_model.dart';
 import '../../shared/models/user_model.dart';
-import '../../shared/widgets/status_chip.dart';
-import 'apply_leave_bottom_sheet.dart';
-import 'leave_approval_queue_screen.dart';
+import 'leave_repository.dart';
+import 'widgets/apply_leave_dialog.dart';
+import 'widgets/leave_balance_cards.dart';
+import 'widgets/manage_leave_queue_widget.dart';
+import 'widgets/my_leave_history_widget.dart';
 
-class LeaveDashboardScreen extends ConsumerWidget {
+class LeaveDashboardScreen extends ConsumerStatefulWidget {
   const LeaveDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(appStateProvider);
+  ConsumerState<LeaveDashboardScreen> createState() => _LeaveDashboardScreenState();
+}
+
+class _LeaveDashboardScreenState extends ConsumerState<LeaveDashboardScreen> {
+  bool _isLoading = false;
+  LeaveMineResponse? _mineResponse;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final user = ref.read(appStateProvider).currentUser;
+    // Only intern needs to fetch mine
+    if (user.role == UserRole.intern) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      try {
+        final res = await LeaveRepository().getMine();
+        if (mounted) {
+          setState(() {
+            _mineResponse = res;
+            _isLoading = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = e.toString().replaceAll('Exception:', '').trim();
+          });
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final balance = state.leaveBalance;
-    final leaves = state.leaveRequests;
-    final isMentorOrAdmin = state.currentUser.role == UserRole.admin ||
-        state.currentUser.role == UserRole.mentor;
+    final state = ref.watch(appStateProvider);
+    final user = state.currentUser;
+
+    final canRequestLeave = user.role == UserRole.intern;
+    final canApproveLeave =
+        user.role == UserRole.admin || user.role == UserRole.mentor || user.role == UserRole.superadmin;
+
+    final canPop = Navigator.canPop(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Leave Management 🏖️', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => ref.read(appStateProvider.notifier).fetchLeaves(),
-          ),
-          if (isMentorOrAdmin)
-            IconButton(
-              icon: const Icon(Icons.checklist_rounded),
-              tooltip: 'Review Approvals',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const LeaveApprovalQueueScreen()),
-                );
-              },
-            ),
-        ],
-      ),
+      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () => ref.read(appStateProvider.notifier).fetchLeaves(),
+          onRefresh: _loadData,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(AppSpacing.p20),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Leave Quota Grid
-                Text(
-                  'Leave Balance Quotas',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
+                // Top PageHeader row
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    _buildQuotaCard('Remaining', '${balance.remaining} Days', AppColors.cardGreen, isDark),
-                    const SizedBox(width: 10),
-                    _buildQuotaCard('Used', '${balance.used} Days', AppColors.cardYellow, isDark),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    _buildQuotaCard('Pending', '${balance.pending} Days', AppColors.cardPink, isDark),
-                    const SizedBox(width: 10),
-                    _buildQuotaCard('Total Quota', '${balance.quota} Days', AppColors.cardBlue, isDark),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Apply Leave Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                    if (canPop) ...[
+                      IconButton(
+                        icon: Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 20,
+                          color: isDark ? Colors.white : AppColors.textPrimaryLight,
                         ),
-                        builder: (_) => const ApplyLeaveBottomSheet(),
-                      );
-                    },
-                    icon: const Icon(Icons.add_rounded),
-                    label: const Text('Apply for Leave'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppSpacing.rPill),
+                        onPressed: () => Navigator.pop(context),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // Leave Applications History
-                Text(
-                  'Leave History & Approvals',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                if (leaves.isEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(32),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.surfaceDark : Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      const SizedBox(width: 4),
+                    ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Leave',
+                            style: GoogleFonts.outfit(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            canRequestLeave
+                                ? 'Submit leave requests and view your quota.'
+                                : 'Review and approve pending intern leave requests.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Column(
-                      children: [
-                        Icon(Icons.beach_access_outlined, size: 48, color: isDark ? Colors.white38 : AppColors.textSecondaryLight),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No leave requests found',
-                          style: TextStyle(
-                            fontSize: 15,
+                    if (canRequestLeave) ...[
+                      const SizedBox(width: 10),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.cardYellow,
+                          foregroundColor: Colors.black,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        ),
+                        icon: const Icon(Icons.add_rounded, size: 18, color: Colors.black),
+                        label: Text(
+                          'Apply for Leave',
+                          style: GoogleFonts.outfit(
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                            fontSize: 13,
+                            color: Colors.black,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Your submitted leave requests will appear here.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
-                          ),
+                        onPressed: () {
+                          final balance = _mineResponse?.balance ??
+                              const LeaveBalance(used: 0, quota: 15, remaining: 15);
+                          ApplyLeaveDialog.show(
+                            context,
+                            balance: balance,
+                            onSuccess: _loadData,
+                          );
+                        },
+                      ),
+                    ] else ...[
+                      IconButton(
+                        icon: Icon(
+                          Icons.refresh_rounded,
+                          color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
                         ),
-                      ],
-                    ),
-                  )
-                else
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: leaves.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final leave = leaves[index];
-                      final startStr = DateFormat('MMM d').format(leave.startDate);
-                      final endStr = DateFormat('MMM d, yyyy').format(leave.endDate);
+                        tooltip: 'Refresh',
+                        onPressed: _loadData,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 18),
 
-                      return Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.surfaceDark : Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  '${leave.type.name.toUpperCase()} LEAVE (${leave.totalDays} Day${leave.totalDays > 1 ? 's' : ''})',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                StatusChip.fromLeave(leave.status),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '$startStr - $endStr',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              leave.reason,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
-                              ),
-                            ),
-                            if (leave.approvedBy != null && leave.approvedBy!.isNotEmpty) ...[
-                              const SizedBox(height: 10),
-                              Text(
-                                'Reviewed by: ${leave.approvedBy}',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.success),
-                              ),
-                            ],
-                            if (leave.rejectionReason != null && leave.rejectionReason!.isNotEmpty) ...[
-                              const SizedBox(height: 6),
-                              Text(
-                                'Reason: ${leave.rejectionReason}',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.redAccent),
-                              ),
-                            ],
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                // ==================== INTERN VIEW ====================
+                if (canRequestLeave) ...[
+                  if (_isLoading && _mineResponse == null)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
+                    )
+                  else if (_errorMessage != null && _mineResponse == null)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.danger.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(_errorMessage!, style: const TextStyle(color: AppColors.danger)),
+                          const SizedBox(height: 8),
+                          ElevatedButton(onPressed: _loadData, child: const Text('Retry')),
+                        ],
+                      ),
+                    )
+                  else ...[
+                    // 1. Leave Balance Cards
+                    if (_mineResponse != null)
+                      LeaveBalanceCards(
+                        balance: _mineResponse!.balance,
+                        summary: _mineResponse!.summary,
+                        totalRequests: _mineResponse!.requests.length,
+                      ),
+                    const SizedBox(height: 16),
+
+                    // 2. My Leave History
+                    if (_mineResponse != null)
+                      MyLeaveHistoryWidget(
+                        mineData: _mineResponse!,
+                        onRefresh: _loadData,
+                      ),
+                  ],
+                ],
+
+                // ==================== ADMIN / MENTOR VIEW ====================
+                if (canApproveLeave) ...[
+                  const ManageLeaveQueueWidget(),
+                ],
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuotaCard(String label, String value, Color color, bool isDark) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : color.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(20),
-          border: isDark ? Border.all(color: AppColors.borderDark) : null,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white70 : Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : AppColors.textPrimaryLight,
-              ),
-            ),
-          ],
         ),
       ),
     );

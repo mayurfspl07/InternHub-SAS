@@ -274,9 +274,9 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
                                 return Card(
                                   margin: const EdgeInsets.only(bottom: 12),
                                   child: ListTile(
-                                    title: Text(a.date.toIso8601String().substring(0, 10)),
+                                    title: Text(a.date.length >= 10 ? a.date.substring(0, 10) : a.date),
                                     subtitle: Text(a.locationAddress),
-                                    trailing: StatusChip(label: a.status.toApiValue().toUpperCase(), statusType: StatusType.success),
+                                    trailing: StatusChip(label: a.status.toUpperCase(), statusType: StatusType.success),
                                   ),
                                 );
                               },
