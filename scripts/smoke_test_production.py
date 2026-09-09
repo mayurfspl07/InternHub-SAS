@@ -54,11 +54,11 @@ for path in [
     check(f"authz 401/403 {path}", r.status_code in (401, 403), f"{r.status_code}")
 
 # 5. Login — try bootstrap default creds from repo test scripts
-creds = [
-    ("admin@internhub.dev", "AdminSecurePass123!"),
-    ("admin@internhub.dev", "Imp@pune1"),
-    ("admin@internhub.dev", "Imp@pune2"),
-]
+# 5. Login — credentials come from the INTERNHUB_TEST_CREDS env var ("email:password").
+import os
+
+_creds_env = os.environ.get("INTERNHUB_TEST_CREDS", "")
+creds = [tuple(_creds_env.split(":", 1))] if _creds_env else []
 logged_in = False
 admin_token = None
 for email, pw in creds:
