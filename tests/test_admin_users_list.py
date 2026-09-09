@@ -159,6 +159,33 @@ class TestAdminUsersList(unittest.IsolatedAsyncioTestCase):
         self.assertIn(self.platform_admin.id, listed_ids)
         self.assertNotIn(self.superadmin.id, listed_ids)
 
+    async def test_superadmin_caller_can_list_users(self):
+        # Superadmin accounts are the most privileged operators — the user
+        # management surface must not 403 them (regression: raw role-string gate).
+        self.superadmin.is_platform_admin = True
+        self.db.commit()
+        req = make_request(self.superadmin, org_id=self.org.id)
+        res = await list_users(req, self.db)
+        self.assertEqual(res["counts"]["all"], 5)  # everyone except the superadmin row itself
+        listed_ids = {u["id"] for u in res["users"]}
+        self.assertIn(self.org_admin.id, listed_ids)
+        self.assertIn(self.mentor.id, listed_ids)
+
+    async def test_superadmin_caller_can_create_user(self):
+        req = make_request(
+            self.superadmin,
+            "POST",
+            payload={
+                "name": "Created By Root",
+                "email": "byroot@innovatetech.com",
+                "password": "Password123!",
+                "role": UserRole.INTERN,
+            },
+            org_id=self.org.id,
+        )
+        res = await create_user(req, self.db)
+        self.assertEqual(res["role"], UserRole.INTERN)
+
     async def test_role_filter_superadmin_rejected(self):
         req = make_request(
             self.org_admin, query_params={"role": "superadmin"}, org_id=self.org.id

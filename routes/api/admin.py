@@ -126,7 +126,7 @@ def _listable_users_q(db: Session, viewer: User):
         User.is_deleted == False,
         User.role.notin_(_HIDDEN_LIST_ROLES),
     )
-    if not viewer.is_platform_admin:
+    if not (viewer.is_platform_admin or viewer.is_superadmin):
         q = q.filter(User.is_platform_admin == False)
     return q
 
@@ -134,7 +134,7 @@ def _listable_users_q(db: Session, viewer: User):
 @router.get("/users")
 async def list_users(request: Request, db: DbSession):
     user = get_optional_user(request, db)
-    if not user or user.role not in ("admin", "mentor"):
+    if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
 
     role_filter = request.query_params.get("role")
@@ -217,7 +217,7 @@ async def list_users(request: Request, db: DbSession):
 @router.get("/mentors")
 async def list_mentors(request: Request, db: DbSession):
     user = get_optional_user(request, db)
-    if not user or user.role not in ("admin", "mentor"):
+    if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
     mentors = db.query(User).filter(User.role == UserRole.MENTOR, User.is_deleted == False).order_by(User.name).all()
     mentor_names = _mentor_names(db)
@@ -227,7 +227,7 @@ async def list_mentors(request: Request, db: DbSession):
 @router.get("/intern-assignments")
 async def intern_assignments(request: Request, db: DbSession):
     user = get_optional_user(request, db)
-    if not user or user.role not in ("admin", "mentor"):
+    if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
 
     mentor_names = _mentor_names(db)
@@ -338,7 +338,7 @@ async def intern_assignments(request: Request, db: DbSession):
 @router.post("/users")
 async def create_user(request: Request, db: DbSession, data: AdminCreateUserRequest | None = Body(None)):
     user = get_optional_user(request, db)
-    if not user or user.role not in ("admin", "mentor"):
+    if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
     payload = await get_payload(request, data)
     name = str(payload.get("name", "")).strip()
@@ -453,7 +453,7 @@ async def create_user(request: Request, db: DbSession, data: AdminCreateUserRequ
 @router.put("/users/{user_id}")
 async def update_user(user_id: int, request: Request, response: Response, db: DbSession, data: AdminUpdateUserRequest | None = Body(None)):
     user = get_optional_user(request, db)
-    if not user or user.role not in ("admin", "mentor"):
+    if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
     target = db.get(User, user_id)
     if not target:
@@ -533,7 +533,7 @@ async def update_user(user_id: int, request: Request, response: Response, db: Db
 @router.post("/users/{user_id}/toggle")
 async def toggle_active(user_id: int, request: Request, db: DbSession):
     user = get_optional_user(request, db)
-    if not user or user.role not in ("admin", "mentor"):
+    if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
     target = db.get(User, user_id)
     if not target:
@@ -571,7 +571,7 @@ async def change_role(user_id: int, request: Request, db: DbSession, data: Admin
     # cannot be retargeted by tenant admins.
     if new_role not in (UserRole.ADMIN, UserRole.MENTOR, UserRole.INTERN):
         raise HTTPException(status_code=422, detail="Invalid role.")
-    if target.is_superadmin and not user.is_platform_admin:
+    if target.is_superadmin and not (user.is_platform_admin or user.is_superadmin):
         raise HTTPException(status_code=403, detail="Cannot change the role of a superadmin account.")
     old_role = target.role
     target.role = new_role
@@ -638,7 +638,7 @@ def _invite_link_dict(link: InternInviteLink, db: Session, request: Request | No
 @router.get("/invite-link")
 async def get_invite_link(request: Request, db: DbSession):
     user = get_optional_user(request, db)
-    if not user or user.role not in ("admin", "mentor"):
+    if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
     query = db.query(InternInviteLink)
     if user.is_mentor:
@@ -655,7 +655,7 @@ async def get_invite_link(request: Request, db: DbSession):
 @router.post("/invite-link")
 async def create_invite_link(request: Request, db: DbSession, data: AdminInviteLinkCreateRequest | None = Body(None)):
     user = get_optional_user(request, db)
-    if not user or user.role not in ("admin", "mentor"):
+    if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
 
     payload = await get_payload(request, data)
@@ -690,7 +690,7 @@ async def create_invite_link(request: Request, db: DbSession, data: AdminInviteL
 @router.delete("/invite-link/{link_id}")
 async def delete_invite_link(link_id: int, request: Request, db: DbSession):
     user = get_optional_user(request, db)
-    if not user or user.role not in ("admin", "mentor"):
+    if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
 
     link = db.get(InternInviteLink, link_id)
@@ -774,7 +774,7 @@ async def list_intern_signup_requests(
     search: str | None = None,
 ):
     user = get_optional_user(request, db)
-    if not user or user.role not in ("admin", "mentor"):
+    if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
 
     query = (
@@ -829,7 +829,7 @@ async def list_intern_signup_requests(
 @router.post("/intern-signup-requests/{user_id}/review")
 async def review_intern_signup_request(user_id: int, request: Request, db: DbSession):
     user = get_optional_user(request, db)
-    if not user or user.role not in ("admin", "mentor"):
+    if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
 
     # Resolve organization context
