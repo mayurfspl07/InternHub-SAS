@@ -127,5 +127,9 @@ async def notifications_stream(request: Request, db: DbSession):
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
+            # Identity encoding makes GZipMiddleware pass the stream through
+            # untouched — compressing per-event chunks buffers them at the edge
+            # proxy and SSE events never reach the client.
+            "Content-Encoding": "identity",
         },
     )
