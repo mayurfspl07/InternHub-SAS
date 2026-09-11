@@ -1125,3 +1125,289 @@ def test_dashboard_notifications_profile_reviews_search_standup_users_apis(api_e
     resp = client.get(f"/api/users/{intern.id}/leave", headers=admin_headers)
     assert resp.status_code == 200
     assert "summary" in resp.json()
+
+
+# ==============================================================================
+# 11. Assignments APIs (/api/assignments/*)
+# ==============================================================================
+def test_assignments_apis(api_env):
+    client, mentor, intern = api_env["client"], api_env["mentor"], api_env["intern"]
+    mentor_headers = api_env["auth_headers"](mentor)
+    intern_headers = api_env["auth_headers"](intern)
+
+    # 1. List assignments
+    resp = client.get("/api/assignments", headers=mentor_headers)
+    assert resp.status_code == 200
+
+    # 2. Create assignment
+    due = (date.today() + timedelta(days=7)).isoformat()
+    resp = client.post(
+        "/api/assignments",
+        json={
+            "title": "Build Automated API Verification Suite",
+            "description": "Comprehensive integration testing of all routes",
+            "due_date": due,
+            "max_score": 100,
+        },
+        headers=mentor_headers,
+    )
+    assert resp.status_code == 200
+    asgn_id = resp.json()["id"]
+
+    # 3. Get assignment details
+    resp = client.get(f"/api/assignments/{asgn_id}", headers=intern_headers)
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "Build Automated API Verification Suite"
+
+    # 4. List submissions
+    resp = client.get(f"/api/assignments/{asgn_id}/submissions", headers=mentor_headers)
+    assert resp.status_code == 200
+
+    # 5. Submit assignment
+    resp = client.post(
+        f"/api/assignments/{asgn_id}/submit",
+        json={
+            "submission_link": "https://github.com/internhub/api-tests",
+            "notes": "All unit & integration tests completed successfully.",
+        },
+        headers=intern_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["success"] is True
+    sub_id = resp.json()["submission"]["id"]
+
+    # 6. Review submission
+    resp = client.post(
+        f"/api/assignments/submissions/{sub_id}/review",
+        json={"score": 100, "feedback": "Flawless coverage across all domains."},
+        headers=mentor_headers,
+    )
+    assert resp.status_code == 200
+
+    # 7. Delete assignment
+    resp = client.delete(f"/api/assignments/{asgn_id}", headers=mentor_headers)
+    assert resp.status_code == 200
+
+
+# ==============================================================================
+# 12. Blogs & Marketing APIs (/api/blogs/* & /sitemap.xml)
+# ==============================================================================
+def test_blogs_and_marketing_apis(api_env):
+    client, org_admin = api_env["client"], api_env["org_admin"]
+    admin_headers = api_env["auth_headers"](org_admin)
+
+    # 1. Public blog listing
+    resp = client.get("/api/blogs")
+    assert resp.status_code == 200
+    assert "items" in resp.json()
+
+    # 2. Admin all blogs
+    resp = client.get("/api/blogs/admin/all", headers=admin_headers)
+    assert resp.status_code == 200
+
+    # 3. Sitemap XML
+    resp = client.get("/sitemap.xml")
+    assert resp.status_code == 200
+    assert "urlset" in resp.text
+
+    # 4. Create blog post
+    slug = f"post-{int(datetime.now().timestamp())}"
+    resp = client.post(
+        "/api/blogs",
+        json={
+            "title": "Scaling Internships in Modern SaaS",
+            "slug": slug,
+            "excerpt": "A brief overview on managing high velocity intern teams",
+            "content": "<p>Efficient tooling enables interns to ship production-ready code with confidence.</p>",
+            "status": "published",
+        },
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    post_id = resp.json()["id"]
+
+    # 5. Get blog post by slug
+    resp = client.get(f"/api/blogs/{slug}")
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "Scaling Internships in Modern SaaS"
+
+    # 6. Update blog post
+    resp = client.put(
+        f"/api/blogs/{post_id}",
+        json={"title": "Scaling Internships in Modern SaaS (Revised)"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+
+    # 7. Delete blog post
+    resp = client.delete(f"/api/blogs/{post_id}", headers=admin_headers)
+    assert resp.status_code == 200
+
+
+# ==============================================================================
+# 13. Leads (CRM) APIs (/api/leads & /api/platform/leads)
+# ==============================================================================
+def test_leads_apis(api_env):
+    client, super_admin = api_env["client"], api_env["super_admin"]
+    super_headers = api_env["auth_headers"](super_admin, with_org=False)
+
+    # 1. Submit lead
+    resp = client.post(
+        "/api/leads",
+        json={
+            "name": "Sarah Connor",
+            "email": "sarah@cyberdyne.org",
+            "company": "Cyberdyne Systems",
+            "message": "We need enterprise intern management with SSO & attendance.",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is True
+
+    # 2. Platform admin view leads
+    resp = client.get("/api/platform/leads", headers=super_headers)
+    assert resp.status_code == 200
+    assert "items" in resp.json()
+    assert len(resp.json()["items"]) >= 1
+
+
+# ==============================================================================
+# 14. SMTP Configuration APIs (/api/org/smtp/*)
+# ==============================================================================
+def test_smtp_apis(api_env):
+    client, org_admin = api_env["client"], api_env["org_admin"]
+    admin_headers = api_env["auth_headers"](org_admin)
+
+    # 1. Get SMTP config
+    resp = client.get("/api/org/smtp", headers=admin_headers)
+    assert resp.status_code == 200
+    assert "is_enabled" in resp.json()
+    assert "host" in resp.json()
+
+    # 2. Update SMTP config
+    resp = client.put(
+        "/api/org/smtp",
+        json={
+            "is_enabled": True,
+            "host": "smtp.mailtrap.io",
+            "port": 2525,
+            "username": "tester",
+            "password": "super_secret_smtp",
+            "sender_name": "TechCorp InternHub",
+        },
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+
+    # 3. SMTP logs
+    resp = client.get("/api/org/smtp/logs", headers=admin_headers)
+    assert resp.status_code == 200
+    assert "logs" in resp.json()
+
+
+# ==============================================================================
+# 15. Uploads & Asset Management APIs (/api/upload/*)
+# ==============================================================================
+def test_uploads_apis(api_env):
+    client, org_admin = api_env["client"], api_env["org_admin"]
+    admin_headers = api_env["auth_headers"](org_admin)
+
+    # 1. Upload status
+    resp = client.get("/api/upload/status", headers=admin_headers)
+    assert resp.status_code == 200
+    assert "provider" in resp.json()
+    assert "max_size_mb" in resp.json()
+
+
+# ==============================================================================
+# 16. Internship Durations & Status Masters APIs (/api/admin/internship-durations & /api/admin/*-statuses)
+# ==============================================================================
+def test_masters_and_student_attendance_apis(api_env):
+    client, org_admin, mentor, intern = (
+        api_env["client"],
+        api_env["org_admin"],
+        api_env["mentor"],
+        api_env["intern"],
+    )
+    admin_headers = api_env["auth_headers"](org_admin)
+    mentor_headers = api_env["auth_headers"](mentor)
+
+    # 1. Internship Durations
+    resp = client.get("/api/admin/internship-durations", headers=admin_headers)
+    assert resp.status_code == 200
+    assert "durations" in resp.json()
+
+    resp = client.get("/api/admin/internship-durations/dropdown", headers=admin_headers)
+    assert resp.status_code == 200
+
+    resp = client.post(
+        "/api/admin/internship-durations",
+        json={"title": "9 Months Honors Co-op", "internship_duration": 9, "leaves": 9},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    dur_id = resp.json()["id"]
+
+    resp = client.put(
+        f"/api/admin/internship-durations/{dur_id}",
+        json={"title": "9 Months Honors Co-op (Updated)"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+
+    resp = client.delete(f"/api/admin/internship-durations/{dur_id}", headers=admin_headers)
+    assert resp.status_code == 200
+
+    # 2. Project Statuses Master
+    resp = client.get("/api/admin/project-statuses", headers=admin_headers)
+    assert resp.status_code == 200
+
+    resp = client.post(
+        "/api/admin/project-statuses",
+        json={"name": "In QA Staging", "category": "in_progress", "color": "#3B82F6"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    ps_id = resp.json()["id"]
+
+    resp = client.delete(f"/api/admin/project-statuses/{ps_id}", headers=admin_headers)
+    assert resp.status_code == 200
+
+    # 3. Task Statuses Master
+    resp = client.get("/api/admin/task-statuses", headers=admin_headers)
+    assert resp.status_code == 200
+
+    resp = client.post(
+        "/api/admin/task-statuses",
+        json={"name": "Needs Code Review", "category": "in_progress", "color": "#8B5CF6"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    ts_id = resp.json()["id"]
+
+    resp = client.delete(f"/api/admin/task-statuses/{ts_id}", headers=admin_headers)
+    assert resp.status_code == 200
+
+    # 4. Student Attendance & Mentor View APIs
+    resp = client.get("/api/admin/students", headers=admin_headers)
+    assert resp.status_code == 200
+
+    resp = client.get(f"/api/admin/students/{intern.id}/attendance", headers=admin_headers)
+    assert resp.status_code == 200
+
+    resp = client.get("/api/mentor/students", headers=mentor_headers)
+    assert resp.status_code == 200
+
+    resp = client.get("/api/mentor/students/today", headers=mentor_headers)
+    assert resp.status_code == 200
+
+    resp = client.get("/api/mentor/attendance/today", headers=mentor_headers)
+    assert resp.status_code == 200
+
+    resp = client.get(f"/api/mentor/students/{intern.id}/attendance", headers=mentor_headers)
+    assert resp.status_code == 200
+
+    resp = client.get("/api/mentor/students/export.csv", headers=mentor_headers)
+    assert resp.status_code == 200
+    assert "text/csv" in resp.headers.get("content-type", "")
+

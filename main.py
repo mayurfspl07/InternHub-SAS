@@ -291,7 +291,7 @@ app.add_middleware(
 # Cookie-authenticated, state-changing requests must prove they came from a page that
 # could read this origin's cookies (double-submit CSRF token) — Bearer-token requests are
 # exempt, since a third-party page can't make the browser attach an Authorization header.
-_CSRF_EXEMPT_PATHS = ("/api/auth/login", "/api/auth/register", "/api/auth/invite/")
+_CSRF_EXEMPT_PATHS = ("/api/auth/login", "/api/auth/register", "/api/auth/invite/", "/api/leads")
 
 
 @app.middleware("http")
