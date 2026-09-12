@@ -6,8 +6,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
-from dependencies import get_optional_user
-from models import PerformanceReview, Project, User, BinEntityType
+from dependencies import get_optional_user, _resolve_request_org_id
+from models import PerformanceReview, Project, User, BinEntityType, OrganizationMembership
 from recycle_bin import move_to_bin
 from utils import push_notification, record_audit, isoformat_utc
 from routes.api.schemas import ReviewCreatePayload, ReviewUpdatePayload, get_payload
@@ -43,11 +43,18 @@ async def list_reviews(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
+    scoped_org_id = _resolve_request_org_id(request, user, db)
     q = db.query(PerformanceReview).options(
         joinedload(PerformanceReview.intern),
         joinedload(PerformanceReview.reviewer),
         joinedload(PerformanceReview.project),
     ).filter(PerformanceReview.is_deleted == False)
+
+    if scoped_org_id is not None:
+        if scoped_org_id == 1:
+            q = q.filter((PerformanceReview.organization_id == 1) | (PerformanceReview.organization_id.is_(None)))
+        else:
+            q = q.filter(PerformanceReview.organization_id == scoped_org_id)
     if user.is_intern:
         q = q.filter(PerformanceReview.intern_id == user.id)
     elif user.is_mentor:
@@ -150,7 +157,22 @@ async def create_review(request: Request, db: DbSession, data: ReviewCreatePaylo
                 detail=f"You already submitted a review for this intern for period '{period}'.",
             )
 
+    scoped_org_id = _resolve_request_org_id(request, user, db) or 1
+    if not getattr(user, "is_platform_admin", False):
+        is_member = (
+            db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == intern.id,
+                OrganizationMembership.organization_id == scoped_org_id,
+                OrganizationMembership.is_active == True,
+            )
+            .first()
+        )
+        if not is_member:
+            raise HTTPException(status_code=403, detail="Intern does not belong to your organization.")
+
     review = PerformanceReview(
+        organization_id=scoped_org_id,
         intern_id=intern.id,
         reviewer_id=user.id,
         project_id=project_id,
@@ -195,6 +217,14 @@ async def get_review(review_id: int, request: Request, db: DbSession):
     ).filter_by(id=review_id).first()
     if not review:
         raise HTTPException(status_code=404)
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+    if scoped_org_id is not None and not getattr(user, "is_platform_admin", False):
+        if scoped_org_id == 1:
+            if review.organization_id is not None and review.organization_id != 1:
+                raise HTTPException(status_code=404)
+        else:
+            if review.organization_id != scoped_org_id:
+                raise HTTPException(status_code=404)
     if user.is_intern and review.intern_id != user.id:
         raise HTTPException(status_code=403)
     return _review_dict(review)
@@ -208,6 +238,14 @@ async def update_review(review_id: int, request: Request, db: DbSession, data: R
     review = db.get(PerformanceReview, review_id)
     if not review or review.is_deleted:
         raise HTTPException(status_code=404)
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+    if scoped_org_id is not None and not getattr(user, "is_platform_admin", False):
+        if scoped_org_id == 1:
+            if review.organization_id is not None and review.organization_id != 1:
+                raise HTTPException(status_code=404)
+        else:
+            if review.organization_id != scoped_org_id:
+                raise HTTPException(status_code=404)
     if not user.is_admin and review.reviewer_id != user.id:
         raise HTTPException(status_code=403)
 
@@ -273,6 +311,14 @@ async def delete_review(review_id: int, request: Request, db: DbSession):
     review = db.get(PerformanceReview, review_id)
     if not review or review.is_deleted:
         raise HTTPException(status_code=404)
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+    if scoped_org_id is not None and not getattr(user, "is_platform_admin", False):
+        if scoped_org_id == 1:
+            if review.organization_id is not None and review.organization_id != 1:
+                raise HTTPException(status_code=404)
+        else:
+            if review.organization_id != scoped_org_id:
+                raise HTTPException(status_code=404)
     if not user.is_admin and review.reviewer_id != user.id:
         raise HTTPException(status_code=403)
     intern = db.get(User, review.intern_id)

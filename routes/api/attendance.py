@@ -13,8 +13,8 @@ from utils import local_now, local_today, today_str
 from geocoding import reverse_geocode
 from config import Config
 from database import get_db
-from dependencies import get_optional_user
-from models import Attendance, AttendanceAuditLog, AttendanceStatus, User, UserRole
+from dependencies import get_optional_user, _resolve_request_org_id
+from models import Attendance, AttendanceAuditLog, AttendanceStatus, OrganizationMembership, User, UserRole
 from utils import (
     apply_checkout_to_record,
     attendance_photo_url,
@@ -153,8 +153,25 @@ def _monthly_summary(db: Session, attendance_query) -> list[dict]:
     return summary
 
 
-def _can_edit_attendance(db: Session, editor: User, record: Attendance) -> bool:
+def _resolve_scoped_org_id(request: Request, user: User, db: Session) -> int | None:
+    return _resolve_request_org_id(request, user, db)
+
+
+def _can_edit_attendance(db: Session, editor: User, record: Attendance, scoped_org_id: int | None = None) -> bool:
+    if getattr(editor, "is_platform_admin", False):
+        return True
     if editor.is_admin:
+        if scoped_org_id is not None:
+            return (
+                db.query(OrganizationMembership)
+                .filter(
+                    OrganizationMembership.user_id == record.user_id,
+                    OrganizationMembership.organization_id == scoped_org_id,
+                    OrganizationMembership.is_active == True,
+                )
+                .first()
+                is not None
+            )
         return True
     if editor.is_mentor:
         return mentor_can_edit_intern(db, editor, record.user_id)
@@ -362,12 +379,25 @@ async def history(request: Request, db: DbSession):
         raise HTTPException(status_code=401)
 
     params = request.query_params
+    scoped_org_id = _resolve_scoped_org_id(request, user, db)
     # None means "unfiltered" (admin all-intern view); default to own records for interns.
     user_id: int | None = user.id if user.is_intern else None
     if user.role in ("admin", "mentor"):
         target_id = params.get("user_id")
         if target_id and target_id.isdigit():
             requested_id = int(target_id)
+            if scoped_org_id is not None and not getattr(user, "is_platform_admin", False):
+                is_member = (
+                    db.query(OrganizationMembership)
+                    .filter(
+                        OrganizationMembership.user_id == requested_id,
+                        OrganizationMembership.organization_id == scoped_org_id,
+                        OrganizationMembership.is_active == True,
+                    )
+                    .first()
+                )
+                if not is_member:
+                    raise HTTPException(status_code=403, detail="Intern does not belong to your organization.")
             # Mentors can only view attendance for their own interns
             if user.is_mentor:
                 allowed_ids = get_mentor_intern_ids(db, user.id)
@@ -408,9 +438,16 @@ async def history(request: Request, db: DbSession):
     if user_id is not None:
         q = q.filter(Attendance.user_id == user_id)
     else:
-        # Admin all-interns view — filter to intern role only
+        # Admin all-interns view — filter to intern role only within scoped organization
         from models import User as _User
         q = q.join(_User, Attendance.user_id == _User.id).filter(_User.role == _UserRole.INTERN)
+        if scoped_org_id is not None:
+            q = q.join(
+                OrganizationMembership, OrganizationMembership.user_id == _User.id
+            ).filter(
+                OrganizationMembership.organization_id == scoped_org_id,
+                OrganizationMembership.is_active == True,
+            )
     q = q.order_by(Attendance.date.desc())
 
     total = q.count()
@@ -435,10 +472,23 @@ async def report(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user or user.role not in ("admin", "mentor"):
         raise HTTPException(status_code=403)
+    scoped_org_id = _resolve_scoped_org_id(request, user, db)
 
     params = request.query_params
     intern_id_raw = _normalize_optional_param(params.get("intern_id"))
     intern_id = int(intern_id_raw) if intern_id_raw and intern_id_raw.isdigit() else None
+    if intern_id and scoped_org_id is not None and not getattr(user, "is_platform_admin", False):
+        is_member = (
+            db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == intern_id,
+                OrganizationMembership.organization_id == scoped_org_id,
+                OrganizationMembership.is_active == True,
+            )
+            .first()
+        )
+        if not is_member:
+            raise HTTPException(status_code=403, detail="Intern does not belong to your organization.")
     start_s = _normalize_optional_param(params.get("start"))
     end_s = _normalize_optional_param(params.get("end"))
 
@@ -468,6 +518,13 @@ async def report(request: Request, db: DbSession):
             .join(User, Attendance.user_id == User.id)
             .filter(User.role == UserRole.INTERN)
         )
+        if scoped_org_id is not None:
+            query = query.join(
+                OrganizationMembership, OrganizationMembership.user_id == User.id
+            ).filter(
+                OrganizationMembership.organization_id == scoped_org_id,
+                OrganizationMembership.is_active == True,
+            )
         if visible_intern_ids is not None:
             query = query.filter(Attendance.user_id.in_(visible_intern_ids))
         if intern_id:
@@ -495,6 +552,13 @@ async def report(request: Request, db: DbSession):
     total_pages = max(1, (total + page_size - 1) // page_size) if total else 1
 
     interns_q = db.query(User).filter_by(role=UserRole.INTERN, is_active=True)
+    if scoped_org_id is not None:
+        interns_q = interns_q.join(
+            OrganizationMembership, OrganizationMembership.user_id == User.id
+        ).filter(
+            OrganizationMembership.organization_id == scoped_org_id,
+            OrganizationMembership.is_active == True,
+        )
     if visible_intern_ids is not None:
         interns_q = interns_q.filter(User.id.in_(visible_intern_ids))
     interns = interns_q.order_by(User.name).all()
@@ -625,11 +689,30 @@ async def export_csv(request: Request, db: DbSession):
     if start_date and end_date and start_date > end_date:
         raise HTTPException(status_code=422, detail="from_date/start must be on or before to_date/end.")
 
+    scoped_org_id = _resolve_scoped_org_id(request, user, db)
     q = db.query(Attendance).options(joinedload(Attendance.user))
     if user.is_intern:
         q = q.filter(Attendance.user_id == user.id)
     elif intern_id:
+        if scoped_org_id is not None and not getattr(user, "is_platform_admin", False):
+            is_member = (
+                db.query(OrganizationMembership)
+                .filter(
+                    OrganizationMembership.user_id == intern_id,
+                    OrganizationMembership.organization_id == scoped_org_id,
+                    OrganizationMembership.is_active == True,
+                )
+                .first()
+            )
+            if not is_member:
+                raise HTTPException(status_code=403, detail="Intern does not belong to your organization.")
         q = q.filter(Attendance.user_id == intern_id)
+    else:
+        if scoped_org_id is not None:
+            q = q.join(OrganizationMembership, OrganizationMembership.user_id == Attendance.user_id).filter(
+                OrganizationMembership.organization_id == scoped_org_id,
+                OrganizationMembership.is_active == True,
+            )
 
     if start_date:
         q = q.filter(Attendance.date >= start_date)
@@ -692,7 +775,8 @@ async def edit_attendance(record_id: int, request: Request, db: DbSession, data:
     )
     if not record:
         raise HTTPException(status_code=404, detail="Attendance record not found.")
-    if not _can_edit_attendance(db, user, record):
+    scoped_org_id = _resolve_scoped_org_id(request, user, db)
+    if not _can_edit_attendance(db, user, record, scoped_org_id):
         raise HTTPException(status_code=403, detail="You cannot edit this intern's attendance.")
 
     if data is not None:
@@ -815,7 +899,8 @@ async def delete_attendance(record_id: int, request: Request, db: DbSession):
     )
     if not record:
         raise HTTPException(status_code=404, detail="Attendance record not found.")
-    if not _can_edit_attendance(db, user, record):
+    scoped_org_id = _resolve_scoped_org_id(request, user, db)
+    if not _can_edit_attendance(db, user, record, scoped_org_id):
         raise HTTPException(status_code=403, detail="You cannot delete this intern's attendance.")
 
     try:
@@ -849,7 +934,8 @@ async def attendance_audit_log(record_id: int, request: Request, db: DbSession):
     record = db.get(Attendance, record_id)
     if not record:
         raise HTTPException(status_code=404)
-    if not _can_edit_attendance(db, user, record):
+    scoped_org_id = _resolve_scoped_org_id(request, user, db)
+    if not _can_edit_attendance(db, user, record, scoped_org_id):
         raise HTTPException(status_code=403)
 
     logs = (
@@ -908,6 +994,20 @@ async def create_attendance_manual(request: Request, db: DbSession, data: Manual
         raise HTTPException(status_code=404, detail="User not found.")
     if intern.role != UserRole.INTERN:
         raise HTTPException(status_code=400, detail="Target user is not an intern.")
+
+    scoped_org_id = _resolve_scoped_org_id(request, user, db)
+    if scoped_org_id is not None and not getattr(user, "is_platform_admin", False):
+        is_member = (
+            db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == user_id,
+                OrganizationMembership.organization_id == scoped_org_id,
+                OrganizationMembership.is_active == True,
+            )
+            .first()
+        )
+        if not is_member:
+            raise HTTPException(status_code=403, detail="You can only create attendance for interns in your organization.")
 
     if not date_str:
         raise HTTPException(status_code=422, detail="date is required.")

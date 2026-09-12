@@ -7,7 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
-from dependencies import get_optional_user
+from dependencies import get_optional_user, _resolve_request_org_id
 from models import Announcement, Project, ProjectAssignment, ProjectMentorAssignment, BinEntityType
 from recycle_bin import move_to_bin
 from routes.api.schemas import AnnouncementCreatePayload, AnnouncementUpdatePayload, get_payload
@@ -39,11 +39,18 @@ async def list_announcements(request: Request, db: DbSession):
     if not user:
         raise HTTPException(status_code=401)
 
+    scoped_org_id = _resolve_request_org_id(request, user, db)
     q = (
         db.query(Announcement)
         .options(joinedload(Announcement.author), joinedload(Announcement.project))
         .filter(Announcement.is_deleted == False)
     )
+
+    if scoped_org_id is not None:
+        if scoped_org_id == 1:
+            q = q.filter((Announcement.organization_id == 1) | (Announcement.organization_id.is_(None)))
+        else:
+            q = q.filter(Announcement.organization_id == scoped_org_id)
 
     if user.is_intern:
         intern_project_ids = [
@@ -125,7 +132,9 @@ async def create_announcement(request: Request, db: DbSession, data: Announcemen
             if not is_co_mentor:
                 raise HTTPException(status_code=403, detail="Cannot post to a project you don't manage.")
 
+    scoped_org_id = _resolve_request_org_id(request, user, db) or 1
     ann = Announcement(
+        organization_id=scoped_org_id,
         author_id=user.id,
         title=title,
         body=body,
@@ -170,6 +179,14 @@ async def update_announcement(ann_id: int, request: Request, db: DbSession, data
     ann = db.get(Announcement, ann_id)
     if not ann or ann.is_deleted:
         raise HTTPException(status_code=404)
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+    if scoped_org_id is not None and not getattr(user, "is_platform_admin", False):
+        if scoped_org_id == 1:
+            if ann.organization_id is not None and ann.organization_id != 1:
+                raise HTTPException(status_code=404)
+        else:
+            if ann.organization_id != scoped_org_id:
+                raise HTTPException(status_code=404)
     if not user.is_admin and ann.author_id != user.id:
         raise HTTPException(status_code=403)
 
@@ -226,6 +243,14 @@ async def delete_announcement(ann_id: int, request: Request, db: DbSession):
     ann = db.get(Announcement, ann_id)
     if not ann or ann.is_deleted:
         raise HTTPException(status_code=404)
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+    if scoped_org_id is not None and not getattr(user, "is_platform_admin", False):
+        if scoped_org_id == 1:
+            if ann.organization_id is not None and ann.organization_id != 1:
+                raise HTTPException(status_code=404)
+        else:
+            if ann.organization_id != scoped_org_id:
+                raise HTTPException(status_code=404)
     if not user.is_admin and ann.author_id != user.id:
         raise HTTPException(status_code=403)
     record_audit(

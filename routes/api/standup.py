@@ -6,8 +6,8 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
-from dependencies import get_optional_user
-from models import StandupLog, User, BinEntityType
+from dependencies import get_optional_user, _resolve_request_org_id
+from models import StandupLog, User, BinEntityType, OrganizationMembership
 from recycle_bin import move_to_bin
 from utils import get_mentor_intern_ids, record_audit, isoformat_utc, local_today
 
@@ -39,9 +39,16 @@ async def list_standups(request: Request, db: DbSession):
     if not user:
         raise HTTPException(status_code=401)
 
+    scoped_org_id = _resolve_request_org_id(request, user, db)
     q = db.query(StandupLog).options(joinedload(StandupLog.user)).filter(
         StandupLog.is_deleted == False
     )
+
+    if scoped_org_id is not None:
+        if scoped_org_id == 1:
+            q = q.filter((StandupLog.organization_id == 1) | (StandupLog.organization_id.is_(None)))
+        else:
+            q = q.filter(StandupLog.organization_id == scoped_org_id)
 
     if user.is_intern:
         q = q.filter(StandupLog.user_id == user.id)
@@ -67,7 +74,20 @@ async def list_standups(request: Request, db: DbSession):
     uid = request.query_params.get("user_id")
     if uid and not user.is_intern:
         try:
-            q = q.filter(StandupLog.user_id == int(uid))
+            req_uid = int(uid)
+            if scoped_org_id is not None and not getattr(user, "is_platform_admin", False):
+                is_member = (
+                    db.query(OrganizationMembership)
+                    .filter(
+                        OrganizationMembership.user_id == req_uid,
+                        OrganizationMembership.organization_id == scoped_org_id,
+                        OrganizationMembership.is_active == True,
+                    )
+                    .first()
+                )
+                if not is_member:
+                    raise HTTPException(status_code=403, detail="Intern does not belong to your organization.")
+            q = q.filter(StandupLog.user_id == req_uid)
         except ValueError:
             pass
 
@@ -134,7 +154,8 @@ async def submit_standup(request: Request, db: DbSession, data: StandupCreatePay
         db.commit()
         return _log_dict(existing)
 
-    log = StandupLog(user_id=user.id, date=log_date, did=did, plan=plan, blockers=blockers, mood=mood)
+    scoped_org_id = _resolve_request_org_id(request, user, db) or 1
+    log = StandupLog(organization_id=scoped_org_id, user_id=user.id, date=log_date, did=did, plan=plan, blockers=blockers, mood=mood)
     db.add(log)
     record_audit(db, user, "standup.submit", "submitted standup", log_date.isoformat())
     db.commit()
@@ -151,6 +172,14 @@ async def update_standup(log_id: int, request: Request, db: DbSession, data: Sta
     log = db.get(StandupLog, log_id)
     if not log or log.is_deleted:
         raise HTTPException(status_code=404)
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+    if scoped_org_id is not None and not getattr(user, "is_platform_admin", False):
+        if scoped_org_id == 1:
+            if log.organization_id is not None and log.organization_id != 1:
+                raise HTTPException(status_code=404)
+        else:
+            if log.organization_id != scoped_org_id:
+                raise HTTPException(status_code=404)
     # Users can edit their own standups; admins can edit anyone's
     if log.user_id != user.id and not user.is_admin:
         raise HTTPException(status_code=403)
@@ -179,6 +208,14 @@ async def delete_standup(log_id: int, request: Request, db: DbSession):
     log = db.get(StandupLog, log_id)
     if not log or log.is_deleted:
         raise HTTPException(status_code=404)
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+    if scoped_org_id is not None and not getattr(user, "is_platform_admin", False):
+        if scoped_org_id == 1:
+            if log.organization_id is not None and log.organization_id != 1:
+                raise HTTPException(status_code=404)
+        else:
+            if log.organization_id != scoped_org_id:
+                raise HTTPException(status_code=404)
     if log.user_id != user.id and not user.is_admin:
         raise HTTPException(status_code=403)
     record_audit(

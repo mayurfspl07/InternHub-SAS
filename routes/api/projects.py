@@ -10,6 +10,7 @@ from sqlalchemy import case, func, or_, select
 from database import get_db
 from dependencies import get_optional_user, _resolve_request_org_id
 from models import (
+    OrganizationMembership,
     Project,
     ProjectAssignment,
     ProjectComment,
@@ -416,17 +417,29 @@ def _comment_dict(c: TaskComment, attachment_dict: dict | None = None) -> dict:
     return data
 
 
-def _visible_projects_query(db, user):
+def _visible_projects_query(db, user, scoped_org_id: int | None = None):
+    q = db.query(Project).filter(Project.is_deleted == False)
+
+    if scoped_org_id is not None:
+        if scoped_org_id == 1:
+            q = q.filter(or_(Project.organization_id == 1, Project.organization_id.is_(None)))
+        else:
+            q = q.filter(Project.organization_id == scoped_org_id)
+
+    if user.is_platform_admin or getattr(user, "is_superadmin", False):
+        return q
+
     if user.is_admin:
-        return db.query(Project).filter_by(is_deleted=False)
+        return q
+
     if user.is_mentor:
         mentor_project_ids = db.query(ProjectMentorAssignment.project_id).filter_by(user_id=user.id).scalar_subquery()
-        return db.query(Project).filter(
-            (Project.mentor_id == user.id) | (Project.id.in_(mentor_project_ids)),
-            Project.is_deleted == False,
+        return q.filter(
+            (Project.mentor_id == user.id) | (Project.id.in_(mentor_project_ids))
         )
+
     assigned_ids = db.query(ProjectAssignment.project_id).filter_by(user_id=user.id).scalar_subquery()
-    return db.query(Project).filter(Project.id.in_(assigned_ids), Project.is_deleted == False)
+    return q.filter(Project.id.in_(assigned_ids))
 
 
 def _can_edit(user, project):
@@ -501,11 +514,14 @@ async def list_projects(request: Request, db: DbSession):
     except ValueError:
         page_size = PAGE_SIZE
 
-    q = _visible_projects_query(db, user)
-    header_org = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
-    if header_org and str(header_org).isdigit():
-        org_id = int(header_org)
-        q = q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
+    from dependencies import _resolve_request_org_id
+    if user.is_platform_admin or getattr(user, "is_superadmin", False):
+        header_org = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+        scoped_org_id = int(header_org) if header_org and str(header_org).isdigit() else None
+    else:
+        scoped_org_id = _resolve_request_org_id(request, user, db)
+
+    q = _visible_projects_query(db, user, scoped_org_id)
 
     if search:
         pattern = f"%{search}%"
@@ -577,11 +593,14 @@ async def search_projects(request: Request, db: DbSession):
     except ValueError:
         limit = 20
 
-    q = _visible_projects_query(db, user)
-    header_org = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
-    if header_org and str(header_org).isdigit():
-        org_id = int(header_org)
-        q = q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
+    from dependencies import _resolve_request_org_id
+    if user.is_platform_admin or getattr(user, "is_superadmin", False):
+        header_org = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+        scoped_org_id = int(header_org) if header_org and str(header_org).isdigit() else None
+    else:
+        scoped_org_id = _resolve_request_org_id(request, user, db)
+
+    q = _visible_projects_query(db, user, scoped_org_id)
 
     if q_str:
         pattern = f"%{q_str}%"
@@ -645,9 +664,20 @@ async def get_project_interns(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
+
+    from dependencies import _resolve_request_org_id
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+
     q = db.query(User).filter(
         User.role == UserRole.INTERN, User.is_active == True, User.is_deleted == False
     )
+    if not (user.is_platform_admin or getattr(user, "is_superadmin", False)) and scoped_org_id is not None:
+        q = q.join(OrganizationMembership, OrganizationMembership.user_id == User.id).filter(
+            OrganizationMembership.organization_id == scoped_org_id,
+            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_deleted == False,
+        )
+
     search_query = request.query_params.get("search", "").strip()
     if search_query:
         search_pattern = f"%{search_query}%"
@@ -683,9 +713,20 @@ async def get_project_mentors(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
+
+    from dependencies import _resolve_request_org_id
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+
     q = db.query(User).filter(
         User.role == UserRole.MENTOR, User.is_active == True, User.is_deleted == False
     )
+    if not (user.is_platform_admin or getattr(user, "is_superadmin", False)) and scoped_org_id is not None:
+        q = q.join(OrganizationMembership, OrganizationMembership.user_id == User.id).filter(
+            OrganizationMembership.organization_id == scoped_org_id,
+            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_deleted == False,
+        )
+
     search_query = request.query_params.get("search", "").strip()
     if search_query:
         search_pattern = f"%{search_query}%"
@@ -708,8 +749,8 @@ async def get_project_mentors(request: Request, db: DbSession):
     ]
     response = build_page_response(items, page, page_size, total)
     response["mentors"] = items
-    response["total"] = total
     return response
+
 
 
 @router.post("")
@@ -785,12 +826,24 @@ async def get_project(project_id: int, request: Request, db: DbSession):
     if not project:
         raise HTTPException(status_code=404)
 
-    # Cross-tenant isolation: when explicit X-Organization-Id header is passed
-    header_org = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
-    if header_org and str(header_org).isdigit():
-        req_org = int(header_org)
-        if project.organization_id is not None and project.organization_id != req_org:
-            raise HTTPException(status_code=404, detail="Project not found.")
+    # Cross-tenant isolation
+    from dependencies import _resolve_request_org_id
+    if not (user.is_platform_admin or getattr(user, "is_superadmin", False)):
+        scoped_org_id = _resolve_request_org_id(request, user, db)
+        if scoped_org_id is not None:
+            if scoped_org_id == 1:
+                if project.organization_id is not None and project.organization_id != 1:
+                    raise HTTPException(status_code=404, detail="Project not found.")
+            else:
+                if project.organization_id != scoped_org_id:
+                    raise HTTPException(status_code=404, detail="Project not found.")
+    else:
+        header_org = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
+        if header_org and str(header_org).isdigit():
+            req_org = int(header_org)
+            if project.organization_id is not None and project.organization_id != req_org:
+                raise HTTPException(status_code=404, detail="Project not found.")
+
 
     if not _is_project_member(db, user, project):
         raise HTTPException(status_code=403)

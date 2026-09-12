@@ -26,16 +26,21 @@ def _resolve_org_id(request: Request, user: User, db: Session) -> int | None:
 
 
 def _apply_org_scope(q, org_id: int | None):
-    """Filter cohorts to the viewer's tenant (NULL org rows stay visible for
-    backwards compatibility with pre-tenancy data)."""
     if org_id is None:
         return q
-    return q.filter(or_(Cohort.organization_id == org_id, Cohort.organization_id.is_(None)))
+    if org_id == 1:
+        return q.filter(or_(Cohort.organization_id == 1, Cohort.organization_id.is_(None)))
+    return q.filter(Cohort.organization_id == org_id)
 
 
 def _assert_cohort_visible(cohort: Cohort, org_id: int | None) -> None:
-    if org_id is not None and cohort.organization_id is not None and cohort.organization_id != org_id:
-        raise HTTPException(status_code=404)  # 404 avoids revealing cross-tenant cohorts
+    if org_id is not None:
+        if org_id == 1:
+            if cohort.organization_id is not None and cohort.organization_id != 1:
+                raise HTTPException(status_code=404)
+        else:
+            if cohort.organization_id != org_id:
+                raise HTTPException(status_code=404)
 
 
 def _member_dict(m: CohortMember) -> dict:
@@ -238,6 +243,21 @@ async def add_member(cohort_id: int, request: Request, db: DbSession, data: Coho
     target_user = db.get(User, user_id)
     if not target_user or target_user.is_deleted:
         raise HTTPException(status_code=404, detail="User not found.")
+
+    scoped_org_id = _resolve_org_id(request, user, db)
+    if scoped_org_id is not None and not getattr(user, "is_platform_admin", False):
+        from models import OrganizationMembership
+        is_member = (
+            db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == user_id,
+                OrganizationMembership.organization_id == scoped_org_id,
+                OrganizationMembership.is_active == True,
+            )
+            .first()
+        )
+        if not is_member:
+            raise HTTPException(status_code=403, detail="User does not belong to this organization.")
 
     existing = db.query(CohortMember).filter_by(cohort_id=cohort_id, user_id=user_id).first()
     if existing:

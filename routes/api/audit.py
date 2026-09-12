@@ -57,14 +57,8 @@ async def list_audit_logs(request: Request, db: DbSession):
         page = 1
 
     # Resolve active organization scope
-    header_org = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
-    org_id: int | None = None
-    if header_org and str(header_org).isdigit():
-        org_id = int(header_org)
-    else:
-        from models import OrganizationMembership
-        mem = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True, is_deleted=False).first()
-        org_id = mem.organization_id if mem else None
+    from dependencies import _resolve_request_org_id
+    org_id = _resolve_request_org_id(request, user, db)
 
     q = scoped_audit_query(db, user, org_id=org_id)
 

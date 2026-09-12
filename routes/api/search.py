@@ -26,19 +26,20 @@ async def search(request: Request, db: DbSession):
         pattern = f"%{q}%"
 
         # Resolve organization context
-        org_header = request.headers.get("X-Organization-Id")
-        org_id = int(org_header) if org_header and str(org_header).isdigit() else None
-        if org_id is None:
-            from models import OrganizationMembership
-            mem = db.query(OrganizationMembership).filter_by(
-                user_id=user.id, is_active=True, is_deleted=False
-            ).first()
-            org_id = mem.organization_id if mem else None
+        from dependencies import _resolve_request_org_id
+        from models import OrganizationMembership
+        org_id = _resolve_request_org_id(request, user, db)
 
         if user.is_admin or user.is_mentor:
-            user_rows = db.query(User).filter(
+            uq = db.query(User).filter(
                 (User.name.ilike(pattern)) | (User.email.ilike(pattern))
-            ).order_by(User.name).limit(8).all()
+            )
+            if org_id is not None:
+                uq = uq.join(OrganizationMembership, OrganizationMembership.user_id == User.id).filter(
+                    OrganizationMembership.organization_id == org_id,
+                    OrganizationMembership.is_active == True,
+                )
+            user_rows = uq.order_by(User.name).limit(8).all()
             results["users"] = [
                 # Admins see email; mentors see name/role only to protect PII
                 {"id": u.id, "name": u.name, "role": u.role, **({"email": u.email} if user.is_admin else {})}
@@ -59,7 +60,10 @@ async def search(request: Request, db: DbSession):
 
         # Add organization filtering if org_id is available
         if org_id is not None:
-            proj_q = proj_q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
+            if org_id == 1:
+                proj_q = proj_q.filter((Project.organization_id == 1) | (Project.organization_id.is_(None)))
+            else:
+                proj_q = proj_q.filter(Project.organization_id == org_id)
 
         results["projects"] = [
             {"id": p.id, "name": p.name, "status": p.status, "description": p.description}
@@ -75,7 +79,10 @@ async def search(request: Request, db: DbSession):
             task_q = task_q.filter(Project.id.in_(get_user_project_ids(db, user) or [-1]))
         # Add organization filtering for tasks if org_id is available
         if org_id is not None:
-            task_q = task_q.filter((Project.organization_id == org_id) | (Project.organization_id.is_(None)))
+            if org_id == 1:
+                task_q = task_q.filter((Project.organization_id == 1) | (Project.organization_id.is_(None)))
+            else:
+                task_q = task_q.filter(Project.organization_id == org_id)
 
         results["tasks"] = [
             {

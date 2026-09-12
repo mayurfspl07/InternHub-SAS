@@ -47,12 +47,8 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 
 def _resolve_org_id(request: Request, user: User, db: Session) -> int:
-    header_val = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
-    if header_val and str(header_val).isdigit():
-        return int(header_val)
-    from models import OrganizationMembership
-    mem = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True, is_deleted=False).first()
-    return mem.organization_id if mem else 1
+    from dependencies import _resolve_request_org_id
+    return _resolve_request_org_id(request, user, db) or 1
 
 
 def _assignment_to_dict(a: Assignment, user: User | None = None, db: Session | None = None) -> dict:
@@ -137,7 +133,7 @@ async def list_assignments(
             joinedload(Assignment.assigned_to_user),
         )
         .filter(
-            Assignment.organization_id == org_id,
+            ((Assignment.organization_id == 1) | (Assignment.organization_id.is_(None))) if org_id == 1 else (Assignment.organization_id == org_id),
             Assignment.is_deleted == False,
         )
     )

@@ -162,6 +162,7 @@ def get_request_context(request: Request, db: DbSession) -> RequestContext:
     target_org_id = int(org_header) if org_header and str(org_header).isdigit() else None
 
     membership = None
+    org = None
     if target_org_id:
         membership = (
             db.query(OrganizationMembership)
@@ -173,8 +174,22 @@ def get_request_context(request: Request, db: DbSession) -> RequestContext:
             )
             .first()
         )
-        if not membership and not user.is_platform_admin:
-            raise HTTPException(status_code=403, detail="Not a member of the specified organization")
+        if not membership:
+            if user.is_platform_admin or getattr(user, "is_superadmin", False):
+                org = db.get(Organization, target_org_id)
+                if not org or org.is_deleted:
+                    raise HTTPException(status_code=404, detail="Organization not found")
+                # Platform admin targeting an organization: synthesize active membership object
+                membership = OrganizationMembership(
+                    id=0,
+                    organization_id=org.id,
+                    user_id=user.id,
+                    role=UserRole.SUPERADMIN,
+                    is_active=True,
+                    is_deleted=False,
+                )
+            else:
+                raise HTTPException(status_code=403, detail="Not a member of the specified organization")
 
     if not membership:
         membership = (
@@ -189,21 +204,31 @@ def get_request_context(request: Request, db: DbSession) -> RequestContext:
         )
 
     if not membership:
-        if user.is_platform_admin:
+        if user.is_platform_admin or getattr(user, "is_superadmin", False):
             # Platform admins can access any organization; get first active org
-            membership = (
-                db.query(OrganizationMembership)
-                .filter(OrganizationMembership.user_id == user.id, OrganizationMembership.is_active == True)
-                .order_by(OrganizationMembership.id.asc())
+            first_org = (
+                db.query(Organization)
+                .filter(Organization.is_deleted == False, Organization.status == "active")
+                .order_by(Organization.id.asc())
                 .first()
             )
-            if not membership:
-                raise HTTPException(status_code=403, detail="No organization membership found for platform admin")
+            if not first_org:
+                raise HTTPException(status_code=404, detail="No active organization found")
+            org = first_org
+            membership = OrganizationMembership(
+                id=0,
+                organization_id=org.id,
+                user_id=user.id,
+                role=UserRole.SUPERADMIN,
+                is_active=True,
+                is_deleted=False,
+            )
         else:
             # Regular users must have an explicit organization context
             raise HTTPException(status_code=403, detail="Organization context required - specify X-Organization-Id header")
 
-    org = db.get(Organization, membership.organization_id)
+    if not org:
+        org = db.get(Organization, membership.organization_id)
     if not org or org.is_deleted or org.status != "active":
         raise HTTPException(status_code=403, detail="Organization is inactive or suspended")
 
@@ -282,7 +307,24 @@ def _resolve_request_org_id(request: Request, user: User | None = None, db: DbSe
     """Helper to resolve active organization ID from headers, query params, or user membership."""
     org_header = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
     if org_header and str(org_header).isdigit():
-        return int(org_header)
+        target_org = int(org_header)
+        # Security: non-platform admin cannot switch to an arbitrary tenant they do not belong to
+        if user and db and not (getattr(user, "is_platform_admin", False) or getattr(user, "is_superadmin", False)):
+            m = (
+                db.query(OrganizationMembership)
+                .filter(
+                    OrganizationMembership.user_id == user.id,
+                    OrganizationMembership.organization_id == target_org,
+                    OrganizationMembership.is_active == True,
+                    OrganizationMembership.is_deleted == False,
+                )
+                .first()
+            )
+            if m:
+                return target_org
+            # Not a member of target_org -> fall through to user's actual membership
+        else:
+            return target_org
 
     if user and db:
         m = (
@@ -299,4 +341,5 @@ def _resolve_request_org_id(request: Request, user: User | None = None, db: DbSe
             return m.organization_id
 
     return None
+
 

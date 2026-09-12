@@ -30,6 +30,7 @@ from dependencies import get_optional_user
 from models import (
     Attendance,
     AttendanceStatus,
+    OrganizationMembership,
     Project,
     ProjectAssignment,
     User,
@@ -43,6 +44,7 @@ from utils import (
     local_today,
     month_range,
 )
+from dependencies import _resolve_request_org_id
 
 router = APIRouter(prefix="/api/admin/students", tags=["Admin - Student Attendance"])
 DbSession = Annotated[Session, Depends(get_db)]
@@ -274,7 +276,15 @@ async def list_students(request: Request, db: DbSession):
     except ValueError:
         window_days = 30
 
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+
     q = db.query(User).filter(User.role == UserRole.INTERN, User.is_deleted == False)
+    if not (user.is_platform_admin or getattr(user, "is_superadmin", False)) and scoped_org_id is not None:
+        q = q.join(OrganizationMembership, OrganizationMembership.user_id == User.id).filter(
+            OrganizationMembership.organization_id == scoped_org_id,
+            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_deleted == False,
+        )
 
     if user.is_mentor and not user.is_admin:
         mentor_intern_ids = get_mentor_intern_ids(db, user.id) or [-1]
@@ -375,8 +385,16 @@ async def today_attendance(request: Request, db: DbSession):
     except ValueError:
         page_size = PAGE_SIZE
 
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+
     # Base query for interns
     base_q = db.query(User).filter(User.role == UserRole.INTERN, User.is_deleted == False)
+    if not (user.is_platform_admin or getattr(user, "is_superadmin", False)) and scoped_org_id is not None:
+        base_q = base_q.join(OrganizationMembership, OrganizationMembership.user_id == User.id).filter(
+            OrganizationMembership.organization_id == scoped_org_id,
+            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_deleted == False,
+        )
 
     if user.is_mentor and not user.is_admin:
         mentor_intern_ids = get_mentor_intern_ids(db, user.id) or [-1]
@@ -519,6 +537,8 @@ async def export_admin_attendance(request: Request, db: DbSession):
     params = request.query_params
     start_date, end_date = _parse_date_range(params)
 
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+
     q = (
         db.query(Attendance)
         .options(joinedload(Attendance.user))
@@ -530,6 +550,12 @@ async def export_admin_attendance(request: Request, db: DbSession):
             Attendance.date <= end_date,
         )
     )
+    if not (user.is_platform_admin or getattr(user, "is_superadmin", False)) and scoped_org_id is not None:
+        q = q.join(OrganizationMembership, OrganizationMembership.user_id == User.id).filter(
+            OrganizationMembership.organization_id == scoped_org_id,
+            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_deleted == False,
+        )
 
     if user.is_mentor and not user.is_admin:
         mentor_intern_ids = get_mentor_intern_ids(db, user.id) or [-1]
@@ -595,8 +621,16 @@ async def search_student_overview(request: Request, db: DbSession):
     except ValueError:
         page_size = PAGE_SIZE
 
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+
     q_term = (params.get("q") or params.get("search") or "").strip()
     q = db.query(User).filter(User.role == UserRole.INTERN, User.is_deleted == False)
+    if not (user.is_platform_admin or getattr(user, "is_superadmin", False)) and scoped_org_id is not None:
+        q = q.join(OrganizationMembership, OrganizationMembership.user_id == User.id).filter(
+            OrganizationMembership.organization_id == scoped_org_id,
+            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_deleted == False,
+        )
 
     if user.is_mentor and not user.is_admin:
         mentor_intern_ids = get_mentor_intern_ids(db, user.id) or [-1]
@@ -700,6 +734,18 @@ async def student_attendance(user_id: int, request: Request, db: DbSession):
         raise HTTPException(status_code=404, detail="User not found.")
     if student.role != UserRole.INTERN:
         raise HTTPException(status_code=400, detail="This endpoint is only for intern users.")
+
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+    if not (user.is_platform_admin or getattr(user, "is_superadmin", False)) and scoped_org_id is not None:
+        mem = db.query(OrganizationMembership).filter_by(
+            user_id=student.id,
+            organization_id=scoped_org_id,
+            is_active=True,
+            is_deleted=False,
+        ).first()
+        if not mem:
+            raise HTTPException(status_code=404, detail="Student not found in your organization.")
+
 
     params = request.query_params
     start_date, end_date = _parse_date_range(params)

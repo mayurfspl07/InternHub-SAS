@@ -95,6 +95,28 @@ def _intern_leave_payload(db: Session, target: User, org_id: int | None = None) 
 def _can_view_profile(viewer: User, target: User, db: Session) -> bool:
     if viewer.id == target.id:
         return True
+    # Cross-tenant check: non-platform viewers can only view users in the same organization
+    if not (viewer.is_platform_admin or getattr(viewer, "is_superadmin", False)):
+        from models import OrganizationMembership
+        v_orgs = [
+            m.organization_id
+            for m in db.query(OrganizationMembership.organization_id)
+            .filter_by(user_id=viewer.id, is_active=True, is_deleted=False)
+            .all()
+        ]
+        t_orgs = [
+            m.organization_id
+            for m in db.query(OrganizationMembership.organization_id)
+            .filter_by(user_id=target.id, is_active=True, is_deleted=False)
+            .all()
+        ]
+        if not v_orgs:
+            v_orgs = [1]
+        if not t_orgs:
+            t_orgs = [1]
+        if not set(v_orgs).intersection(t_orgs):
+            return False
+
     role = (viewer.role or "").strip().lower()
     target_role = (target.role or "").strip().lower()
     # Staff can open profiles from admin, team, attendance, etc.
@@ -154,7 +176,7 @@ def _task_dict(t: Task, project_name: str | None = None) -> dict:
     }
 
 
-from models import Attendance, LeaveRequest, LeaveStatus, Project, ProjectAssignment, Task, User, UserRole
+from models import Attendance, LeaveRequest, LeaveStatus, Project, ProjectAssignment, Task, User, UserRole, OrganizationMembership
 
 
 def _att_dict(r: Attendance) -> dict:
@@ -184,7 +206,17 @@ async def get_interns_dropdown(request: Request, db: DbSession):
     mentor_id_param = params.get("mentor_id")
     is_active_raw = params.get("is_active", "true").strip().lower()
 
+    from dependencies import _resolve_request_org_id
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+
     q = db.query(User).filter(User.is_deleted == False)
+
+    if not (user.is_platform_admin or getattr(user, "is_superadmin", False)) and scoped_org_id is not None:
+        q = q.join(OrganizationMembership, OrganizationMembership.user_id == User.id).filter(
+            OrganizationMembership.organization_id == scoped_org_id,
+            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_deleted == False,
+        )
 
     if role and role != "all":
         q = q.filter(User.role == role)
@@ -247,12 +279,19 @@ async def get_mentors_dropdown(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
-    mentors = (
-        db.query(User)
-        .filter(User.role == UserRole.MENTOR, User.is_active == True, User.is_deleted == False)
-        .order_by(User.name.asc())
-        .all()
-    )
+
+    from dependencies import _resolve_request_org_id
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+
+    q = db.query(User).filter(User.role == UserRole.MENTOR, User.is_active == True, User.is_deleted == False)
+    if not (user.is_platform_admin or getattr(user, "is_superadmin", False)) and scoped_org_id is not None:
+        q = q.join(OrganizationMembership, OrganizationMembership.user_id == User.id).filter(
+            OrganizationMembership.organization_id == scoped_org_id,
+            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_deleted == False,
+        )
+
+    mentors = q.order_by(User.name.asc()).all()
     items = [
         {
             "id": m.id,
@@ -268,6 +307,7 @@ async def get_mentors_dropdown(request: Request, db: DbSession):
         "mentors": items,
         "total": len(items),
     }
+
 
 
 @router.get("/{user_id}/overview")

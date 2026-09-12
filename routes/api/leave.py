@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
-from dependencies import get_optional_user
+from dependencies import get_optional_user, _resolve_request_org_id
 from models import LeaveRequest, LeaveStatus, LeaveType, User
 from utils import (
     get_leave_balance,
@@ -83,7 +83,6 @@ async def my_requests(request: Request, db: DbSession):
     rejected = [r for r in request_dicts if r["status"] == LeaveStatus.REJECTED]
     # Resolve org up front so the leave quota comes from the intern's assigned
     # duration tier (InternshipDurationMaster) rather than falling back blindly.
-    from dependencies import _resolve_request_org_id
     org_id = _resolve_request_org_id(request, user, db)
     balance = get_leave_balance(db, user.id, org_id)
 
@@ -176,7 +175,6 @@ async def apply(
 
     # Resolve org before the balance check: quota must come from the intern's
     # assigned duration tier for this tenant.
-    from dependencies import _resolve_request_org_id
     org_id = _resolve_request_org_id(request, user, db)
 
     balance = get_leave_balance(db, user.id, org_id)
@@ -235,7 +233,6 @@ async def apply(
         )
 
     # Dispatch Tenant-wise Email Notification
-    from dependencies import _resolve_request_org_id
     from email_service import send_leave_request_email
     org_id = _resolve_request_org_id(request, user, db) or 1
     send_leave_request_email(db, org_id, lr, user, reviewers)
@@ -258,6 +255,15 @@ async def get_leave_attachment(leave_id: int, request: Request, db: DbSession):
     is_mentor = user.is_mentor and (user.mentor_id == lr.user_id or (lr.user and user.id == lr.user.mentor_id))
     if not (user.is_admin or is_applicant or is_mentor or user.is_mentor):
         raise HTTPException(status_code=403, detail="Not authorized to view this attachment.")
+
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+    if not getattr(user, "is_platform_admin", False) and scoped_org_id is not None:
+        if scoped_org_id == 1:
+            if lr.organization_id is not None and lr.organization_id != 1:
+                raise HTTPException(status_code=404, detail="Attachment not found.")
+        else:
+            if lr.organization_id != scoped_org_id:
+                raise HTTPException(status_code=404, detail="Attachment not found.")
 
     abs_path = attachment_abs_path(lr.attachment_path)
     if not abs_path:
@@ -290,7 +296,14 @@ async def manage(request: Request, db: DbSession):
         page = 1
         page_size = 10
 
+    scoped_org_id = _resolve_request_org_id(request, user, db)
     q = db.query(LeaveRequest).options(joinedload(LeaveRequest.user), joinedload(LeaveRequest.reviewer))
+    if scoped_org_id is not None:
+        if scoped_org_id == 1:
+            q = q.filter((LeaveRequest.organization_id == 1) | (LeaveRequest.organization_id.is_(None)))
+        else:
+            q = q.filter(LeaveRequest.organization_id == scoped_org_id)
+
     if user.is_mentor and not user.is_admin:
         ids = get_mentor_intern_ids(db, user.id) or [-1]
         q = q.filter(LeaveRequest.user_id.in_(ids))
@@ -329,12 +342,15 @@ async def review(leave_id: int, request: Request, db: DbSession, data: LeaveRevi
     if not lr:
         raise HTTPException(status_code=404)
     
-    # Check tenant isolation when explicit header is passed
-    target_org_id = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
-    if target_org_id and str(target_org_id).isdigit():
-        req_org_id = int(target_org_id)
-        if lr.organization_id is not None and lr.organization_id != req_org_id:
-            raise HTTPException(status_code=404, detail="Leave request not found.")
+    # Check tenant isolation
+    scoped_org_id = _resolve_request_org_id(request, user, db)
+    if scoped_org_id is not None and not getattr(user, "is_platform_admin", False):
+        if scoped_org_id == 1:
+            if lr.organization_id is not None and lr.organization_id != 1:
+                raise HTTPException(status_code=404, detail="Leave request not found.")
+        else:
+            if lr.organization_id != scoped_org_id:
+                raise HTTPException(status_code=404, detail="Leave request not found.")
 
     # Mentors can only review leave for their own interns
     if user.is_mentor and not user.is_admin:
@@ -363,7 +379,6 @@ async def review(leave_id: int, request: Request, db: DbSession, data: LeaveRevi
     )
 
     # Dispatch Tenant-wise Email Notification to Intern
-    from dependencies import _resolve_request_org_id
     from email_service import send_leave_status_email
     org_id = _resolve_request_org_id(request, user, db) or 1
     intern_user = db.get(User, lr.user_id)
@@ -380,6 +395,5 @@ async def balance(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user:
         raise HTTPException(status_code=401)
-    from dependencies import _resolve_request_org_id
     org_id = _resolve_request_org_id(request, user, db)
     return get_leave_balance(db, user.id, org_id)

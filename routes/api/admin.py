@@ -73,10 +73,23 @@ router = APIRouter(prefix="/api/admin", tags=["Administration"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
-def _mentor_names(db: Session) -> dict[int, str]:
+def _resolve_admin_org_id(request: Request, user: User, db: Session) -> int:
+    from dependencies import _resolve_request_org_id
+    resolved = _resolve_request_org_id(request, user, db)
+    return resolved if resolved is not None else 1
+
+
+def _mentor_names(db: Session, scoped_org_id: int | None = None) -> dict[int, str]:
+    q = db.query(User).filter(User.role == UserRole.MENTOR, User.is_deleted == False)
+    if scoped_org_id is not None:
+        q = q.join(OrganizationMembership, OrganizationMembership.user_id == User.id).filter(
+            OrganizationMembership.organization_id == scoped_org_id,
+            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_deleted == False,
+        )
     return {
         m.id: m.name
-        for m in db.query(User).filter(User.role == UserRole.MENTOR).all()
+        for m in q.all()
     }
 
 
@@ -121,13 +134,19 @@ _HIDDEN_LIST_ROLES = (UserRole.SUPERADMIN,)
 MAX_PAGE_SIZE = 100
 
 
-def _listable_users_q(db: Session, viewer: User):
+def _listable_users_q(db: Session, viewer: User, scoped_org_id: int | None = None):
     q = db.query(User).filter(
         User.is_deleted == False,
         User.role.notin_(_HIDDEN_LIST_ROLES),
     )
     if not (viewer.is_platform_admin or viewer.is_superadmin):
         q = q.filter(User.is_platform_admin == False)
+    if scoped_org_id is not None:
+        q = q.join(OrganizationMembership, OrganizationMembership.user_id == User.id).filter(
+            OrganizationMembership.organization_id == scoped_org_id,
+            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_deleted == False,
+        )
     return q
 
 
@@ -136,6 +155,12 @@ async def list_users(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
+
+    if user.is_platform_admin or user.is_superadmin:
+        org_filter = request.query_params.get("organization_id") or request.headers.get("X-Organization-Id")
+        scoped_org_id = int(org_filter) if org_filter and str(org_filter).isdigit() else None
+    else:
+        scoped_org_id = _resolve_admin_org_id(request, user, db)
 
     role_filter = request.query_params.get("role")
     search_query = request.query_params.get("search", "").strip()
@@ -159,7 +184,7 @@ async def list_users(request: Request, db: DbSession):
 
     is_mentor = user.role == "mentor"
 
-    base_q = _listable_users_q(db, user)
+    base_q = _listable_users_q(db, user, scoped_org_id)
     if is_mentor:
         base_q = base_q.filter(User.role == UserRole.INTERN, User.mentor_id == user.id)
 
@@ -196,7 +221,7 @@ async def list_users(request: Request, db: DbSession):
         .all()
     )
 
-    mentor_names = _mentor_names(db)
+    mentor_names = _mentor_names(db, scoped_org_id)
     paginated_items = [_user_dict(u, mentor_names) for u in paginated_users]
 
     return {
@@ -219,9 +244,24 @@ async def list_mentors(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
-    mentors = db.query(User).filter(User.role == UserRole.MENTOR, User.is_deleted == False).order_by(User.name).all()
-    mentor_names = _mentor_names(db)
+
+    if user.is_platform_admin or user.is_superadmin:
+        org_filter = request.query_params.get("organization_id") or request.headers.get("X-Organization-Id")
+        scoped_org_id = int(org_filter) if org_filter and str(org_filter).isdigit() else None
+    else:
+        scoped_org_id = _resolve_admin_org_id(request, user, db)
+
+    q = db.query(User).filter(User.role == UserRole.MENTOR, User.is_deleted == False)
+    if scoped_org_id is not None:
+        q = q.join(OrganizationMembership, OrganizationMembership.user_id == User.id).filter(
+            OrganizationMembership.organization_id == scoped_org_id,
+            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_deleted == False,
+        )
+    mentors = q.order_by(User.name).all()
+    mentor_names = _mentor_names(db, scoped_org_id)
     return [_user_dict(m, mentor_names) for m in mentors]
+
 
 
 @router.get("/intern-assignments")
@@ -640,7 +680,17 @@ async def get_invite_link(request: Request, db: DbSession):
     user = get_optional_user(request, db)
     if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
+    scoped_org_id = _resolve_admin_org_id(request, user, db)
     query = db.query(InternInviteLink)
+    if user.is_platform_admin or user.is_superadmin:
+        org_filter = request.query_params.get("organization_id") or request.headers.get("X-Organization-Id")
+        if org_filter and str(org_filter).isdigit():
+            query = query.filter(InternInviteLink.organization_id == int(org_filter))
+    else:
+        if scoped_org_id == 1:
+            query = query.filter(or_(InternInviteLink.organization_id == 1, InternInviteLink.organization_id.is_(None)))
+        else:
+            query = query.filter(InternInviteLink.organization_id == scoped_org_id)
     if user.is_mentor:
         query = query.filter(InternInviteLink.created_by_id == user.id)
     links = query.order_by(InternInviteLink.created_at.desc()).all()
@@ -673,9 +723,11 @@ async def create_invite_link(request: Request, db: DbSession, data: AdminInviteL
         if not mentor_user or mentor_user.role != UserRole.MENTOR:
             raise HTTPException(status_code=422, detail="Invalid mentor selected.")
 
+    scoped_org_id = _resolve_admin_org_id(request, user, db)
     link = InternInviteLink(
         token=secrets.token_urlsafe(32),
         label=label,
+        organization_id=scoped_org_id,
         created_by_id=user.id,
         mentor_id=resolved_mentor_id,
         is_active=True,
@@ -685,6 +737,7 @@ async def create_invite_link(request: Request, db: DbSession, data: AdminInviteL
     db.commit()
     db.refresh(link)
     return {"link": _invite_link_dict(link, db, request)}
+
 
 
 @router.delete("/invite-link/{link_id}")
@@ -1097,16 +1150,6 @@ async def clear_database(request: Request, db: DbSession, data: ClearDataRequest
         "tables": counts,
     }
 
-
-def _resolve_admin_org_id(request: Request, user: User, db: Session) -> int:
-    org_header = request.headers.get("X-Organization-Id") or request.query_params.get("organization_id")
-    if org_header and str(org_header).isdigit():
-        return int(org_header)
-    from models import OrganizationMembership
-    mem = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True, is_deleted=False).first()
-    if mem and mem.organization_id:
-        return mem.organization_id
-    return 1
 
 
 def _clean_param_int(val, default: int = 1) -> int:
