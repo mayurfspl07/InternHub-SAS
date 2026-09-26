@@ -63,6 +63,14 @@ def sync_schema() -> None:
         "migrations.20260901_tenant_smtp_and_email_logs"
     )
     smtp_migration.upgrade(engine)
+    intern_stipend_migration = importlib.import_module(
+        "migrations.20260912_intern_stipend"
+    )
+    intern_stipend_migration.upgrade(engine)
+    bin_org_migration = importlib.import_module(
+        "migrations.20260927_bin_items_org_backfill"
+    )
+    bin_org_migration.upgrade(engine)
     print("[OK] Schema sync complete.")
 
 

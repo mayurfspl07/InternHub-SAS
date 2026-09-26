@@ -36,6 +36,7 @@ from utils import (
     to_ist,
 )
 from app.core.pagination import get_page_params
+from tenancy import is_platform_admin, org_filter, org_member_user_ids
 
 # Response caps for dashboard array payloads — keep the first page of data and
 # ship the full count alongside so metric cards stay accurate.
@@ -949,10 +950,12 @@ async def present_today_list(request: Request, db: DbSession):
         intern_ids = [user.id]
     elif user.is_mentor:
         intern_ids = get_mentor_intern_ids(db, user.id) or [-1]
-    else:
+    elif is_platform_admin(user):
         intern_ids = [
             u.id for u in db.query(User.id).filter_by(role="intern", is_active=True).all()
         ] or [-1]
+    else:
+        intern_ids = org_member_user_ids(db, _resolve_org_id(request, user, db), roles=("intern",)) or [-1]
 
     present_statuses = ("present", "late", "half_day")
     q = (
@@ -1018,6 +1021,8 @@ async def open_tasks_list(request: Request, db: DbSession):
     elif user.is_mentor:
         mentor_project_ids = get_user_project_ids(db, user) or [-1]
         task_q = task_q.filter(Project.id.in_(mentor_project_ids))
+    elif not is_platform_admin(user):
+        task_q = task_q.filter(org_filter(Project.organization_id, _resolve_org_id(request, user, db)))
 
     today = local_today()
     total = task_q.count()
@@ -1080,10 +1085,12 @@ async def attendance_chart_for_month(request: Request, db: DbSession):
         intern_ids = [user.id]
     elif user.is_mentor:
         intern_ids = get_mentor_intern_ids(db, user.id) or [-1]
-    else:
+    elif is_platform_admin(user):
         intern_ids = [
             u.id for u in db.query(User.id).filter_by(role="intern", is_active=True).all()
         ] or [-1]
+    else:
+        intern_ids = org_member_user_ids(db, _resolve_org_id(request, user, db), roles=("intern",)) or [-1]
 
     if user.is_intern:
         rows = (

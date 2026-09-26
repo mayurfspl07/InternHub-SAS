@@ -41,6 +41,7 @@ from routes.api.schemas import (
     AssignmentReviewPayload,
     get_payload,
 )
+from tenancy import ensure_cohort_in_org, ensure_in_org, ensure_project_in_org, ensure_user_in_org
 
 router = APIRouter(prefix="/api/assignments", tags=["Assignments"])
 DbSession = Annotated[Session, Depends(get_db)]
@@ -264,6 +265,9 @@ async def create_assignment(
     project_id = payload.get("project_id")
     cohort_id = payload.get("cohort_id")
     assigned_to_user_id = payload.get("assigned_to_user_id")
+    ensure_project_in_org(request, user, db, project_id)
+    ensure_cohort_in_org(request, user, db, cohort_id)
+    ensure_user_in_org(request, user, db, assigned_to_user_id)
 
     due_date = None
     if payload.get("due_date"):
@@ -363,6 +367,7 @@ async def get_assignment(assignment_id: int, request: Request, db: DbSession):
     )
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found.")
+    ensure_in_org(request, user, db, assignment.organization_id, "Assignment not found.")
 
     return _assignment_to_dict(assignment, user=user, db=db)
 
@@ -381,6 +386,7 @@ async def update_assignment(
     assignment = db.query(Assignment).filter_by(id=assignment_id, is_deleted=False).first()
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found.")
+    ensure_in_org(request, user, db, assignment.organization_id, "Assignment not found.")
 
     payload = await get_payload(request, data)
 
@@ -392,6 +398,13 @@ async def update_assignment(
 
     if "description" in payload and payload["description"] is not None:
         assignment.description = str(payload["description"]).strip()
+
+    if payload.get("project_id") is not None:
+        ensure_project_in_org(request, user, db, payload["project_id"])
+    if payload.get("cohort_id") is not None:
+        ensure_cohort_in_org(request, user, db, payload["cohort_id"])
+    if payload.get("assigned_to_user_id") is not None:
+        ensure_user_in_org(request, user, db, payload["assigned_to_user_id"])
 
     if "project_id" in payload:
         assignment.project_id = payload["project_id"]
@@ -443,6 +456,7 @@ async def delete_assignment(assignment_id: int, request: Request, db: DbSession)
     assignment = db.query(Assignment).filter_by(id=assignment_id, is_deleted=False).first()
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found.")
+    ensure_in_org(request, user, db, assignment.organization_id, "Assignment not found.")
 
     assignment.is_deleted = True
     db.commit()
@@ -472,6 +486,7 @@ async def upload_assignment_attachment(
     assignment = db.query(Assignment).filter_by(id=assignment_id, is_deleted=False).first()
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found.")
+    ensure_in_org(request, user, db, assignment.organization_id, "Assignment not found.")
 
     content = await file.read()
     if not content:
@@ -508,6 +523,7 @@ async def download_assignment_attachment(
     assignment = db.query(Assignment).filter_by(id=assignment_id, is_deleted=False).first()
     if not assignment or not assignment.attachment_path:
         raise HTTPException(status_code=404, detail="No attachment found for this assignment.")
+    ensure_in_org(request, user, db, assignment.organization_id, "Assignment not found.")
 
     abs_path = attachment_abs_path(assignment.attachment_path)
     if not abs_path:
@@ -539,6 +555,7 @@ async def submit_assignment(
     assignment = db.query(Assignment).filter_by(id=assignment_id, is_deleted=False).first()
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found.")
+    ensure_in_org(request, user, db, assignment.organization_id, "Assignment not found.")
 
     if assignment.status == AssignmentStatus.CLOSED:
         raise HTTPException(status_code=422, detail="This assignment is closed for submissions.")
@@ -646,6 +663,7 @@ async def list_assignment_submissions(
     assignment = db.query(Assignment).filter_by(id=assignment_id, is_deleted=False).first()
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found.")
+    ensure_in_org(request, user, db, assignment.organization_id, "Assignment not found.")
 
     query = (
         db.query(AssignmentSubmission)
@@ -696,6 +714,7 @@ async def download_submission_file(
     sub = db.query(AssignmentSubmission).filter_by(id=submission_id).first()
     if not sub or not sub.file_path:
         raise HTTPException(status_code=404, detail="No submission file found.")
+    ensure_in_org(request, user, db, sub.assignment.organization_id if sub.assignment else None, "Submission not found.")
 
     if user.role == UserRole.INTERN and sub.user_id != user.id:
         raise HTTPException(status_code=403, detail="Access denied.")
@@ -737,6 +756,7 @@ async def review_submission(
     )
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found.")
+    ensure_in_org(request, user, db, sub.assignment.organization_id if sub.assignment else None, "Submission not found.")
 
     payload = await get_payload(request, data)
 

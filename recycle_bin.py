@@ -135,6 +135,35 @@ def get_entity(db: "Session", entity_type: str, entity_id: int):
     return db.get(model, entity_id)
 
 
+def entity_org_id(db: "Session", entity_type: str, entity: Any) -> int | None:
+    """Organization that owns a binned record, so the bin stays tenant-scoped.
+
+    Most entities carry ``organization_id``; task comments inherit it from their task
+    (or the task's project), and users from their first membership. ``None`` means a
+    legacy single-tenant row, which the bin treats as the default organization.
+    """
+    org_id = getattr(entity, "organization_id", None)
+    if org_id is not None:
+        return org_id
+    if entity_type == BinEntityType.TASK_COMMENT:
+        task = db.get(Task, entity.task_id) if getattr(entity, "task_id", None) else None
+        return entity_org_id(db, BinEntityType.TASK, task) if task else None
+    if entity_type == BinEntityType.TASK and getattr(entity, "project_id", None):
+        project = db.get(Project, entity.project_id)
+        return project.organization_id if project else None
+    if entity_type == BinEntityType.USER:
+        from models import OrganizationMembership
+
+        membership = (
+            db.query(OrganizationMembership)
+            .filter(OrganizationMembership.user_id == entity.id)
+            .order_by(OrganizationMembership.id.asc())
+            .first()
+        )
+        return membership.organization_id if membership else None
+    return None
+
+
 def move_to_bin(
     db: "Session",
     actor,
@@ -158,6 +187,7 @@ def move_to_bin(
 
     snapshot = _snapshot_entity(entity_type, entity)
     bin_item = BinItem(
+        organization_id=entity_org_id(db, entity_type, entity),
         entity_type=entity_type,
         entity_id=entity.id,
         title=(title or _default_title(entity_type, entity))[:200],
@@ -226,10 +256,17 @@ def purge_expired_bin_items(db: "Session") -> int:
     return purged
 
 
-def purge_all_bin_items(db: "Session") -> int:
+def purge_all_bin_items(db: "Session", org_id: int | None = None) -> int:
     """Permanently delete every non-restored bin entry and its entity, regardless of
-    expiry — used by the admin "Clear all" action. Caller must commit."""
-    items = db.query(BinItem).filter(BinItem.restored_at.is_(None)).all()
+    expiry — used by the admin "Clear all" action. When ``org_id`` is given only that
+    organization's entries are purged (legacy NULL rows belong to org 1). Caller must commit."""
+    q = db.query(BinItem).filter(BinItem.restored_at.is_(None))
+    if org_id is not None:
+        if int(org_id) == 1:
+            q = q.filter((BinItem.organization_id == 1) | (BinItem.organization_id.is_(None)))
+        else:
+            q = q.filter(BinItem.organization_id == int(org_id))
+    items = q.all()
     for item in items:
         permanently_delete_entity(db, item.entity_type, item.entity_id)
         db.delete(item)

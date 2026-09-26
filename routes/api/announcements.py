@@ -13,6 +13,7 @@ from recycle_bin import move_to_bin
 from routes.api.schemas import AnnouncementCreatePayload, AnnouncementUpdatePayload, get_payload
 from app.core.pagination import get_page_params, build_page_response
 from utils import record_audit, isoformat_utc
+from tenancy import ensure_in_org
 
 router = APIRouter(prefix="/api/announcements", tags=["Announcements"])
 DbSession = Annotated[Session, Depends(get_db)]
@@ -122,7 +123,9 @@ async def create_announcement(request: Request, db: DbSession, data: Announcemen
         project = db.get(Project, project_id)
         if not project:
             project_id = None
-        elif user.is_mentor and project.mentor_id != user.id and not user.is_admin:
+        else:
+            ensure_in_org(request, user, db, project.organization_id, "Project not found.")
+        if project and user.is_mentor and project.mentor_id != user.id and not user.is_admin:
             # Co-mentors may also post to the project
             is_co_mentor = (
                 db.query(ProjectMentorAssignment)

@@ -24,6 +24,7 @@ from utils import (
 )
 
 from routes.api.schemas import LeaveApplyRequest, LeaveReviewRequest, get_payload
+from tenancy import org_member_user_ids
 
 router = APIRouter(prefix="/api/leave", tags=["Leave Management"])
 DbSession = Annotated[Session, Depends(get_db)]
@@ -220,7 +221,14 @@ async def apply(
         m_user = db.get(User, user.mentor_id)
         if m_user:
             reviewers.append(m_user)
-    for admin_user in db.query(User).filter(User.role.in_(("admin", "superadmin", "org_admin")), User.is_active == True).all():
+    # Only admins of the intern's own organization are notified.
+    org_id = _resolve_request_org_id(request, user, db) or 1
+    org_admin_ids = org_member_user_ids(db, org_id) or [-1]
+    for admin_user in db.query(User).filter(
+        User.role.in_(("admin", "superadmin", "org_admin")),
+        User.is_active == True,
+        User.id.in_(org_admin_ids),
+    ).all():
         if admin_user.id not in notify_ids:
             notify_ids.add(admin_user.id)
             reviewers.append(admin_user)
@@ -234,7 +242,6 @@ async def apply(
 
     # Dispatch Tenant-wise Email Notification
     from email_service import send_leave_request_email
-    org_id = _resolve_request_org_id(request, user, db) or 1
     send_leave_request_email(db, org_id, lr, user, reviewers)
 
     db.commit()

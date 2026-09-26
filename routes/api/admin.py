@@ -67,7 +67,10 @@ from routes.api.schemas import (
     InternshipDurationCreatePayload,
     InternshipDurationUpdatePayload,
     get_payload,
+    coerce_is_paid,
+    coerce_stipend_amount,
 )
+from tenancy import ensure_in_org, ensure_user_in_org, is_platform_admin
 
 router = APIRouter(prefix="/api/admin", tags=["Administration"])
 DbSession = Annotated[Session, Depends(get_db)]
@@ -77,6 +80,15 @@ def _resolve_admin_org_id(request: Request, user: User, db: Session) -> int:
     from dependencies import _resolve_request_org_id
     resolved = _resolve_request_org_id(request, user, db)
     return resolved if resolved is not None else 1
+
+
+def _invite_links_in_org(query, org_id: int | None, user: User):
+    """Restrict an InternInviteLink query to one organization (legacy NULL rows belong to org 1)."""
+    if is_platform_admin(user) and org_id is None:
+        return query
+    if org_id in (None, 1):
+        return query.filter(or_(InternInviteLink.organization_id == 1, InternInviteLink.organization_id.is_(None)))
+    return query.filter(InternInviteLink.organization_id == org_id)
 
 
 def _mentor_names(db: Session, scoped_org_id: int | None = None) -> dict[int, str]:
@@ -107,6 +119,8 @@ def _user_dict(u: User, mentor_names: dict[int, str] | None = None) -> dict:
         "joining_date": u.joining_date.isoformat() if u.joining_date else None,
         "internship_duration_months": u.internship_duration_months,
         "internship_end_date": u.internship_end_date.isoformat() if u.internship_end_date else None,
+        "is_paid": u.is_paid,
+        "stipend_amount": u.stipend_amount,
         "skills": u.skills_list(),
         "created_at": isoformat_utc(u.created_at),
         "mentor_id": u.mentor_id,
@@ -412,6 +426,7 @@ async def create_user(request: Request, db: DbSession, data: AdminCreateUserRequ
         mentor_user = db.get(User, resolved_mentor_id)
         if not mentor_user or mentor_user.role != UserRole.MENTOR:
             raise HTTPException(status_code=422, detail="Invalid mentor selected.")
+        ensure_user_in_org(request, user, db, resolved_mentor_id, "Invalid mentor selected.")
     elif role == UserRole.INTERN and user.is_mentor:
         resolved_mentor_id = user.id
 
@@ -440,6 +455,17 @@ async def create_user(request: Request, db: DbSession, data: AdminCreateUserRequ
             raise HTTPException(status_code=422, detail=duration_error)
         internship_end_date = compute_internship_end_date(joining_date, duration_months)
 
+    # Paid/unpaid + monthly stipend (intern accounts only)
+    is_paid: bool | None = None
+    stipend_amount: float | None = None
+    if role == UserRole.INTERN:
+        is_paid = coerce_is_paid(payload.get("is_paid"))
+        stipend_amount = coerce_stipend_amount(payload.get("stipend_amount"))
+        if is_paid is True and stipend_amount is None:
+            raise HTTPException(status_code=422, detail="Stipend amount is required for paid interns.")
+        if is_paid is not True:
+            stipend_amount = None
+
     new_user = User(
         name=name,
         email=email,
@@ -452,6 +478,8 @@ async def create_user(request: Request, db: DbSession, data: AdminCreateUserRequ
         joining_date=joining_date,
         internship_duration_months=duration_months,
         internship_end_date=internship_end_date,
+        is_paid=is_paid,
+        stipend_amount=stipend_amount,
         mentor_id=resolved_mentor_id,
     )
     new_user.set_password(password)
@@ -471,6 +499,8 @@ async def create_user(request: Request, db: DbSession, data: AdminCreateUserRequ
             joining_date=joining_date,
             internship_duration_months=duration_months,
             internship_end_date=internship_end_date,
+            is_paid=is_paid,
+            stipend_amount=stipend_amount,
             is_active=True,
             activated_at=_utcnow(),
         )
@@ -498,6 +528,7 @@ async def update_user(user_id: int, request: Request, response: Response, db: Db
     target = db.get(User, user_id)
     if not target:
         raise HTTPException(status_code=404)
+    ensure_user_in_org(request, user, db, target.id)
     # Mentors can only edit their own directly assigned interns
     if user.is_mentor and (target.role != UserRole.INTERN or target.mentor_id != user.id):
         raise HTTPException(status_code=403, detail="Mentors can only edit their own assigned interns.")
@@ -551,6 +582,27 @@ async def update_user(user_id: int, request: Request, response: Response, db: Db
             if membership:
                 membership.internship_duration_months = new_duration
                 membership.internship_end_date = target.internship_end_date
+    if target.role == UserRole.INTERN:
+        raw_is_paid = payload.get("is_paid")
+        raw_stipend = payload.get("stipend_amount")
+        if raw_is_paid is not None or raw_stipend is not None:
+            effective_is_paid = coerce_is_paid(raw_is_paid) if raw_is_paid is not None else target.is_paid
+            effective_stipend = (
+                coerce_stipend_amount(raw_stipend) if raw_stipend is not None else target.stipend_amount
+            )
+            if effective_is_paid is True and effective_stipend is None:
+                raise HTTPException(status_code=422, detail="Stipend amount is required for paid interns.")
+            target.is_paid = effective_is_paid
+            target.stipend_amount = effective_stipend if effective_is_paid is True else None
+            # Keep the org membership row in sync with the user row
+            membership = (
+                db.query(OrganizationMembership)
+                .filter_by(user_id=target.id, is_active=True, is_deleted=False)
+                .first()
+            )
+            if membership:
+                membership.is_paid = target.is_paid
+                membership.stipend_amount = target.stipend_amount
     if user.role in ("admin", "mentor") and "mentor_id" in payload and payload["mentor_id"] is not None and target.role == UserRole.INTERN:
         raw_mentor = payload["mentor_id"]
         if raw_mentor in (None, "", 0, "0"):
@@ -560,6 +612,7 @@ async def update_user(user_id: int, request: Request, response: Response, db: Db
             mentor_user = db.get(User, mentor_id)
             if not mentor_user or mentor_user.role != UserRole.MENTOR:
                 raise HTTPException(status_code=422, detail="Invalid mentor selected.")
+            ensure_user_in_org(request, user, db, mentor_id, "Invalid mentor selected.")
             if user.is_mentor and mentor_id != user.id:
                 raise HTTPException(status_code=403, detail="Mentors can only assign interns to themselves.")
             target.mentor_id = mentor_id
@@ -578,6 +631,7 @@ async def toggle_active(user_id: int, request: Request, db: DbSession):
     target = db.get(User, user_id)
     if not target:
         raise HTTPException(status_code=404)
+    ensure_user_in_org(request, user, db, target.id)
     if target.id == user.id:
         raise HTTPException(status_code=400, detail="Cannot deactivate yourself.")
     # Mentors can only toggle their own directly assigned interns
@@ -603,6 +657,7 @@ async def change_role(user_id: int, request: Request, db: DbSession, data: Admin
     target = db.get(User, user_id)
     if not target:
         raise HTTPException(status_code=404)
+    ensure_user_in_org(request, user, db, target.id)
     if target.id == user.id:
         raise HTTPException(status_code=400, detail="Cannot change your own role.")
     payload = await get_payload(request, data)
@@ -630,6 +685,7 @@ async def delete_user(user_id: int, request: Request, db: DbSession):
     target = db.get(User, user_id)
     if not target or target.is_deleted:
         raise HTTPException(status_code=404)
+    ensure_user_in_org(request, user, db, target.id)
     if target.id == user.id:
         raise HTTPException(status_code=400, detail="Cannot delete yourself.")
     name = target.name
@@ -722,6 +778,7 @@ async def create_invite_link(request: Request, db: DbSession, data: AdminInviteL
         mentor_user = db.get(User, resolved_mentor_id)
         if not mentor_user or mentor_user.role != UserRole.MENTOR:
             raise HTTPException(status_code=422, detail="Invalid mentor selected.")
+        ensure_user_in_org(request, user, db, resolved_mentor_id, "Invalid mentor selected.")
 
     scoped_org_id = _resolve_admin_org_id(request, user, db)
     link = InternInviteLink(
@@ -749,6 +806,7 @@ async def delete_invite_link(link_id: int, request: Request, db: DbSession):
     link = db.get(InternInviteLink, link_id)
     if not link:
         raise HTTPException(status_code=404, detail="Invite link not found.")
+    ensure_in_org(request, user, db, link.organization_id, "Invite link not found.")
     if user.is_mentor and link.created_by_id != user.id:
         raise HTTPException(status_code=403, detail="You can only delete links created by you.")
 
@@ -885,13 +943,8 @@ async def review_intern_signup_request(user_id: int, request: Request, db: DbSes
     if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
 
-    # Resolve organization context
-    org_header = request.headers.get("X-Organization-Id")
-    org_id = int(org_header) if org_header and str(org_header).isdigit() else None
-    if org_id is None:
-        from models import OrganizationMembership
-        mem = db.query(OrganizationMembership).filter_by(user_id=user.id, is_active=True, is_deleted=False).first()
-        org_id = mem.organization_id if mem else None
+    # Resolve organization context (membership-validated; a spoofed header falls back to the caller's own org)
+    org_id = None if is_platform_admin(user) else _resolve_admin_org_id(request, user, db)
 
     intern = db.get(User, user_id)
     if not intern or intern.role != UserRole.INTERN or intern.is_active:
@@ -949,20 +1002,22 @@ async def regenerate_invite_link(request: Request, db: DbSession):
     if not user or not user.is_admin:
         raise HTTPException(status_code=403)
 
+    org_id = _resolve_admin_org_id(request, user, db)
+    org_links = _invite_links_in_org(db.query(InternInviteLink), org_id, user)
     current = (
-        db.query(InternInviteLink)
-        .filter_by(is_active=True)
+        org_links.filter(InternInviteLink.is_active == True)  # noqa: E712
         .order_by(InternInviteLink.created_at.desc())
         .first()
     )
     label = current.label if current else "Intern onboarding link"
     mentor_id = current.mentor_id if current else None
 
-    # Regenerating invalidates all previously active links
-    for old_link in db.query(InternInviteLink).filter_by(is_active=True).all():
+    # Regenerating invalidates this organization's previously active links (never other tenants')
+    for old_link in org_links.filter(InternInviteLink.is_active == True).all():  # noqa: E712
         old_link.is_active = False
 
     link = InternInviteLink(
+        organization_id=org_id,
         token=secrets.token_urlsafe(32),
         label=label,
         created_by_id=user.id,
@@ -982,7 +1037,8 @@ async def deactivate_invite_link(request: Request, db: DbSession):
     if not user or not user.is_admin:
         raise HTTPException(status_code=403)
     updated = 0
-    for link in db.query(InternInviteLink).filter_by(is_active=True).all():
+    org_links = _invite_links_in_org(db.query(InternInviteLink), _resolve_admin_org_id(request, user, db), user)
+    for link in org_links.filter(InternInviteLink.is_active == True).all():  # noqa: E712
         link.is_active = False
         updated += 1
     if updated:
@@ -1012,6 +1068,12 @@ async def list_recycle_bin(request: Request, db: DbSession):
         page_size = 10
 
     q = db.query(BinItem).filter(BinItem.restored_at.is_(None))
+    if not is_platform_admin(user):
+        bin_org = _resolve_admin_org_id(request, user, db)
+        if bin_org == 1:
+            q = q.filter(or_(BinItem.organization_id == 1, BinItem.organization_id.is_(None)))
+        else:
+            q = q.filter(BinItem.organization_id == bin_org)
     if entity_type:
         q = q.filter(BinItem.entity_type == entity_type)
 
@@ -1040,6 +1102,7 @@ async def restore_recycle_bin_item(bin_id: int, request: Request, db: DbSession)
     item = db.get(BinItem, bin_id)
     if not item or item.restored_at is not None:
         raise HTTPException(status_code=404, detail="Recycle bin item not found.")
+    ensure_in_org(request, user, db, item.organization_id, "Recycle bin item not found.")
 
     try:
         entity = restore_bin_item(db, item)
@@ -1072,6 +1135,7 @@ async def purge_recycle_bin_item(bin_id: int, request: Request, db: DbSession):
     item = db.get(BinItem, bin_id)
     if not item or item.restored_at is not None:
         raise HTTPException(status_code=404, detail="Recycle bin item not found.")
+    ensure_in_org(request, user, db, item.organization_id, "Recycle bin item not found.")
 
     permanently_delete_entity(db, item.entity_type, item.entity_id)
     record_audit(
@@ -1093,7 +1157,8 @@ async def clear_recycle_bin(request: Request, db: DbSession):
     if not user or not user.is_admin:
         raise HTTPException(status_code=403)
 
-    count = purge_all_bin_items(db)
+    # Always scoped to the active organization: "Clear all" must never wipe other tenants' bins.
+    count = purge_all_bin_items(db, _resolve_admin_org_id(request, user, db))
     if count:
         record_audit(
             db,

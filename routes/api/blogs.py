@@ -16,6 +16,7 @@ from recycle_bin import move_to_bin
 from app.core.sanitize import sanitize_html, validate_http_url
 from routes.api.schemas import BlogCreatePayload, BlogUpdatePayload, get_payload
 from utils import record_audit, isoformat_utc
+from tenancy import ensure_in_org, is_platform_admin, viewer_org_id
 
 router = APIRouter(prefix="/api/blogs", tags=["Blogs"])
 # Sitemap lives at site root (/sitemap.xml) where search engines expect it.
@@ -176,8 +177,13 @@ async def list_all_blogs(
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=100),
 ):
-    _require_admin(request, db)
+    user = _require_admin(request, db)
     q = db.query(BlogPost).options(joinedload(BlogPost.author)).filter(BlogPost.is_deleted == False)  # noqa: E712
+    if not is_platform_admin(user):
+        # Drafts are private to the authoring organization (legacy NULL rows belong to org 1).
+        org_id = viewer_org_id(request, user, db)
+        q = q.filter(or_(BlogPost.organization_id == org_id, BlogPost.organization_id.is_(None)) if org_id == 1
+                     else BlogPost.organization_id == org_id)
     if status and status in VALID_STATUSES:
         q = q.filter(BlogPost.status == status)
     total = q.count()
@@ -233,7 +239,11 @@ async def create_blog(request: Request, db: DbSession, data: BlogCreatePayload |
     if cover_image_url is None and _clean_optional_str(payload.get("cover_image_url")):
         raise HTTPException(status_code=422, detail="cover_image_url must be an absolute http(s) URL.")
 
+    author_org_id = viewer_org_id(request, user, db)
+    if author_org_id < 1:
+        raise HTTPException(status_code=403, detail="No active organization.")
     post = BlogPost(
+        organization_id=author_org_id,
         title=title[:200],
         slug=slug,
         excerpt=_clean_optional_str(sanitize_html(_clean_optional_str(payload.get("excerpt")))),
@@ -265,6 +275,7 @@ async def update_blog(post_id: int, request: Request, db: DbSession, data: BlogU
     post = db.get(BlogPost, post_id)
     if not post or post.is_deleted:
         raise HTTPException(status_code=404)
+    ensure_in_org(request, user, db, post.organization_id, "Blog post not found.")
 
     payload = await get_payload(request, data)
     changed = False
@@ -347,6 +358,7 @@ async def delete_blog(post_id: int, request: Request, db: DbSession):
     post = db.get(BlogPost, post_id)
     if not post or post.is_deleted:
         raise HTTPException(status_code=404)
+    ensure_in_org(request, user, db, post.organization_id, "Blog post not found.")
     record_audit(
         db,
         user,

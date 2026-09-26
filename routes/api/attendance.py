@@ -39,6 +39,7 @@ from utils import (
 import base64
 from fastapi.responses import FileResponse, Response, RedirectResponse
 from routes.api.schemas import AttendanceEditRequest, ManualAttendanceRequest, get_payload
+from tenancy import is_platform_admin, viewer_org_id
 
 router = APIRouter(prefix="/api/attendance", tags=["Attendance"])
 DbSession = Annotated[Session, Depends(get_db)]
@@ -749,7 +750,9 @@ async def trigger_auto_checkout(request: Request, db: DbSession):
         raise HTTPException(status_code=403)
     # Record the audit entry before calling auto-checkout so both are committed
     # together in the single db.commit() below (avoids a double-commit).
-    count = auto_checkout_missed_sessions(db, commit=False)
+    # Scoped to the caller's organization; only platform admins sweep every tenant.
+    scope_org = None if is_platform_admin(user) else viewer_org_id(request, user, db)
+    count = auto_checkout_missed_sessions(db, commit=False, org_id=scope_org)
     record_audit(
         db,
         user,

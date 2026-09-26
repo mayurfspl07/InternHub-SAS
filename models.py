@@ -346,6 +346,8 @@ class OrganizationMembership(Base):
     joining_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     internship_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     internship_duration_months: Mapped[int | None] = mapped_column(Integer, nullable=True, default=3)
+    is_paid: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=None)
+    stipend_amount: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
     mentor_membership_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("organization_memberships.id", ondelete="SET NULL"), nullable=True
     )
@@ -394,6 +396,10 @@ class OrganizationMembership(Base):
             "department": self.department,
             "job_title": self.job_title,
             "joining_date": self.joining_date.isoformat() if self.joining_date else None,
+            "internship_duration_months": self.internship_duration_months,
+            "internship_end_date": self.internship_end_date.isoformat() if self.internship_end_date else None,
+            "is_paid": self.is_paid,
+            "stipend_amount": self.stipend_amount,
             "mentor_membership_id": self.mentor_membership_id,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
@@ -427,6 +433,8 @@ class User(Base):
     joining_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     internship_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     internship_duration_months: Mapped[int | None] = mapped_column(Integer, nullable=True, default=3)
+    is_paid: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=None)
+    stipend_amount: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
     session_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     token_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     mentor_id: Mapped[int | None] = mapped_column(

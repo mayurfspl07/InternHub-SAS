@@ -311,7 +311,7 @@ def export_attendance_csv(records) -> str:
     return buf.getvalue()
 
 
-def auto_checkout_missed_sessions(db: "Session", *, commit: bool = True) -> int:
+def auto_checkout_missed_sessions(db: "Session", *, commit: bool = True, org_id: int | None = None) -> int:
     """Close prior days' open sessions as missed checkout → absent.
 
     Only processes records with date strictly before today so a midday server
@@ -321,19 +321,22 @@ def auto_checkout_missed_sessions(db: "Session", *, commit: bool = True) -> int:
         commit: If True (default), commits the transaction after processing.
                 Pass False when the caller manages its own commit (e.g. the
                 HTTP route that needs to include an audit log in the same tx).
+        org_id: When given, only that organization's records are processed (the
+                admin-triggered route); the scheduled job passes None for all orgs.
     """
     from models import Attendance
 
     today = local_today()
-    records = (
-        db.query(Attendance)
-        .filter(
-            Attendance.check_out.is_(None),
-            Attendance.checkout_missed.is_(False),
-            Attendance.date < today,
-        )
-        .all()
+    query = db.query(Attendance).filter(
+        Attendance.check_out.is_(None),
+        Attendance.checkout_missed.is_(False),
+        Attendance.date < today,
     )
+    if org_id is not None:
+        from tenancy import org_filter
+
+        query = query.filter(org_filter(Attendance.organization_id, org_id))
+    records = query.all()
     updated = 0
     for record in records:
         from config import Config

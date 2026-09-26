@@ -2,7 +2,7 @@
 from datetime import date, datetime
 from typing import Any, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
-from fastapi import Request
+from fastapi import HTTPException, Request
 
 
 async def get_payload(request: Request, data: Any = None) -> dict:
@@ -14,6 +14,33 @@ async def get_payload(request: Request, data: Any = None) -> dict:
         return raw if isinstance(raw, dict) else {}
     except Exception:
         return {}
+
+
+def coerce_is_paid(raw: Any) -> Optional[bool]:
+    """Normalize is_paid payloads (bool or "true"/"false" strings) to Optional[bool]."""
+    if raw is None:
+        return None
+    if isinstance(raw, bool):
+        return raw
+    text = str(raw).strip().lower()
+    if text in ("true", "1", "yes"):
+        return True
+    if text in ("false", "0", "no"):
+        return False
+    raise HTTPException(status_code=422, detail="is_paid must be true or false.")
+
+
+def coerce_stipend_amount(raw: Any) -> Optional[float]:
+    """Normalize stipend payloads to a non-negative float or None."""
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        return None
+    try:
+        amount = float(raw)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="Stipend amount must be a number.")
+    if amount < 0:
+        raise HTTPException(status_code=422, detail="Stipend amount cannot be negative.")
+    return amount
 
 
 
@@ -86,6 +113,17 @@ class AdminCreateUserRequest(BaseModel):
         json_schema_extra={"example": 6},
     )
     mentor_id: Optional[int] = Field(None, description="Assigned mentor ID for intern", json_schema_extra={"example": 2})
+    is_paid: Optional[bool] = Field(
+        None,
+        description="Whether the intern receives a stipend (intern accounts only)",
+        json_schema_extra={"example": True},
+    )
+    stipend_amount: Optional[float] = Field(
+        None,
+        ge=0,
+        description="Monthly stipend amount; required when is_paid is true (intern accounts only)",
+        json_schema_extra={"example": 5000},
+    )
 
 
 class AdminUpdateUserRequest(BaseModel):
@@ -102,6 +140,17 @@ class AdminUpdateUserRequest(BaseModel):
         json_schema_extra={"example": 6},
     )
     mentor_id: Optional[int] = Field(None, description="Assigned mentor ID", json_schema_extra={"example": 2})
+    is_paid: Optional[bool] = Field(
+        None,
+        description="Whether the intern receives a stipend (intern accounts only)",
+        json_schema_extra={"example": True},
+    )
+    stipend_amount: Optional[float] = Field(
+        None,
+        ge=0,
+        description="Monthly stipend amount; required when is_paid is true (intern accounts only)",
+        json_schema_extra={"example": 5000},
+    )
 
 
 class AdminRoleUpdateRequest(BaseModel):

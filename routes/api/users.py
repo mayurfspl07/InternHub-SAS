@@ -468,6 +468,8 @@ async def user_leave(user_id: int, request: Request, db: DbSession):
         raise HTTPException(status_code=404, detail="User not found.")
     if not target.is_intern or not _can_view_leave_data(viewer, target):
         raise HTTPException(status_code=403, detail="You cannot view this user's leave history.")
+    if not _can_view_profile(viewer, target, db):
+        raise HTTPException(status_code=404, detail="User not found.")
 
     from dependencies import _resolve_request_org_id
     leave_data = _intern_leave_payload(

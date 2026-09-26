@@ -275,9 +275,12 @@ async def remove_member(cohort_id: int, user_id: int, request: Request, db: DbSe
     user = get_optional_user(request, db)
     if not user or user.is_intern:
         raise HTTPException(status_code=403)
+    cohort = db.get(Cohort, cohort_id)
+    if not cohort or cohort.is_deleted:
+        raise HTTPException(status_code=404)
+    _assert_cohort_visible(cohort, _resolve_org_id(request, user, db))
     member = db.query(CohortMember).filter_by(cohort_id=cohort_id, user_id=user_id).first()
     if member:
-        cohort = db.get(Cohort, cohort_id)
         target = db.get(User, user_id)
         record_audit(
             db,

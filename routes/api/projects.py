@@ -53,6 +53,7 @@ from routes.api.schemas import (
     get_payload,
 )
 from app.core.pagination import get_page_params, build_page_response
+from tenancy import ensure_in_org, ensure_task_in_org, ensure_user_in_org, ensure_users_in_org, user_org_ids
 
 router = APIRouter(prefix="/api/projects", tags=["Projects"])
 task_router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
@@ -141,6 +142,7 @@ async def get_project_task_statuses(
     if project_id:
         project = db.query(Project).filter_by(id=project_id, is_deleted=False).first()
         if project:
+            ensure_in_org(request, user, db, project.organization_id, "Project not found.")
             org_id = project.organization_id
     if org_id is None:
         org_id = _resolve_request_org_id(request, user, db) or 1
@@ -776,6 +778,7 @@ async def create_project(request: Request, db: DbSession, data: ProjectCreatePay
             pass
     mentor_ids = _resolve_mentor_ids(db, payload, user=user, required=True)
     org_id = _resolve_request_org_id(request, user, db)
+    ensure_users_in_org(request, user, db, mentor_ids, "Mentor not found.")
     status = _validate_org_project_status(db, org_id, payload.get("status", "planning"))
 
     project = Project(
@@ -803,6 +806,8 @@ async def create_project(request: Request, db: DbSession, data: ProjectCreatePay
         intern = db.get(User, uid)
         if not intern or intern.role != UserRole.INTERN:
             continue
+        if (project.organization_id or 1) not in user_org_ids(db, uid):
+            continue  # never attach another tenant's intern
         if not db.query(ProjectAssignment).filter_by(project_id=project.id, user_id=uid).first():
             db.add(ProjectAssignment(project_id=project.id, user_id=uid))
     db.commit()
@@ -825,6 +830,7 @@ async def get_project(project_id: int, request: Request, db: DbSession):
     ).filter_by(id=project_id, is_deleted=False).first()
     if not project:
         raise HTTPException(status_code=404)
+    ensure_in_org(request, user, db, project.organization_id, "Project not found.")
 
     # Cross-tenant isolation
     from dependencies import _resolve_request_org_id
@@ -877,6 +883,7 @@ async def export_project(project_id: int, request: Request, db: DbSession):
     ).filter_by(id=project_id, is_deleted=False).first()
     if not project:
         raise HTTPException(status_code=404)
+    ensure_in_org(request, user, db, project.organization_id, "Project not found.")
     if not _is_project_member(db, user, project):
         raise HTTPException(status_code=403)
 
@@ -925,6 +932,7 @@ async def update_project(project_id: int, request: Request, db: DbSession, data:
     project = db.get(Project, project_id)
     if not project or project.is_deleted:
         raise HTTPException(status_code=404)
+    ensure_in_org(request, user, db, project.organization_id, "Project not found.")
     if not _can_edit(user, project):
         raise HTTPException(status_code=403)
 
@@ -958,6 +966,7 @@ async def update_project(project_id: int, request: Request, db: DbSession, data:
             project=project,
             required=True,
         )
+        ensure_users_in_org(request, user, db, mentor_ids, "Mentor not found.")
         _apply_project_mentors(db, project, mentor_ids)
     intern_ids = payload.get("intern_ids")
     if intern_ids is None:
@@ -975,7 +984,7 @@ async def update_project(project_id: int, request: Request, db: DbSession, data:
         }
         for uid in target_ids - current_ids:
             intern = db.get(User, uid)
-            if intern and intern.role == "intern":
+            if intern and intern.role == "intern" and (project.organization_id or 1) in user_org_ids(db, uid):
                 db.add(ProjectAssignment(project_id=project.id, user_id=uid))
                 push_notification(
                     db, uid,
@@ -1005,6 +1014,7 @@ async def delete_project(project_id: int, request: Request, db: DbSession):
     project = db.get(Project, project_id)
     if not project or project.is_deleted:
         raise HTTPException(status_code=404)
+    ensure_in_org(request, user, db, project.organization_id, "Project not found.")
     if not _can_edit(user, project):
         raise HTTPException(status_code=403)
     move_to_bin(db, user, BinEntityType.PROJECT, project, title=project.name)
@@ -1021,6 +1031,7 @@ async def assign_intern(project_id: int, request: Request, db: DbSession, data: 
     project = db.get(Project, project_id)
     if not project or project.is_deleted:
         raise HTTPException(status_code=404)
+    ensure_in_org(request, user, db, project.organization_id, "Project not found.")
     if not _can_edit(user, project):
         raise HTTPException(status_code=403)
     payload = await get_payload(request, data)
@@ -1030,6 +1041,7 @@ async def assign_intern(project_id: int, request: Request, db: DbSession, data: 
         raise HTTPException(status_code=422, detail="Invalid user_id.")
     if not intern_id:
         raise HTTPException(status_code=422, detail="user_id required")
+    ensure_user_in_org(request, user, db, intern_id)
     if not db.query(ProjectAssignment).filter_by(project_id=project.id, user_id=intern_id).first():
         intern = db.get(User, intern_id)
         db.add(ProjectAssignment(project_id=project.id, user_id=intern_id))
@@ -1055,6 +1067,7 @@ async def unassign_intern(project_id: int, user_id: int, request: Request, db: D
     project = db.get(Project, project_id)
     if not project or project.is_deleted:
         raise HTTPException(status_code=404)
+    ensure_in_org(request, user, db, project.organization_id, "Project not found.")
     if not _can_edit(user, project):
         raise HTTPException(status_code=403)
     assignment = db.query(ProjectAssignment).filter_by(project_id=project.id, user_id=user_id).first()
@@ -1086,6 +1099,7 @@ async def create_task(project_id: int, request: Request, db: DbSession, data: Ta
     project = db.get(Project, project_id)
     if not project or project.is_deleted:
         raise HTTPException(status_code=404)
+    ensure_in_org(request, user, db, project.organization_id, "Project not found.")
     if user.is_intern:
         is_assigned = db.query(ProjectAssignment).filter_by(project_id=project.id, user_id=user.id).first()
         if not is_assigned:
@@ -1112,6 +1126,8 @@ async def create_task(project_id: int, request: Request, db: DbSession, data: Ta
         except (TypeError, ValueError):
             raise HTTPException(status_code=422, detail="Invalid assignee.")
         if not db.get(User, assigned_to):
+            raise HTTPException(status_code=422, detail="Assignee not found.")
+        if (project.organization_id or 1) not in user_org_ids(db, assigned_to):
             raise HTTPException(status_code=422, detail="Assignee not found.")
     priority = str(payload.get("priority", TaskPriority.MEDIUM))
     if priority not in (TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH):
@@ -1157,6 +1173,7 @@ async def update_task(task_id: int, request: Request, db: DbSession, data: TaskU
     task = db.query(Task).options(joinedload(Task.project)).filter_by(id=task_id, is_deleted=False).first()
     if not task:
         raise HTTPException(status_code=404)
+    ensure_task_in_org(request, user, db, task)
     project = task.project
     if not _can_move_task(user, project, task, db):
         raise HTTPException(status_code=403)
@@ -1180,6 +1197,9 @@ async def update_task(task_id: int, request: Request, db: DbSession, data: TaskU
             except (TypeError, ValueError):
                 raise HTTPException(status_code=422, detail="Invalid assignee.")
             if not db.get(User, assigned_to):
+                raise HTTPException(status_code=422, detail="Assignee not found.")
+            task_org = task.organization_id or (project.organization_id if project else None)
+            if (task_org or 1) not in user_org_ids(db, assigned_to):
                 raise HTTPException(status_code=422, detail="Assignee not found.")
     else:
         assigned_to = task.assigned_to
@@ -1237,6 +1257,7 @@ async def update_task_status(task_id: int, request: Request, db: DbSession, data
     task = db.query(Task).options(joinedload(Task.project)).filter_by(id=task_id, is_deleted=False).first()
     if not task:
         raise HTTPException(status_code=404)
+    ensure_task_in_org(request, user, db, task)
     project = task.project
     if not _can_move_task(user, project, task, db):
         raise HTTPException(status_code=403)
@@ -1269,6 +1290,7 @@ async def delete_task(task_id: int, request: Request, db: DbSession):
     task = db.query(Task).options(joinedload(Task.project)).filter_by(id=task_id, is_deleted=False).first()
     if not task:
         raise HTTPException(status_code=404)
+    ensure_task_in_org(request, user, db, task)
     project = task.project
     if not _can_delete_task(db, user, project, task):
         raise HTTPException(status_code=403)
@@ -1290,6 +1312,7 @@ async def get_comments(task_id: int, request: Request, db: DbSession):
     task = db.query(Task).options(joinedload(Task.project)).filter_by(id=task_id, is_deleted=False).first()
     if not task:
         raise HTTPException(status_code=404)
+    ensure_task_in_org(request, user, db, task)
     if not _is_project_member(db, user, task.project):
         raise HTTPException(status_code=403)
     limit = _bounded_limit(request.query_params.get("limit"), default=200, max_limit=500)
@@ -1318,6 +1341,7 @@ async def upload_task_attachment(
     task = db.query(Task).options(joinedload(Task.project)).filter_by(id=task_id, is_deleted=False).first()
     if not task:
         raise HTTPException(status_code=404)
+    ensure_task_in_org(request, user, db, task)
     if not _is_project_member(db, user, task.project):
         raise HTTPException(status_code=403)
 
@@ -1364,6 +1388,7 @@ async def list_task_attachments(task_id: int, request: Request, db: DbSession):
     task = db.query(Task).options(joinedload(Task.project)).filter_by(id=task_id, is_deleted=False).first()
     if not task:
         raise HTTPException(status_code=404)
+    ensure_task_in_org(request, user, db, task)
     if not _is_project_member(db, user, task.project):
         raise HTTPException(status_code=403)
 
@@ -1390,6 +1415,7 @@ async def download_task_attachment(attachment_id: int, request: Request, db: DbS
     attachment = db.query(TaskAttachment).options(joinedload(TaskAttachment.task)).filter_by(id=attachment_id).first()
     if not attachment or not attachment.task or attachment.task.is_deleted:
         raise HTTPException(status_code=404, detail="Attachment not found.")
+    ensure_task_in_org(request, user, db, attachment.task if attachment else None)
 
     project = db.get(Project, attachment.task.project_id)
     if not project or not _is_project_member(db, user, project):
@@ -1421,6 +1447,7 @@ async def delete_task_attachment(attachment_id: int, request: Request, db: DbSes
     project = db.get(Project, attachment.task.project_id)
     if not project:
         raise HTTPException(status_code=404)
+    ensure_in_org(request, user, db, project.organization_id, "Project not found.")
 
     is_uploader = attachment.user_id == user.id
     is_project_mentor = user.is_mentor and (project.mentor_id == user.id or db.query(ProjectMentorAssignment).filter_by(project_id=project.id, user_id=user.id).first() is not None)
@@ -1457,6 +1484,7 @@ async def add_comment(
     task = db.query(Task).options(joinedload(Task.project)).filter_by(id=task_id, is_deleted=False).first()
     if not task:
         raise HTTPException(status_code=404)
+    ensure_task_in_org(request, user, db, task)
     if not _is_project_member(db, user, task.project):
         raise HTTPException(status_code=403)
 
@@ -1537,6 +1565,7 @@ async def delete_comment(comment_id: int, request: Request, db: DbSession):
     if comment.user_id != user.id and not user.is_admin:
         raise HTTPException(status_code=403)
     task = db.get(Task, comment.task_id)
+    ensure_task_in_org(request, user, db, task)
     move_to_bin(
         db,
         user,
@@ -1566,6 +1595,7 @@ async def get_project_comments(project_id: int, request: Request, db: DbSession)
     project = db.query(Project).filter_by(id=project_id, is_deleted=False).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found.")
+    ensure_in_org(request, user, db, project.organization_id, "Project not found.")
 
     if not (user.is_admin or user.is_mentor or _is_project_member(db, user, project)):
         raise HTTPException(status_code=403, detail="Not authorized.")
@@ -1607,6 +1637,7 @@ async def create_project_comment(project_id: int, request: Request, db: DbSessio
     project = db.query(Project).filter_by(id=project_id, is_deleted=False).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found.")
+    ensure_in_org(request, user, db, project.organization_id, "Project not found.")
 
     if not (user.is_admin or user.is_mentor or _is_project_member(db, user, project)):
         raise HTTPException(status_code=403, detail="Not authorized.")
@@ -1670,6 +1701,7 @@ async def delete_project_comment(comment_id: int, request: Request, db: DbSessio
     project = db.get(Project, comment.project_id)
     if not project or project.is_deleted:
         raise HTTPException(status_code=404, detail="Project not found.")
+    ensure_in_org(request, user, db, project.organization_id, "Project not found.")
 
     is_author = comment.user_id == user.id
     is_project_mentor = (
@@ -1705,6 +1737,7 @@ async def get_project_links(project_id: int, request: Request, db: DbSession):
     project = db.query(Project).filter_by(id=project_id, is_deleted=False).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found.")
+    ensure_in_org(request, user, db, project.organization_id, "Project not found.")
 
     if not (user.is_admin or user.is_mentor or _is_project_member(db, user, project)):
         raise HTTPException(status_code=403, detail="Not authorized.")
@@ -1747,6 +1780,7 @@ async def create_project_link(project_id: int, request: Request, db: DbSession, 
     project = db.query(Project).filter_by(id=project_id, is_deleted=False).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found.")
+    ensure_in_org(request, user, db, project.organization_id, "Project not found.")
 
     if not _is_project_member(db, user, project):
         raise HTTPException(status_code=403, detail="Not authorized.")
@@ -1812,6 +1846,7 @@ async def delete_project_link(link_id: int, request: Request, db: DbSession):
     project = db.get(Project, link_record.project_id)
     if not project or project.is_deleted:
         raise HTTPException(status_code=404, detail="Project not found.")
+    ensure_in_org(request, user, db, project.organization_id, "Project not found.")
 
     is_submitter = link_record.user_id == user.id
     if not (user.is_admin or user.is_mentor or is_submitter):

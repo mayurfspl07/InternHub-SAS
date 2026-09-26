@@ -25,6 +25,7 @@ from routes.api.schemas import (
     UserProfileResponse,
     get_payload,
 )
+from tenancy import org_member_user_ids
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -299,7 +300,13 @@ async def register_via_invite(token: str, request: Request, db: DbSession, data:
     assigned_mentor = db.get(User, mentor_id) if mentor_id else None
     mentor_label = assigned_mentor.name if assigned_mentor else "Unassigned"
 
-    for admin in db.query(User).filter(User.role.in_([UserRole.ADMIN, UserRole.SUPERADMIN]), User.is_active.is_(True)).all():
+    # Only the invite link's own organization's admins hear about the signup.
+    link_org_admin_ids = org_member_user_ids(db, link.organization_id) or [-1]
+    for admin in db.query(User).filter(
+        User.role.in_([UserRole.ADMIN, UserRole.SUPERADMIN]),
+        User.is_active.is_(True),
+        User.id.in_(link_org_admin_ids),
+    ).all():
         push_notification(
             db,
             admin.id,

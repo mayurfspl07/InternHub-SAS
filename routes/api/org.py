@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from dependencies import DbSession, TenantContext
 from app.core.sanitize import validate_http_url
+from routes.api.schemas import coerce_is_paid, coerce_stipend_amount
 from models import (
     Organization,
     OrganizationMembership,
@@ -47,6 +48,8 @@ class AddMemberRequest(BaseModel):
     job_title: str | None = None
     joining_date: date | None = None
     mentor_id: int | None = None
+    is_paid: bool | None = None
+    stipend_amount: float | None = None
 
 
 class UpdateMemberRequest(BaseModel):
@@ -200,6 +203,17 @@ def add_organization_member(
     if ctx.is_mentor and req.role != UserRole.INTERN:
         raise HTTPException(status_code=403, detail="Mentors can only create intern accounts")
 
+    # Paid/unpaid + monthly stipend (intern accounts only)
+    is_paid: bool | None = None
+    stipend_amount: float | None = None
+    if req.role == UserRole.INTERN:
+        is_paid = coerce_is_paid(req.is_paid)
+        stipend_amount = coerce_stipend_amount(req.stipend_amount)
+        if is_paid is True and stipend_amount is None:
+            raise HTTPException(status_code=422, detail="Stipend amount is required for paid interns.")
+        if is_paid is not True:
+            stipend_amount = None
+
     user = db.query(User).filter_by(email=req.email).first()
     if not user:
         if not req.password:
@@ -210,6 +224,8 @@ def add_organization_member(
             role=req.role,
             is_active=True,
             activated_at=_utcnow(),
+            is_paid=is_paid,
+            stipend_amount=stipend_amount,
         )
         user.set_password(req.password)
         db.add(user)
@@ -230,6 +246,10 @@ def add_organization_member(
         existing_membership.department = req.department
         existing_membership.job_title = req.job_title
         existing_membership.joining_date = req.joining_date
+        existing_membership.is_paid = is_paid
+        existing_membership.stipend_amount = stipend_amount
+        user.is_paid = is_paid
+        user.stipend_amount = stipend_amount
         db.commit()
         return {"ok": True, "membership": existing_membership.to_dict()}
 
@@ -240,6 +260,8 @@ def add_organization_member(
         department=req.department,
         job_title=req.job_title,
         joining_date=req.joining_date,
+        is_paid=is_paid,
+        stipend_amount=stipend_amount,
         is_active=True,
         activated_at=_utcnow(),
     )
