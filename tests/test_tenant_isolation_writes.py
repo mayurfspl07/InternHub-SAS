@@ -241,3 +241,71 @@ def test_recycle_bin_items_belong_to_the_deleting_org(env):
                 if b["title"] == "Beta Project")
     _denied(c.post(f"/api/admin/bin/{item['id']}/restore", headers=_as(env)))
     assert c.post(f"/api/admin/bin/{item['id']}/restore", headers=_as(env, "admin_b")).status_code == 200
+
+
+def test_suspended_organization_locks_members_out(env):
+    c, db = env["client"], env["db"]
+    org = db.get(Organization, 1)
+    org.status = "suspended"
+    db.commit()
+    try:
+        resp = c.get("/api/projects", headers=_as(env))
+        assert resp.status_code == 403
+        assert c.post("/api/auth/logout", headers=_as(env)).status_code == 200
+    finally:
+        org.status = "active"
+        db.commit()
+    assert c.get("/api/projects", headers=_as(env)).status_code == 200
+
+
+def test_org_admin_cannot_open_platform_dashboard(env):
+    resp = env["client"].get("/api/superadmin/dashboard", headers=_as(env))
+    assert resp.status_code == 403
+
+
+def test_approved_invite_signup_joins_the_link_organization(env):
+    c, i, db = env["client"], env["ids"], env["db"]
+    pw = "Signup@12345"
+    resp = c.post("/api/auth/invite/beta-invite-token/register",
+                  json={"name": "Invitee Beta", "email": "invitee.beta@x.test", "password": pw,
+                        "confirm_password": pw, "phone": "+91 90000 00000", "department": "Eng",
+                        "job_title": "Intern", "joining_date": date.today().isoformat()})
+    assert resp.status_code in (200, 201), resp.text[:200]
+    invitee = db.query(User).filter_by(email="invitee.beta@x.test").one()
+    resp = c.post(f"/api/admin/intern-signup-requests/{invitee.id}/review", json={"decision": "approved"},
+                  headers=_as(env, "admin_b"))
+    assert resp.status_code == 200, resp.text[:200]
+    db.expire_all()
+    memberships = db.query(OrganizationMembership).filter_by(user_id=invitee.id).all()
+    assert [(m.organization_id, m.is_active) for m in memberships] == [(2, True)]
+
+
+def test_org_admin_cannot_clear_the_database(env):
+    resp = env["client"].post("/api/admin/clear-database", json={"password": "anything"}, headers=_as(env))
+    assert resp.status_code == 403
+    assert env["db"].query(Project).count() == 2
+
+
+def test_self_registered_account_sees_no_tenant_data_until_added(env):
+    c, db = env["client"], env["db"]
+    pw = "Public@12345"
+    resp = c.post("/api/auth/register", json={"name": "Public Person", "email": "public.person@x.test",
+                                              "password": pw, "confirm_password": pw, "role": "intern"})
+    assert resp.status_code == 200, resp.text[:200]
+    stranger = db.query(User).filter_by(email="public.person@x.test").one()
+    assert stranger.self_registered is True
+    h = {"Authorization": f"Bearer {generate_token(stranger.id, stranger.session_version)}"}
+
+    assert c.get("/api/auth/me", headers=h).status_code == 200
+    assert c.get("/api/profile", headers=h).status_code == 200
+    for path in ("/api/announcements", "/api/users/mentors", "/api/projects/mentors", "/api/dashboard",
+                 "/api/cohorts", "/api/search?q=a"):
+        assert c.get(path, headers=h).status_code == 403, path
+    assert c.get("/api/announcements", headers=dict(h, **{"X-Organization-Id": "2"})).status_code == 403
+
+    # An org admin adds the existing account: it now works inside that organization only.
+    resp = c.post("/api/org/members", headers=_as(env, "admin_b"),
+                  json={"name": "Public Person", "email": "public.person@x.test", "role": "intern"})
+    assert resp.status_code in (200, 201), resp.text[:200]
+    assert c.get("/api/announcements", headers=h).status_code == 200
+    assert c.get("/api/cohorts", headers=h).status_code == 200

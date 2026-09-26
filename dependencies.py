@@ -22,6 +22,10 @@ _serializer = URLSafeTimedSerializer(Config.SECRET_KEY, salt="auth-salt")
 # for CSRF double-submit validation (its value is never treated as a secret credential).
 SESSION_COOKIE_NAME = "ih_session"
 CSRF_COOKIE_NAME = "ih_csrf"
+ORG_ACCESS_STATUSES = ("active", "trial")
+_ORG_GATE_EXEMPT_PATHS = ("/api/auth/logout",)
+# What a self-registered account with no organization yet may use: its own account only.
+_NO_ORG_ALLOWED_PATHS = ("/api/auth/me", "/api/auth/logout", "/api/profile", "/api/notifications")
 
 
 def generate_token(user_id: int, session_version: int, remember: bool = False) -> str:
@@ -82,7 +86,44 @@ def get_optional_user(request: Request, db: DbSession) -> User | None:
     if stored_version != user.session_version:
         return None
 
+    _enforce_org_access(request, user, db)
     return user
+
+
+def _enforce_org_access(request: Request, user: User, db) -> None:
+    """Refuse members of suspended/cancelled organizations and users with no active membership.
+
+    Platform admins are exempt. Checked once per request.
+    """
+    if getattr(user, "is_platform_admin", False) or getattr(user, "is_superadmin", False):
+        return
+    if request.url.path.startswith(_ORG_GATE_EXEMPT_PATHS):
+        return
+    state = getattr(request, "state", None)
+    if state is not None and getattr(state, "org_access_checked_for", None) == user.id:
+        return
+    org_id = _resolve_request_org_id(request, user, db)
+    if org_id is None and getattr(user, "self_registered", False):
+        if request.url.path.startswith(_NO_ORG_ALLOWED_PATHS):
+            return
+        raise HTTPException(
+            status_code=403,
+            detail="Your account isn't part of an organization yet. Ask your organization's admin "
+                   "to add you, or join with an invite link.",
+        )
+    if org_id is None and (
+        db.query(OrganizationMembership.id)
+        .filter(OrganizationMembership.user_id == user.id, OrganizationMembership.is_deleted == False)  # noqa: E712
+        .first()
+    ):
+        # Every membership this user has is inactive: no organization access at all.
+        raise HTTPException(status_code=403, detail="Your organization membership is inactive.")
+    if org_id is not None:
+        org = db.get(Organization, org_id)
+        if org is not None and (org.is_deleted or org.status not in ORG_ACCESS_STATUSES):
+            raise HTTPException(status_code=403, detail="Organization is inactive or suspended")
+    if state is not None:
+        state.org_access_checked_for = user.id
 
 
 def require_login(request: Request, db: DbSession) -> User:
@@ -229,7 +270,7 @@ def get_request_context(request: Request, db: DbSession) -> RequestContext:
 
     if not org:
         org = db.get(Organization, membership.organization_id)
-    if not org or org.is_deleted or org.status != "active":
+    if not org or org.is_deleted or org.status not in ORG_ACCESS_STATUSES:
         raise HTTPException(status_code=403, detail="Organization is inactive or suspended")
 
     settings = db.get(OrganizationSettings, org.id)

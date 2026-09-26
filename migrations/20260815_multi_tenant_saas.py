@@ -243,9 +243,12 @@ def upgrade(engine: Engine) -> None:
             if inspector.has_table(table_name):
                 conn.execute(text(f"UPDATE `{table_name}` SET organization_id = 1 WHERE organization_id IS NULL"))
 
-        # Backfill organization_memberships for existing users
+        # Backfill organization_memberships for pre-multi-tenant users only. This runs on every
+        # start-up, so it must never touch users who already belong to an organization —
+        # otherwise every tenant's users would be silently added to the default organization.
         if inspector.has_table("users") and inspector.has_table("organization_memberships"):
             insert_kw = "INSERT OR IGNORE" if engine.dialect.name == "sqlite" else "INSERT IGNORE"
+            user_cols = {c["name"] for c in inspect(engine).get_columns("users")}
             conn.execute(
                 text(
                     f"""
@@ -256,6 +259,8 @@ def upgrade(engine: Engine) -> None:
                     SELECT 1, id, role, department, job_title, joining_date,
                            is_active, activated_at, created_at, is_deleted
                     FROM users
+                    WHERE id NOT IN (SELECT user_id FROM organization_memberships)
+                      {"" if "self_registered" not in user_cols else "AND (self_registered IS NULL OR self_registered = 0)"}
                     """
                 )
             )

@@ -165,6 +165,9 @@ async def register(request: Request, db: DbSession, data: RegisterRequest | None
         role=role,
         is_active=not is_mentor_signup,
         activated_at=None if is_mentor_signup else _utcnow(),
+        # Public sign-ups belong to no organization until an org admin adds them
+        # (or they join through an invite link); until then they see no tenant data.
+        self_registered=True,
     )
     new_user.set_password(password)
     new_user.session_version = 1
@@ -178,7 +181,7 @@ async def register(request: Request, db: DbSession, data: RegisterRequest | None
     message = (
         "Mentor account created and sent for admin approval. You can sign in after approval."
         if is_mentor_signup
-        else "Registration successful — you can now log in."
+        else "Registration successful. Ask your organization's admin to add you, or join with an invite link."
     )
     return {"ok": True, "message": message, "user": _user_dict(new_user)}
 

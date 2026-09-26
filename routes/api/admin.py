@@ -832,6 +832,32 @@ def _mentor_link_ids_for_user(db: Session, user: User) -> list[int]:
     return [row[0] for row in rows]
 
 
+def _ensure_active_membership(db: Session, member: User, org_id: int, role: str) -> None:
+    """Create (or re-activate) ``member``'s membership in ``org_id``."""
+    from models import OrganizationMembership
+
+    membership = db.query(OrganizationMembership).filter_by(organization_id=org_id, user_id=member.id).first()
+    if membership is None:
+        mentor_membership = None
+        if member.mentor_id:
+            mentor_membership = (
+                db.query(OrganizationMembership)
+                .filter_by(organization_id=org_id, user_id=member.mentor_id)
+                .first()
+            )
+        db.add(OrganizationMembership(
+            organization_id=org_id,
+            user_id=member.id,
+            role=role,
+            mentor_membership_id=mentor_membership.id if mentor_membership else None,
+            is_active=True,
+            activated_at=_utcnow(),
+        ))
+    else:
+        membership.is_active = True
+        membership.is_deleted = False
+
+
 def _can_review_intern_signup(db: Session, reviewer: User, intern: User, org_id: int | None = None) -> bool:
     if not intern.signup_invite_link_id:
         return False
@@ -964,6 +990,10 @@ async def review_intern_signup_request(user_id: int, request: Request, db: DbSes
         intern.is_active = True
         if intern.activated_at is None:
             intern.activated_at = _utcnow()
+        # The invite link decides which organization the intern joins.
+        link = db.get(InternInviteLink, intern.signup_invite_link_id)
+        join_org_id = (link.organization_id if link else None) or _resolve_admin_org_id(request, user, db)
+        _ensure_active_membership(db, intern, join_org_id, UserRole.INTERN)
         intern.signup_invite_link_id = None
         push_notification(
             db,
@@ -1177,10 +1207,11 @@ async def clear_database(request: Request, db: DbSession, data: ClearDataRequest
     if not user or not user.is_admin:
         raise HTTPException(status_code=403, detail="Only admins can clear the database.")
 
-    if not getattr(user, "is_platform_admin", False) and not Config.IS_LOCAL:
+    # The wipe spans every tenant, so it is reserved for platform admins in every environment.
+    if not is_platform_admin(user):
         raise HTTPException(
             status_code=403,
-            detail="Only Platform Super Admins can execute a global database wipe in development.",
+            detail="Only Platform Super Admins can execute a global database wipe.",
         )
 
     payload = await get_payload(request, data)

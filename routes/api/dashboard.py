@@ -770,7 +770,8 @@ def _build_intern_dashboard(request: Request, user: User, db: Session) -> dict:
 
 
 def _build_superadmin_dashboard(request: Request, user: User, db: Session) -> dict:
-    if not (user.is_platform_admin or user.is_superadmin or user.role in ("superadmin", "admin")):
+    # Platform-wide figures (every tenant's orgs and users): platform admins only, never org admins.
+    if not is_platform_admin(user):
         raise HTTPException(status_code=403, detail="Forbidden: Super Admin access required.")
 
     # 1. Organizations List & Stats

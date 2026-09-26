@@ -899,7 +899,9 @@ def clear_all_database_data(db: "Session", *, preserve_admin_users: bool = True)
     from sqlalchemy import text
 
     counts: dict[str, int] = {}
-    db.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
+    is_mysql = db.get_bind().dialect.name == "mysql"
+    if is_mysql:
+        db.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
 
     for model in (
         ProjectComment,
@@ -936,7 +938,8 @@ def clear_all_database_data(db: "Session", *, preserve_admin_users: bool = True)
         counts[User.__tablename__] = db.query(User).delete(synchronize_session=False)
         counts["admins_preserved"] = 0
 
-    db.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
+    if is_mysql:
+        db.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
 
     db.commit()
     return counts

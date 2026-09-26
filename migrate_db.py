@@ -71,6 +71,18 @@ def sync_schema() -> None:
         "migrations.20260927_bin_items_org_backfill"
     )
     bin_org_migration.upgrade(engine)
+    invite_membership_migration = importlib.import_module(
+        "migrations.20260927_invite_signup_memberships"
+    )
+    invite_membership_migration.upgrade(engine)
+    spurious_membership_migration = importlib.import_module(
+        "migrations.20260927_remove_spurious_default_org_memberships"
+    )
+    spurious_membership_migration.upgrade(engine)
+    self_registered_migration = importlib.import_module(
+        "migrations.20260927_self_registered_accounts"
+    )
+    self_registered_migration.upgrade(engine)
     print("[OK] Schema sync complete.")
 
 

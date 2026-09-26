@@ -420,6 +420,9 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.INTERN)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_platform_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Created through public self-registration: no organization access until an org
+    # admin adds the account or it joins through an invite link.
+    self_registered: Mapped[bool | None] = mapped_column(Boolean, default=False, nullable=True)
     activated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

@@ -976,15 +976,20 @@ def test_dashboard_notifications_profile_reviews_search_standup_users_apis(api_e
     resp = client.get("/intern/dashboard", headers=intern_headers)
     assert resp.status_code == 200
 
-    resp = client.get("/api/superadmin/dashboard", headers=admin_headers)
+    # Platform-wide dashboard: platform admins only; an org admin must not see other tenants.
+    super_headers = api_env["auth_headers"](api_env["super_admin"], with_org=False)
+    resp = client.get("/api/superadmin/dashboard", headers=super_headers)
     assert resp.status_code == 200
     data = resp.json()
     assert data["role"] == "superadmin"
     assert "organizations" in data
     assert "system_health" in data
 
-    resp = client.get("/superadmin/dashboard", headers=admin_headers)
+    resp = client.get("/superadmin/dashboard", headers=super_headers)
     assert resp.status_code == 200
+
+    resp = client.get("/api/superadmin/dashboard", headers=admin_headers)
+    assert resp.status_code == 403
 
     resp = client.get("/api/dashboard/present-today", headers=admin_headers)
     assert resp.status_code == 200
