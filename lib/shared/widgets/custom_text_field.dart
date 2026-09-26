@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_spacing.dart';
+import '../../core/constants/app_typography.dart';
 
+/// Labelled text field. Borders, fill and focus colors come from the theme's
+/// InputDecorationTheme.
 class CustomTextField extends StatelessWidget {
   final String? label;
   final String? hint;
@@ -41,20 +43,11 @@ class CustomTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (label != null) ...[
-          Text(
-            label!,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
-            ),
-          ),
+          Text(label!, style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
           const SizedBox(height: 8),
         ],
         TextFormField(
@@ -67,69 +60,12 @@ class CustomTextField extends StatelessWidget {
           onChanged: onChanged,
           validator: validator,
           inputFormatters: inputFormatters,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: isDark ? Colors.white : AppColors.textPrimaryLight,
-          ),
+          style: AppTypography.body.copyWith(color: AppColors.ink, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: hint ?? hintText,
-            hintStyle: TextStyle(
-              fontSize: 14,
-              color: isDark ? Colors.white38 : AppColors.textTertiaryLight,
-            ),
             errorText: errorText,
-            errorStyle: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.danger,
-            ),
-            prefixIcon: prefixIcon != null
-                ? Icon(
-                    prefixIcon,
-                    size: 20,
-                    color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
-                  )
-                : null,
+            prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20) : null,
             suffixIcon: suffixIcon,
-            filled: true,
-            fillColor: isDark ? AppColors.surfaceDark : Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.r16),
-              borderSide: BorderSide(
-                color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                width: 1.2,
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.r16),
-              borderSide: BorderSide(
-                color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                width: 1.2,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.r16),
-              borderSide: const BorderSide(
-                color: AppColors.primary,
-                width: 1.8,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.r16),
-              borderSide: const BorderSide(
-                color: AppColors.danger,
-                width: 1.2,
-              ),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.r16),
-              borderSide: const BorderSide(
-                color: AppColors.danger,
-                width: 1.8,
-              ),
-            ),
           ),
         ),
       ],

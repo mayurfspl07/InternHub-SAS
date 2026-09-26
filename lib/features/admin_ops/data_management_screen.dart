@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/page_header.dart';
+import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/custom_text_field.dart';
@@ -30,6 +31,11 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+          side: BorderSide(color: AppColors.border),
+        ),
         title: const Row(
           children: [
             Icon(Icons.warning_amber_rounded, color: AppColors.danger, size: 28),
@@ -64,6 +70,10 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.danger,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.rPill),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),
             onPressed: () async {
               final pwd = _passwordController.text;
@@ -71,7 +81,7 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
               Navigator.pop(ctx);
               await _executeClearDatabase(pwd);
             },
-            child: const Text('Purge All Data'),
+            child: const Text('Purge All Data', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -111,28 +121,26 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: AppBar(
-        title: Text(
-          'Data Management',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
-        ),
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      backgroundColor: AppColors.canvas,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              PageHeader(
+                title: 'Data Management',
+                padding: EdgeInsets.zero,
+              ),
+              const SizedBox(height: 20),
             Text(
               'Administrative Operations',
-              style: GoogleFonts.outfit(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                color: AppColors.ink,
               ),
             ),
             const SizedBox(height: 6),
@@ -140,7 +148,7 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
               'Perform high-privilege system and database operations for your organization.',
               style: TextStyle(
                 fontSize: 13,
-                color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                color: AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: 24),
@@ -162,7 +170,7 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF2E0F17) : const Color(0xFFFFF1F2),
+                color: AppColors.dangerSoft,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
               ),
@@ -182,7 +190,7 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
                       const SizedBox(width: 12),
                       Text(
                         'Danger Zone',
-                        style: GoogleFonts.outfit(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: AppColors.danger,
@@ -201,7 +209,7 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       height: 1.4,
-                      color: isDark ? Colors.white70 : Colors.black87,
+                      color: AppColors.ink,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -217,6 +225,7 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/api_config.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/page_header.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/custom_text_field.dart';
@@ -104,17 +104,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: AppBar(
-        title: Text(
-          'Create Account',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
-        ),
-        elevation: 0,
-      ),
+      backgroundColor: AppColors.canvas,
+      appBar: pageAppBar(context, title: 'Create Account'),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -130,10 +123,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 const SizedBox(height: 20),
                 Text(
                   'Join as an Intern',
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                    color: AppColors.ink,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -141,7 +134,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   'Create your account to start logging attendance and managing tasks',
                   style: TextStyle(
                     fontSize: 13,
-                    color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -247,7 +240,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         'I agree to the Terms of Service & Privacy Policy',
                         style: TextStyle(
                           fontSize: 13,
-                          color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ),
@@ -268,7 +261,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     children: [
                       Text(
                         'Already have an account? ',
-                        style: TextStyle(fontSize: 13, color: isDark ? Colors.white60 : AppColors.textSecondaryLight),
+                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                       ),
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
@@ -277,7 +270,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
+                            color: AppColors.primaryInk,
                           ),
                         ),
                       ),

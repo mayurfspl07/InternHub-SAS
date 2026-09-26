@@ -11,7 +11,6 @@ class LeaveAttachmentViewer {
     required int leaveId,
     String? filename,
   }) async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Show loading indicator dialog
     showDialog(
@@ -21,7 +20,7 @@ class LeaveAttachmentViewer {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceDark : Colors.white,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
           ),
           child: const Column(
@@ -83,7 +82,7 @@ class LeaveAttachmentViewer {
                   bottom: 12,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black87,
+                      backgroundColor: AppColors.ink,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     ),

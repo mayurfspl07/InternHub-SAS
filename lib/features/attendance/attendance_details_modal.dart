@@ -11,7 +11,6 @@ class AttendanceDetailsModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final checkInStr = DateFormat('hh:mm a').format(record.checkInTime);
     final checkOutStr = record.checkOutTime != null
         ? DateFormat('hh:mm a').format(record.checkOutTime!)
@@ -27,7 +26,7 @@ class AttendanceDetailsModal extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.backgroundDark : Colors.white,
+        color: Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SingleChildScrollView(
@@ -40,7 +39,7 @@ class AttendanceDetailsModal extends StatelessWidget {
                 width: 44,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: AppColors.border,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -57,8 +56,8 @@ class AttendanceDetailsModal extends StatelessWidget {
                       'Attendance Record',
                       style: TextStyle(
                         fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -66,7 +65,7 @@ class AttendanceDetailsModal extends StatelessWidget {
                       dateStr,
                       style: TextStyle(
                         fontSize: 13,
-                        color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -80,29 +79,29 @@ class AttendanceDetailsModal extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: isDark ? AppColors.surfaceDark : const Color(0xFFF3F4F6),
+                color: AppColors.surfaceMuted,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildTimeColumn('Check-In', checkInStr, Icons.login_rounded, isDark),
-                  Container(width: 1, height: 36, color: Colors.grey.shade300),
-                  _buildTimeColumn('Check-Out', checkOutStr, Icons.logout_rounded, isDark),
-                  Container(width: 1, height: 36, color: Colors.grey.shade300),
-                  _buildTimeColumn('Total Hours', hoursWorked, Icons.timer_outlined, isDark),
+                  _buildTimeColumn('Check-In', checkInStr, Icons.login_rounded),
+                  Container(width: 1, height: 36, color: AppColors.border),
+                  _buildTimeColumn('Check-Out', checkOutStr, Icons.logout_rounded),
+                  Container(width: 1, height: 36, color: AppColors.border),
+                  _buildTimeColumn('Total Hours', hoursWorked, Icons.timer_outlined),
                 ],
               ),
             ),
             const SizedBox(height: 20),
 
             // Audit Metadata
-            _buildAuditRow('User Name', record.userName ?? '—', isDark),
-            _buildAuditRow('GPS Coordinates', '${record.latitude.toStringAsFixed(5)}, ${record.longitude.toStringAsFixed(5)}', isDark),
-            _buildAuditRow('Geofence Verification', record.isInsideGeofence ? 'Passed (Authorized)' : 'Outside Geofence', isDark),
-            _buildAuditRow('Address', record.locationAddress, isDark),
+            _buildAuditRow('User Name', record.userName ?? '—'),
+            _buildAuditRow('GPS Coordinates', '${record.latitude.toStringAsFixed(5)}, ${record.longitude.toStringAsFixed(5)}'),
+            _buildAuditRow('Geofence Verification', record.isInsideGeofence ? 'Passed (Authorized)' : 'Outside Geofence'),
+            _buildAuditRow('Address', record.locationAddress),
             if (record.overrideReason != null && record.overrideReason!.isNotEmpty)
-              _buildAuditRow('Override Reason', record.overrideReason!, isDark),
+              _buildAuditRow('Override Reason', record.overrideReason!),
 
             // Photo preview if available
             if (record.selfieUrl != null && record.selfieUrl!.isNotEmpty) ...[
@@ -120,10 +119,10 @@ class AttendanceDetailsModal extends StatelessWidget {
                     height: 100,
                     width: 100,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
+                      color: AppColors.border,
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(Icons.broken_image_rounded, color: Colors.grey),
+                    child: const Icon(Icons.broken_image_rounded, color: AppColors.textTertiary),
                   ),
                 ),
               ),
@@ -135,31 +134,31 @@ class AttendanceDetailsModal extends StatelessWidget {
     );
   }
 
-  Widget _buildTimeColumn(String label, String value, IconData icon, bool isDark) {
+  Widget _buildTimeColumn(String label, String value, IconData icon) {
     return Column(
       children: [
-        Icon(icon, size: 18, color: AppColors.primary),
+        Icon(icon, size: 18, color: AppColors.primaryInk),
         const SizedBox(height: 4),
         Text(
           value,
           style: TextStyle(
             fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: isDark ? Colors.white : AppColors.textPrimaryLight,
+            fontWeight: FontWeight.w700,
+            color: AppColors.ink,
           ),
         ),
         Text(
           label,
           style: TextStyle(
             fontSize: 11,
-            color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+            color: AppColors.textSecondary,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildAuditRow(String label, String value, bool isDark) {
+  Widget _buildAuditRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -172,7 +171,7 @@ class AttendanceDetailsModal extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                color: AppColors.textSecondary,
               ),
             ),
           ),
@@ -182,7 +181,7 @@ class AttendanceDetailsModal extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                color: AppColors.ink,
               ),
             ),
           ),

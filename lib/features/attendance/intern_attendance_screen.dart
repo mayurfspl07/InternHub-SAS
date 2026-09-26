@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/attendance_model.dart';
+import '../../shared/widgets/horizontal_date_strip.dart';
 import 'attendance_repository.dart';
 import 'checkin_checkout_screen.dart';
 import 'widgets/attendance_day_detail_modal.dart';
@@ -113,22 +115,22 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
   Color _getStatusBgColor(String status) {
     switch (status.toLowerCase()) {
       case 'present':
-        return const Color(0xFFD1FAE5); // Mint light
+        return AppColors.successSoft; // Mint light
       case 'late':
-        return const Color(0xFFFEF3C7); // Yellow light
+        return AppColors.warningSoft; // Yellow light
       case 'half_day':
       case 'halfday':
-        return const Color(0xFFE0F2FE); // Blue light
+        return AppColors.infoSoft; // Blue light
       case 'absent':
-        return const Color(0xFFFEE2E2); // Red light
+        return AppColors.dangerSoft; // Red light
       case 'on_leave':
       case 'leave':
-        return const Color(0xFFEDE9FE); // Purple light
+        return AppColors.lavender; // Purple light
       case 'excused':
-        return const Color(0xFFCCFBF1); // Teal light
+        return AppColors.successSoft; // Teal light
       case 'week_off':
       case 'off':
-        return const Color(0xFFF3F4F6); // Grey light
+        return AppColors.surfaceMuted; // Grey light
       default:
         return Colors.transparent;
     }
@@ -137,24 +139,24 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
   Color _getStatusTextColor(String status) {
     switch (status.toLowerCase()) {
       case 'present':
-        return const Color(0xFF065F46);
+        return AppColors.successInk;
       case 'late':
-        return const Color(0xFF92400E);
+        return AppColors.warningInk;
       case 'half_day':
       case 'halfday':
-        return const Color(0xFF0369A1);
+        return AppColors.infoInk;
       case 'absent':
-        return const Color(0xFF991B1B);
+        return AppColors.dangerInk;
       case 'on_leave':
       case 'leave':
-        return const Color(0xFF5B21B6);
+        return AppColors.lavenderInk;
       case 'excused':
-        return const Color(0xFF115E59);
+        return AppColors.successInk;
       case 'week_off':
       case 'off':
-        return const Color(0xFF4B5563);
+        return AppColors.textSecondary;
       default:
-        return AppColors.textPrimaryLight;
+        return AppColors.ink;
     }
   }
 
@@ -197,7 +199,6 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final now = DateTime.now();
     final todayStr = DateFormat('yyyy-MM-dd').format(now);
 
@@ -209,7 +210,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
     final daysLogged = _calculateDaysLogged();
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadData,
@@ -221,68 +222,15 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Top Header Row
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.cardDark : Colors.white,
-                        borderRadius: BorderRadius.circular(AppSpacing.r16),
-                        border: Border.all(
-                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.calendar_month_rounded,
-                        color: Color(0xFFF59E0B),
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Attendance',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Track your daily check-ins, hours worked, and monthly attendance calendar.',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Export CSV button
-                    OutlinedButton.icon(
-                      onPressed: () => InternAttendanceExportDialog.show(context),
-                      icon: const Icon(Icons.download_rounded, size: 16),
-                      label: const Text(
-                        'Export CSV',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: isDark ? Colors.white : AppColors.textPrimaryLight,
-                        side: BorderSide(
-                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                        ),
-                      ),
+                PageHeader(
+                  title: 'Attendance',
+                  subtitle: 'Check-ins, hours and your monthly calendar',
+                  padding: EdgeInsets.zero,
+                  actions: [
+                    HeaderAction(
+                      icon: Icons.download_rounded,
+                      tooltip: 'Export CSV',
+                      onTap: () => InternAttendanceExportDialog.show(context),
                     ),
                   ],
                 ),
@@ -292,86 +240,133 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                 ],
                 const SizedBox(height: 20),
 
-                // Not Checked In Alert Banner (Screenshot 4)
-                if (notCheckedIn) ...[
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF2C1C16) : const Color(0xFFFEF3C7).withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(AppSpacing.r20),
-                      border: Border.all(
-                        color: isDark ? const Color(0xFF78350F) : const Color(0xFFFDE68A),
-                        width: 1.5,
+                // 1) HORIZONTAL DATE STRIP (Screen 2)
+                HorizontalDateStrip(
+                  selectedDate: (_currentMonth.year == DateTime.now().year && _currentMonth.month == DateTime.now().month)
+                      ? DateTime.now()
+                      : _currentMonth,
+                  onDateSelected: (date) {
+                    setState(() {
+                      _currentMonth = DateTime(date.year, date.month, 1);
+                    });
+                    _changeMonth(0);
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // 2) 3 STAT CARDS (Screen 2: Present, Absent, Late)
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(AppSpacing.r20),
+        boxShadow: AppShadows.soft,
+      ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: const BoxDecoration(
+                                color: AppColors.success,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                  '${daysLogged.toString().padLeft(2, "0")} Present',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.ink,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF1F2937),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.access_time_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "You haven't checked in today",
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                  color: isDark ? Colors.white : const Color(0xFF111827),
-                                ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(AppSpacing.r20),
+        boxShadow: AppShadows.soft,
+      ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: const BoxDecoration(
+                                color: AppColors.danger,
+                                shape: BoxShape.circle,
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                "Verify your selfie photo & GPS location to log today's hours.",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDark ? Colors.white70 : const Color(0xFF4B5563),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        ElevatedButton.icon(
-                          onPressed: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const CheckinCheckoutScreen(isCheckOut: false),
-                              ),
-                            );
-                            _loadData();
-                          },
-                          icon: const Text(
-                            'Check in now',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                          ),
-                          label: const Icon(Icons.arrow_forward_rounded, size: 14),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF111827),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppSpacing.rPill),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                  '02 Absent',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.ink,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(AppSpacing.r20),
+        boxShadow: AppShadows.soft,
+      ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: const BoxDecoration(
+                                color: AppColors.warning,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                  '01 Late',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.ink,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
 
                 // Layout: Today's Shift Card & Monthly Attendance Card
                 LayoutBuilder(
@@ -384,7 +379,6 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                           Expanded(
                             flex: 4,
                             child: _buildTodayShiftCard(
-                              isDark: isDark,
                               notCheckedIn: notCheckedIn,
                               canCheckOut: canCheckOut,
                               todayHours: todayHours,
@@ -396,7 +390,6 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                           Expanded(
                             flex: 6,
                             child: _buildMonthlyAttendanceCard(
-                              isDark: isDark,
                               todayStr: todayStr,
                             ),
                           ),
@@ -406,7 +399,6 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                       return Column(
                         children: [
                           _buildTodayShiftCard(
-                            isDark: isDark,
                             notCheckedIn: notCheckedIn,
                             canCheckOut: canCheckOut,
                             todayHours: todayHours,
@@ -415,7 +407,6 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                           ),
                           const SizedBox(height: 20),
                           _buildMonthlyAttendanceCard(
-                            isDark: isDark,
                             todayStr: todayStr,
                           ),
                         ],
@@ -435,7 +426,6 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
   // CARD 1: TODAY'S SHIFT
   // -----------------------------------------------------------------
   Widget _buildTodayShiftCard({
-    required bool isDark,
     required bool notCheckedIn,
     required bool canCheckOut,
     required double todayHours,
@@ -448,11 +438,9 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(AppSpacing.r24),
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-        ),
+        boxShadow: AppShadows.soft,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -463,12 +451,12 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                  color: AppColors.warning.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(AppSpacing.r12),
                 ),
                 child: const Icon(
                   Icons.access_time_rounded,
-                  color: Color(0xFFF59E0B),
+                  color: AppColors.warning,
                   size: 20,
                 ),
               ),
@@ -477,8 +465,8 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                 "Today's Shift",
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
                 ),
               ),
             ],
@@ -492,10 +480,10 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: isDark ? AppColors.surfaceDark : const Color(0xFFF9FAFB),
+                    color: AppColors.surfaceMuted,
                     borderRadius: BorderRadius.circular(AppSpacing.r16),
                     border: Border.all(
-                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      color: AppColors.border,
                     ),
                   ),
                   child: Column(
@@ -506,7 +494,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                          color: AppColors.textSecondary,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -515,8 +503,8 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                         loginTime,
                         style: TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
                         ),
                       ),
                     ],
@@ -528,10 +516,10 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: isDark ? AppColors.surfaceDark : const Color(0xFFF9FAFB),
+                    color: AppColors.surfaceMuted,
                     borderRadius: BorderRadius.circular(AppSpacing.r16),
                     border: Border.all(
-                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      color: AppColors.border,
                     ),
                   ),
                   child: Column(
@@ -542,7 +530,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                          color: AppColors.textSecondary,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -551,8 +539,8 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                         logoutTime,
                         style: TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
                         ),
                       ),
                     ],
@@ -571,10 +559,10 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFFCA8A04) : AppColors.cardYellow,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(AppSpacing.r16),
                     border: Border.all(
-                      color: isDark ? const Color(0xFFA16207) : const Color(0xFFE5C522),
+                      color: AppColors.primary,
                     ),
                   ),
                   child: Column(
@@ -584,8 +572,8 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                         'HOURS TODAY',
                         style: TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white70 : const Color(0xFF713F12),
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.warningInk,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -594,8 +582,8 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                         '${todayHours.toStringAsFixed(1)} hrs',
                         style: const TextStyle(
                           fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.black87,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
                         ),
                       ),
                     ],
@@ -608,10 +596,10 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF6D28D9) : const Color(0xFFDDD6FE),
+                    color: AppColors.lavender,
                     borderRadius: BorderRadius.circular(AppSpacing.r16),
                     border: Border.all(
-                      color: isDark ? const Color(0xFF5B21B6) : const Color(0xFFC4B5FD),
+                      color: AppColors.lavender,
                     ),
                   ),
                   child: Column(
@@ -621,8 +609,8 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                         'MONTH TOTAL',
                         style: TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white70 : const Color(0xFF4C1D95),
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.lavenderInk,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -631,8 +619,8 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                         '${monthHours.toStringAsFixed(1)} hrs',
                         style: TextStyle(
                           fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          color: isDark ? Colors.white : const Color(0xFF2E1065),
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.lavenderInk,
                         ),
                       ),
                       Text(
@@ -640,7 +628,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white60 : const Color(0xFF5B21B6),
+                          color: AppColors.lavenderInk,
                         ),
                       ),
                     ],
@@ -671,20 +659,17 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                   icon: const Icon(Icons.login_rounded, size: 18),
                   label: const Text(
                     'Check In',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.cardYellow,
-                    foregroundColor: Colors.black87,
-                    disabledBackgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
-                    disabledForegroundColor: isDark ? Colors.white38 : Colors.grey.shade400,
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.onPrimary,
+                    disabledBackgroundColor: AppColors.border,
+                    disabledForegroundColor: AppColors.textTertiary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                      side: BorderSide(
-                        color: notCheckedIn ? const Color(0xFFD97706) : Colors.transparent,
-                      ),
                     ),
                   ),
                 ),
@@ -707,19 +692,19 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                   icon: const Icon(Icons.logout_rounded, size: 18),
                   label: const Text(
                     'Check Out',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFCA5A5), // Light red/pink
-                    foregroundColor: const Color(0xFF7F1D1D),
-                    disabledBackgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
-                    disabledForegroundColor: isDark ? Colors.white38 : Colors.grey.shade400,
+                    backgroundColor: AppColors.dangerSoft, // Light red/pink
+                    foregroundColor: AppColors.dangerInk,
+                    disabledBackgroundColor: AppColors.border,
+                    disabledForegroundColor: AppColors.textTertiary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppSpacing.rPill),
                       side: BorderSide(
-                        color: canCheckOut ? const Color(0xFFEF4444) : Colors.transparent,
+                        color: canCheckOut ? AppColors.danger : Colors.transparent,
                       ),
                     ),
                   ),
@@ -736,7 +721,6 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
   // CARD 2: MONTHLY ATTENDANCE
   // -----------------------------------------------------------------
   Widget _buildMonthlyAttendanceCard({
-    required bool isDark,
     required String todayStr,
   }) {
     final monthLabel = DateFormat('MMMM yyyy').format(_currentMonth);
@@ -744,11 +728,9 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(AppSpacing.r24),
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-        ),
+        boxShadow: AppShadows.soft,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -757,7 +739,8 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
+              Expanded(
+                child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
@@ -767,30 +750,36 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                     ),
                     child: const Icon(
                       Icons.date_range_rounded,
-                      color: AppColors.primary,
+                      color: AppColors.primaryInk,
                       size: 20,
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Text(
+                  Flexible(
+                    child: Text(
                     'Monthly Attendance',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
                     ),
+                  ),
                   ),
                 ],
               ),
+              ),
+              const SizedBox(width: 8),
 
               // Calendar | List Toggle Pill (Screenshot 4)
               Container(
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : const Color(0xFFF3F4F6),
+                  color: AppColors.surfaceMuted,
                   borderRadius: BorderRadius.circular(AppSpacing.rPill),
                   border: Border.all(
-                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    color: AppColors.border,
                   ),
                 ),
                 child: Row(
@@ -798,13 +787,11 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                     _buildToggleItem(
                       title: 'Calendar',
                       isSelected: _viewMode == 'calendar',
-                      isDark: isDark,
                       onTap: () => setState(() => _viewMode = 'calendar'),
                     ),
                     _buildToggleItem(
                       title: 'List',
                       isSelected: _viewMode == 'list',
-                      isDark: isDark,
                       onTap: () => setState(() => _viewMode = 'list'),
                     ),
                   ],
@@ -822,7 +809,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                 IconButton(
                   onPressed: () => _changeMonth(-1),
                   icon: const Icon(Icons.chevron_left_rounded),
-                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                  color: AppColors.ink,
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -830,29 +817,29 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                     monthLabel,
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
                     ),
                   ),
                 ),
                 IconButton(
                   onPressed: () => _changeMonth(1),
                   icon: const Icon(Icons.chevron_right_rounded),
-                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                  color: AppColors.ink,
                 ),
               ],
             ),
             const SizedBox(height: 12),
 
             // Calendar Grid
-            _buildCalendarGrid(isDark: isDark, todayStr: todayStr),
+            _buildCalendarGrid(todayStr: todayStr),
             const SizedBox(height: 20),
 
             // Status Legend Row
-            _buildLegend(isDark: isDark),
+            _buildLegend(),
           ] else ...[
             // List View Mode
-            _buildListView(isDark: isDark),
+            _buildListView(),
           ],
         ],
       ),
@@ -862,7 +849,6 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
   Widget _buildToggleItem({
     required String title,
     required bool isSelected,
-    required bool isDark,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -871,7 +857,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? (isDark ? AppColors.cardYellowDark : AppColors.cardYellow)
+              ? AppColors.primary
               : Colors.transparent,
           borderRadius: BorderRadius.circular(AppSpacing.rPill),
         ),
@@ -879,17 +865,17 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
           title,
           style: TextStyle(
             fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
             color: isSelected
-                ? Colors.black87
-                : (isDark ? Colors.white70 : AppColors.textSecondaryLight),
+                ? AppColors.ink
+                : AppColors.textSecondary,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildCalendarGrid({required bool isDark, required String todayStr}) {
+  Widget _buildCalendarGrid({required String todayStr}) {
     const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     final year = _currentMonth.year;
     final month = _currentMonth.month;
@@ -926,7 +912,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white54 : AppColors.textTertiaryLight,
+                        color: AppColors.textTertiary,
                       ),
                     ),
                   ),
@@ -986,9 +972,9 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: isToday
-                            ? const Color(0xFFEF4444) // Today ring
+                            ? AppColors.danger // Today ring
                             : (bg == Colors.transparent
-                                ? (isDark ? AppColors.borderDark : const Color(0xFFE5E7EB))
+                                ? AppColors.border
                                 : Colors.transparent),
                         width: isToday ? 2 : 1,
                       ),
@@ -998,9 +984,9 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                         '$dayNumber',
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
+                          fontWeight: isToday ? FontWeight.w700 : FontWeight.w600,
                           color: resolvedStatus == 'upcoming'
-                              ? (isDark ? Colors.white38 : Colors.grey.shade400)
+                              ? AppColors.textTertiary
                               : fg,
                         ),
                       ),
@@ -1015,14 +1001,14 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
     );
   }
 
-  Widget _buildLegend({required bool isDark}) {
+  Widget _buildLegend() {
     final items = [
-      ('Present', const Color(0xFF10B981)),
-      ('Late', const Color(0xFFEAB308)),
-      ('Half-Day', const Color(0xFF0284C7)),
-      ('Absent', const Color(0xFFEF4444)),
-      ('Leave', const Color(0xFF8B5CF6)),
-      ('Off', const Color(0xFF6B7280)),
+      ('Present', AppColors.success),
+      ('Late', AppColors.warning),
+      ('Half-Day', AppColors.info),
+      ('Absent', AppColors.danger),
+      ('Leave', AppColors.lavenderInk),
+      ('Off', AppColors.textSecondary),
     ];
 
     return Wrap(
@@ -1047,7 +1033,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -1056,7 +1042,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
     );
   }
 
-  Widget _buildListView({required bool isDark}) {
+  Widget _buildListView() {
     if (_monthRecords.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 36),
@@ -1064,7 +1050,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
           child: Text(
             'No records found for this month.',
             style: TextStyle(
-              color: isDark ? Colors.white54 : AppColors.textSecondaryLight,
+              color: AppColors.textSecondary,
             ),
           ),
         ),
@@ -1092,10 +1078,10 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.surfaceDark : const Color(0xFFF9FAFB),
+              color: AppColors.surfaceMuted,
               borderRadius: BorderRadius.circular(AppSpacing.r16),
               border: Border.all(
-                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                color: AppColors.border,
               ),
             ),
             child: Row(
@@ -1110,7 +1096,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                          color: AppColors.ink,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -1118,7 +1104,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                         '$inStr - $outStr',
                         style: TextStyle(
                           fontSize: 11,
-                          color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -1144,8 +1130,8 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                   hours,
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -1154,7 +1140,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                   icon: const Icon(Icons.chevron_right_rounded, size: 18),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                  color: AppColors.textSecondary,
                 ),
               ],
             ),
@@ -1170,7 +1156,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
               'Page $_listPage of $totalPages ($total records)',
               style: TextStyle(
                 fontSize: 12,
-                color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                color: AppColors.textSecondary,
               ),
             ),
             Row(
@@ -1178,7 +1164,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                 IconButton(
                   onPressed: _listPage > 1 ? () => setState(() => _listPage--) : null,
                   icon: const Icon(Icons.chevron_left_rounded, size: 20),
-                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                  color: AppColors.ink,
                 ),
                 Text(
                   '$_listPage',
@@ -1187,7 +1173,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                 IconButton(
                   onPressed: _listPage < totalPages ? () => setState(() => _listPage++) : null,
                   icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                  color: AppColors.ink,
                 ),
               ],
             ),

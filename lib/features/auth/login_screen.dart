@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../dashboard/main_navigation_wrapper.dart';
 
@@ -129,7 +129,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     width: 44,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.3),
+                      color: AppColors.textTertiary.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -137,32 +137,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 18),
                 Text(
                   'Reset Password',
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF111827),
+                    color: AppColors.ink,
                   ),
                 ),
                 const SizedBox(height: 6),
                 const Text(
                   'Enter your email address and we will send you password reset instructions.',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 20),
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF9FAFB),
+                    color: AppColors.surfaceMuted,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: TextField(
                     controller: resetEmailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
                       hintText: 'Enter your email',
-                      hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-                      prefixIcon: Icon(Icons.mail_outline_rounded, color: Color(0xFF7C3AED), size: 20),
+                      hintStyle: TextStyle(color: AppColors.textTertiary, fontSize: 14),
+                      prefixIcon: Icon(Icons.mail_outline_rounded, color: AppColors.primaryInk, size: 20),
                       border: InputBorder.none,
+                      filled: false,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
                   ),
@@ -180,23 +183,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('If that email is registered, instructions have been sent.'),
-                                backgroundColor: Color(0xFF7C3AED),
+                                backgroundColor: AppColors.ink,
                               ),
                             );
                           }
                         },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF111827),
-                    foregroundColor: Colors.white,
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     elevation: 0,
                   ),
                   child: isSubmitting
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary),
                         )
                       : const Text('Send Instructions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 ),
@@ -278,10 +280,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         Center(
                           child: Text(
                             'Welcome Back!',
-                            style: GoogleFonts.outfit(
+                            style: TextStyle(
                               fontSize: 27,
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFF111827),
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.ink,
                               letterSpacing: -0.4,
                             ),
                           ),
@@ -292,10 +294,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         Center(
                           child: Text(
                             'Sign in to continue your journey',
-                            style: GoogleFonts.plusJakartaSans(
+                            style: TextStyle(
                               fontSize: 13.5,
                               fontWeight: FontWeight.w500,
-                              color: const Color(0xFF6B7280),
+                              color: AppColors.textSecondary,
                             ),
                           ),
                         ),
@@ -349,10 +351,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         // 1. Email or Phone Label & Field
                         Text(
                           'Email or Phone',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1F2937),
+                            color: AppColors.ink,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -360,7 +362,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.92),
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFD1D5DB), width: 1.2),
+                            border: Border.all(color: AppColors.border, width: 1.2),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.02),
@@ -372,24 +374,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           child: TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
-                            style: GoogleFonts.plusJakartaSans(
+                            style: TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w500,
-                              color: const Color(0xFF111827),
+                              color: AppColors.ink,
                             ),
                             decoration: const InputDecoration(
                               hintText: 'Enter your email or phone',
                               hintStyle: TextStyle(
-                                color: Color(0xFF9CA3AF),
+                                color: AppColors.textTertiary,
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w400,
                               ),
                               prefixIcon: Icon(
                                 Icons.mail_outline_rounded,
-                                color: Color(0xFF9CA3AF),
+                                color: AppColors.textTertiary,
                                 size: 20,
                               ),
                               border: InputBorder.none,
+                              filled: false,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
                               contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
                             ),
                             validator: (val) {
@@ -405,10 +410,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         // 2. Password Label & Field
                         Text(
                           'Password',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1F2937),
+                            color: AppColors.ink,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -416,7 +421,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.92),
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFD1D5DB), width: 1.2),
+                            border: Border.all(color: AppColors.border, width: 1.2),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.02),
@@ -428,21 +433,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           child: TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
-                            style: GoogleFonts.plusJakartaSans(
+                            style: TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w500,
-                              color: const Color(0xFF111827),
+                              color: AppColors.ink,
                             ),
                             decoration: InputDecoration(
                               hintText: 'Enter your password',
                               hintStyle: const TextStyle(
-                                color: Color(0xFF9CA3AF),
+                                color: AppColors.textTertiary,
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w400,
                               ),
                               prefixIcon: const Icon(
                                 Icons.lock_outline_rounded,
-                                color: Color(0xFF9CA3AF),
+                                color: AppColors.textTertiary,
                                 size: 20,
                               ),
                               suffixIcon: IconButton(
@@ -450,7 +455,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   _obscurePassword
                                       ? Icons.visibility_off_outlined
                                       : Icons.visibility_outlined,
-                                  color: const Color(0xFF6B7280),
+                                  color: AppColors.textSecondary,
                                   size: 20,
                                 ),
                                 onPressed: () {
@@ -458,6 +463,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 },
                               ),
                               border: InputBorder.none,
+                              filled: false,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
                               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
                             ),
                             validator: (val) {
@@ -486,20 +494,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     child: Checkbox(
                                       value: _rememberMe,
                                       onChanged: (val) => setState(() => _rememberMe = val ?? true),
-                                      activeColor: const Color(0xFF111827),
+                                      activeColor: AppColors.ink,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(4),
                                       ),
-                                      side: const BorderSide(color: Color(0xFF9CA3AF), width: 1.4),
+                                      side: const BorderSide(color: AppColors.textTertiary, width: 1.4),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
                                     'Remember me',
-                                    style: GoogleFonts.plusJakartaSans(
+                                    style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
-                                      color: const Color(0xFF374151),
+                                      color: AppColors.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -511,10 +519,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               onTap: _showForgotPasswordDialog,
                               child: Text(
                                 'Forgot Password?',
-                                style: GoogleFonts.plusJakartaSans(
+                                style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF7C3AED),
+                                  color: AppColors.primaryInk,
                                 ),
                               ),
                             ),
@@ -526,15 +534,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         Container(
                           height: 52,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF111827),
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.18),
-                                blurRadius: 14,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(AppSpacing.rPill),
                           ),
                           child: ElevatedButton(
                             onPressed: (_isLoading || (_retryAfterCountdown != null && _retryAfterCountdown! > 0))
@@ -543,9 +544,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
                             ),
                             child: _isLoading
                                 ? const SizedBox(
@@ -553,7 +551,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     width: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: Colors.white,
+                                      color: AppColors.onPrimary,
                                     ),
                                   )
                                 : Row(
@@ -563,17 +561,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         (_retryAfterCountdown != null && _retryAfterCountdown! > 0)
                                             ? 'Retry in ${_retryAfterCountdown}s'
                                             : 'Login',
-                                        style: GoogleFonts.plusJakartaSans(
+                                        style: TextStyle(
                                           fontSize: 15.5,
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.white,
+                                          color: AppColors.onPrimary,
                                           letterSpacing: 0.2,
                                         ),
                                       ),
                                       const SizedBox(width: 8),
                                       const Icon(
                                         Icons.arrow_forward_rounded,
-                                        color: Colors.white,
+                                        color: AppColors.onPrimary,
                                         size: 18,
                                       ),
                                     ],

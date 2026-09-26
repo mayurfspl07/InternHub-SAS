@@ -84,7 +84,7 @@ class _CreateReviewBottomSheetState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to publish review: $e'),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -95,15 +95,18 @@ class _CreateReviewBottomSheetState
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final state = ref.watch(appStateProvider);
     final interns = state.users.where((u) => u.role == UserRole.intern).toList();
 
-    return Padding(
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       padding: EdgeInsets.only(
         left: 24,
         right: 24,
-        top: 24,
+        top: 16,
         bottom: MediaQuery.of(context).viewInsets.bottom + 32,
       ),
       child: SingleChildScrollView(
@@ -116,7 +119,7 @@ class _CreateReviewBottomSheetState
                 width: 44,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: AppColors.border,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -127,8 +130,8 @@ class _CreateReviewBottomSheetState
               'Submit 360 Performance Review ⭐',
               style: TextStyle(
                 fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
               ),
             ),
             const SizedBox(height: 6),
@@ -136,7 +139,7 @@ class _CreateReviewBottomSheetState
               'Evaluate intern milestones, competencies, and areas for growth.',
               style: TextStyle(
                 fontSize: 13,
-                color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                color: AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: 20),
@@ -148,7 +151,7 @@ class _CreateReviewBottomSheetState
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                  color: AppColors.ink,
                 ),
               ),
               const SizedBox(height: 8),
@@ -157,14 +160,14 @@ class _CreateReviewBottomSheetState
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    color: AppColors.border,
                   ),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _selectedInternId ?? interns.first.id,
                     isExpanded: true,
-                    dropdownColor: isDark ? AppColors.surfaceDark : Colors.white,
+                    dropdownColor: Colors.white,
                     items: interns.map((u) {
                       return DropdownMenuItem<String>(
                         value: u.id,
@@ -194,7 +197,7 @@ class _CreateReviewBottomSheetState
               min: 1.0,
               max: 5.0,
               divisions: 8,
-              activeColor: Colors.amber,
+              activeColor: AppColors.primary,
               onChanged: (val) => setState(() => _overallRating = val),
             ),
 
@@ -220,7 +223,7 @@ class _CreateReviewBottomSheetState
               min: 1.0,
               max: 5.0,
               divisions: 8,
-              activeColor: AppColors.accent,
+              activeColor: AppColors.info,
               onChanged: (val) => setState(() => _communicationRating = val),
             ),
 
@@ -233,7 +236,7 @@ class _CreateReviewBottomSheetState
               min: 1.0,
               max: 5.0,
               divisions: 8,
-              activeColor: Colors.teal,
+              activeColor: AppColors.success,
               onChanged: (val) => setState(() => _initiativeRating = val),
             ),
             const SizedBox(height: 12),

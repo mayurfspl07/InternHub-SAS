@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/attendance_model.dart';
@@ -140,42 +141,42 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
   Color _getStatusBg(String status) {
     switch (status.toLowerCase()) {
       case 'present':
-        return const Color(0xFFD1FAE5);
+        return AppColors.successSoft;
       case 'late':
-        return const Color(0xFFFEF3C7);
+        return AppColors.warningSoft;
       case 'half_day':
       case 'halfday':
-        return const Color(0xFFE0F2FE);
+        return AppColors.infoSoft;
       case 'absent':
-        return const Color(0xFFFEE2E2);
+        return AppColors.dangerSoft;
       case 'on_leave':
       case 'leave':
-        return const Color(0xFFEDE9FE);
+        return AppColors.lavender;
       case 'excused':
-        return const Color(0xFFCCFBF1);
+        return AppColors.successSoft;
       default:
-        return const Color(0xFFF3F4F6);
+        return AppColors.surfaceMuted;
     }
   }
 
   Color _getStatusText(String status) {
     switch (status.toLowerCase()) {
       case 'present':
-        return const Color(0xFF065F46);
+        return AppColors.successInk;
       case 'late':
-        return const Color(0xFF92400E);
+        return AppColors.warningInk;
       case 'half_day':
       case 'halfday':
-        return const Color(0xFF0369A1);
+        return AppColors.infoInk;
       case 'absent':
-        return const Color(0xFF991B1B);
+        return AppColors.dangerInk;
       case 'on_leave':
       case 'leave':
-        return const Color(0xFF5B21B6);
+        return AppColors.lavenderInk;
       case 'excused':
-        return const Color(0xFF115E59);
+        return AppColors.successInk;
       default:
-        return const Color(0xFF374151);
+        return AppColors.textSecondary;
     }
   }
 
@@ -191,11 +192,10 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) {
-          final isDark = Theme.of(ctx).brightness == Brightness.dark;
           return AlertDialog(
-            backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+            backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r24)),
-            title: const Text('Add Manual Attendance Record', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+            title: const Text('Add Manual Attendance Record', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -284,11 +284,10 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) {
-          final isDark = Theme.of(ctx).brightness == Brightness.dark;
           return AlertDialog(
-            backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+            backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r24)),
-            title: Text('Edit Record (${record.date})', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+            title: Text('Edit Record (${record.date})', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -408,7 +407,6 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = ref.read(appStateProvider).currentUser;
     final isMentor = user.role == UserRole.mentor;
     final isAdmin = user.role == UserRole.admin || user.role == UserRole.superadmin;
@@ -417,7 +415,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
     final dateFormat = DateFormat('dd/MM/yyyy');
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _fetchData,
@@ -428,53 +426,15 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top: Back Button
-                InkWell(
-                  onTap: () => Navigator.pop(context),
-                  borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.arrow_back_rounded, size: 18),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Back to Attendance',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Title & Subtitle
-                Text(
-                  studentName,
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Student attendance details, summary, and records.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
-                  ),
+                PageHeader(
+                  title: studentName,
+                  subtitle: 'Attendance summary and records',
+                  padding: EdgeInsets.zero,
                 ),
                 const SizedBox(height: 16),
 
                 // Card 1: Student Information (Clean 2-Column Grid)
-                _buildStudentInfoCard(isDark),
+                _buildStudentInfoCard(),
                 const SizedBox(height: 20),
 
                 // Card 2: Attendance Overview (10 Stat Cards - Balanced 2-Column Grid)
@@ -482,16 +442,16 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                   'Attendance Overview',
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
                   ),
                 ),
                 const SizedBox(height: 10),
-                _buildOverviewGrid(isDark),
+                _buildOverviewGrid(),
                 const SizedBox(height: 20),
 
                 // Monthly Summary
-                _buildMonthlySummarySection(isDark),
+                _buildMonthlySummarySection(),
 
                 // Card 3: Attendance Records Section
                 Row(
@@ -501,8 +461,8 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                       'Attendance Records',
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
                       ),
                     ),
                     if (isAdmin)
@@ -519,11 +479,9 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: isDark ? AppColors.cardDark : Colors.white,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(AppSpacing.r20),
-                    border: Border.all(
-                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                    ),
+                    boxShadow: AppShadows.soft,
                   ),
                   child: Column(
                     children: [
@@ -539,7 +497,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                                    color: AppColors.textSecondary,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
@@ -552,7 +510,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(AppSpacing.r12),
                                       border: Border.all(
-                                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                        color: AppColors.border,
                                       ),
                                     ),
                                     child: Row(
@@ -564,14 +522,14 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                             color: _filterFrom != null
-                                                ? (isDark ? Colors.white : AppColors.textPrimaryLight)
-                                                : AppColors.textTertiaryLight,
+                                                ? AppColors.ink
+                                                : AppColors.textTertiary,
                                           ),
                                         ),
                                         Icon(
                                           Icons.calendar_today_outlined,
                                           size: 14,
-                                          color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                                          color: AppColors.textSecondary,
                                         ),
                                       ],
                                     ),
@@ -590,7 +548,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                                    color: AppColors.textSecondary,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
@@ -603,7 +561,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(AppSpacing.r12),
                                       border: Border.all(
-                                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                        color: AppColors.border,
                                       ),
                                     ),
                                     child: Row(
@@ -615,14 +573,14 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                             color: _filterTo != null
-                                                ? (isDark ? Colors.white : AppColors.textPrimaryLight)
-                                                : AppColors.textTertiaryLight,
+                                                ? AppColors.ink
+                                                : AppColors.textTertiary,
                                           ),
                                         ),
                                         Icon(
                                           Icons.calendar_today_outlined,
                                           size: 14,
-                                          color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                                          color: AppColors.textSecondary,
                                         ),
                                       ],
                                     ),
@@ -649,7 +607,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                                    color: AppColors.textSecondary,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
@@ -660,7 +618,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(AppSpacing.r12),
                                     border: Border.all(
-                                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                      color: AppColors.border,
                                     ),
                                   ),
                                   child: DropdownButtonHideUnderline(
@@ -670,9 +628,9 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
-                                        color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                        color: AppColors.ink,
                                       ),
-                                      dropdownColor: isDark ? AppColors.cardDark : Colors.white,
+                                      dropdownColor: Colors.white,
                                       items: const [
                                         DropdownMenuItem(value: 'All', child: Text('All statuses')),
                                         DropdownMenuItem(value: 'present', child: Text('Present')),
@@ -715,9 +673,9 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
                                 ),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                  foregroundColor: AppColors.ink,
                                   side: BorderSide(
-                                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                    color: AppColors.border,
                                   ),
                                   padding: const EdgeInsets.symmetric(horizontal: 8),
                                   shape: RoundedRectangleBorder(
@@ -747,24 +705,22 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 40),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.cardDark : Colors.white,
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(AppSpacing.r20),
-                      border: Border.all(
-                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                      ),
+                      boxShadow: AppShadows.soft,
                     ),
                     child: Center(
                       child: Text(
                         'No attendance records found.',
                         style: TextStyle(
                           fontSize: 13,
-                          color: isDark ? Colors.white54 : AppColors.textSecondaryLight,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ),
                   )
                 else
-                  _buildRecordsList(isDark, isAdmin),
+                  _buildRecordsList(isAdmin),
               ],
             ),
           ),
@@ -773,15 +729,13 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
     );
   }
 
-  Widget _buildStudentInfoCard(bool isDark) {
+  Widget _buildStudentInfoCard() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(AppSpacing.r24),
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-        ),
+        boxShadow: AppShadows.soft,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -790,8 +744,8 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
             'Student Information',
             style: TextStyle(
               fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
             ),
           ),
           const SizedBox(height: 14),
@@ -803,13 +757,13 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildInfoItem('NAME', _student?.name ?? '—', isDark),
+                    _buildInfoItem('NAME', _student?.name ?? '—'),
                     const SizedBox(height: 12),
-                    _buildInfoItem('DEPARTMENT', _student?.department ?? '—', isDark),
+                    _buildInfoItem('DEPARTMENT', _student?.department ?? '—'),
                     const SizedBox(height: 12),
-                    _buildInfoItem('JOB TITLE', _student?.jobTitle ?? '—', isDark),
+                    _buildInfoItem('JOB TITLE', _student?.jobTitle ?? '—'),
                     const SizedBox(height: 12),
-                    _buildInfoItem('JOINING DATE', _student?.joiningDate ?? '—', isDark),
+                    _buildInfoItem('JOINING DATE', _student?.joiningDate ?? '—'),
                   ],
                 ),
               ),
@@ -818,18 +772,17 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildInfoItem('EMAIL', _student?.email ?? '—', isDark),
+                    _buildInfoItem('EMAIL', _student?.email ?? '—'),
                     const SizedBox(height: 12),
-                    _buildInfoItem('PHONE', _student?.phone ?? '—', isDark),
+                    _buildInfoItem('PHONE', _student?.phone ?? '—'),
                     const SizedBox(height: 12),
                     _buildInfoItem(
                       'STATUS',
                       _student?.isActive == true ? 'Active' : 'Inactive',
-                      isDark,
                       isBadge: true,
                     ),
                     const SizedBox(height: 12),
-                    _buildInfoItem('MENTOR', _student?.mentorName ?? '—', isDark),
+                    _buildInfoItem('MENTOR', _student?.mentorName ?? '—'),
                   ],
                 ),
               ),
@@ -840,7 +793,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
     );
   }
 
-  Widget _buildInfoItem(String label, String value, bool isDark, {bool isBadge = false}) {
+  Widget _buildInfoItem(String label, String value, {bool isBadge = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -849,7 +802,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
           style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w700,
-            color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+            color: AppColors.textSecondary,
             letterSpacing: 0.5,
           ),
         ),
@@ -858,7 +811,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: const Color(0xFFD1FAE5),
+              color: AppColors.successSoft,
               borderRadius: BorderRadius.circular(AppSpacing.rPill),
             ),
             child: Text(
@@ -866,7 +819,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF065F46),
+                color: AppColors.successInk,
               ),
             ),
           )
@@ -876,7 +829,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+              color: AppColors.ink,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -885,7 +838,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
     );
   }
 
-  Widget _buildOverviewGrid(bool isDark) {
+  Widget _buildOverviewGrid() {
     final totals = _totals;
     final pairs = [
       [('PRESENT', totals?.present.toString() ?? '0'), ('ABSENT', totals?.absent.toString() ?? '0')],
@@ -904,9 +857,9 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
           padding: const EdgeInsets.only(bottom: 8),
           child: Row(
             children: [
-              Expanded(child: _buildStatCard(pair[0].$1, pair[0].$2, isDark)),
+              Expanded(child: _buildStatCard(pair[0].$1, pair[0].$2)),
               const SizedBox(width: 8),
-              Expanded(child: _buildStatCard(pair[1].$1, pair[1].$2, isDark)),
+              Expanded(child: _buildStatCard(pair[1].$1, pair[1].$2)),
             ],
           ),
         );
@@ -914,15 +867,13 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
     );
   }
 
-  Widget _buildStatCard(String label, String value, bool isDark) {
+  Widget _buildStatCard(String label, String value) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(AppSpacing.r16),
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-        ),
+        boxShadow: AppShadows.soft,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -932,7 +883,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+              color: AppColors.textSecondary,
               letterSpacing: 0.5,
             ),
             maxLines: 1,
@@ -943,8 +894,8 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
             value,
             style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
             ),
           ),
         ],
@@ -952,7 +903,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
     );
   }
 
-  Widget _buildMonthlySummarySection(bool isDark) {
+  Widget _buildMonthlySummarySection() {
     if (_monthlySummaries.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -961,8 +912,8 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
           'Monthly Summary',
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: isDark ? Colors.white : AppColors.textPrimaryLight,
+            fontWeight: FontWeight.w700,
+            color: AppColors.ink,
           ),
         ),
         const SizedBox(height: 10),
@@ -971,11 +922,9 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.cardDark : Colors.white,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(AppSpacing.r16),
-              border: Border.all(
-                color: isDark ? AppColors.borderDark : AppColors.borderLight,
-              ),
+              boxShadow: AppShadows.soft,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -987,8 +936,8 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                       m.yearMonth,
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
                       ),
                     ),
                     Text(
@@ -996,7 +945,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
+                        color: AppColors.primaryInk,
                       ),
                     ),
                   ],
@@ -1006,11 +955,11 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                   spacing: 6,
                   runSpacing: 4,
                   children: [
-                    _buildMiniBadge('Present', m.present, const Color(0xFF10B981)),
-                    _buildMiniBadge('Late', m.late, const Color(0xFFEAB308)),
-                    _buildMiniBadge('Half-Day', m.halfDay, const Color(0xFF0284C7)),
-                    _buildMiniBadge('Absent', m.absent, const Color(0xFFEF4444)),
-                    _buildMiniBadge('Leave', m.onLeave, const Color(0xFF8B5CF6)),
+                    _buildMiniBadge('Present', m.present, AppColors.success),
+                    _buildMiniBadge('Late', m.late, AppColors.warning),
+                    _buildMiniBadge('Half-Day', m.halfDay, AppColors.info),
+                    _buildMiniBadge('Absent', m.absent, AppColors.danger),
+                    _buildMiniBadge('Leave', m.onLeave, AppColors.lavenderInk),
                   ],
                 ),
               ],
@@ -1040,7 +989,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
     );
   }
 
-  Widget _buildRecordsList(bool isDark, bool isAdmin) {
+  Widget _buildRecordsList(bool isAdmin) {
     return Column(
       children: [
         ..._records.map((r) {
@@ -1067,11 +1016,9 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: isDark ? AppColors.cardDark : Colors.white,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(AppSpacing.r16),
-                border: Border.all(
-                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                ),
+                boxShadow: AppShadows.soft,
               ),
               child: Row(
                 children: [
@@ -1084,7 +1031,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                            color: AppColors.ink,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -1094,7 +1041,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                             fontSize: 11,
                             color: r.checkoutMissed
                                 ? AppColors.danger
-                                : (isDark ? Colors.white60 : AppColors.textSecondaryLight),
+                                : AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -1120,8 +1067,8 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                     hours,
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -1129,7 +1076,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                     icon: Icon(
                       Icons.more_horiz_rounded,
                       size: 18,
-                      color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                      color: AppColors.textSecondary,
                     ),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -1180,7 +1127,7 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
               'Page $_page of $_totalPages ($_totalRecords records)',
               style: TextStyle(
                 fontSize: 12,
-                color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                color: AppColors.textSecondary,
               ),
             ),
             Row(
@@ -1202,15 +1149,15 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.cardYellow,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(AppSpacing.r8),
                   ),
                   child: Text(
                     '$_page',
                     style: const TextStyle(
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       fontSize: 12,
-                      color: Colors.black87,
+                      color: AppColors.ink,
                     ),
                   ),
                 ),

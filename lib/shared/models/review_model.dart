@@ -60,7 +60,7 @@ class ReviewModel {
     final tech = (json['technical_rating'] as num?)?.toDouble() ?? 4.5;
     final comm = (json['communication_rating'] as num?)?.toDouble() ?? 4.5;
     final init = (json['initiative_rating'] as num?)?.toDouble() ?? 4.5;
-    final overall = (json['overall_rating'] as num?)?.toDouble() ?? ((tech + comm + init) / 3.0);
+    final overall = (json['rating'] as num?)?.toDouble() ?? (json['overall_rating'] as num?)?.toDouble() ?? ((tech + comm + init) / 3.0);
 
     return ReviewModel(
       id: json['id']?.toString() ?? '',

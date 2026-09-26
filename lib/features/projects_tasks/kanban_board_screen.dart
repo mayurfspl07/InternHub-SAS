@@ -22,7 +22,6 @@ class _KanbanBoardScreenState extends ConsumerState<KanbanBoardScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final tasks = state.tasks;
 
     final columnTasks = tasks.where((t) => t.status == _activeColumn).toList();
@@ -35,13 +34,13 @@ class _KanbanBoardScreenState extends ConsumerState<KanbanBoardScreen> {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20, vertical: 8),
           child: Row(
             children: [
-              _buildColumnPill(KanbanStatus.todo, 'To Do', tasks, isDark),
+              _buildColumnPill(KanbanStatus.todo, 'To Do', tasks),
               const SizedBox(width: 8),
-              _buildColumnPill(KanbanStatus.inProgress, 'In Progress', tasks, isDark),
+              _buildColumnPill(KanbanStatus.inProgress, 'In Progress', tasks),
               const SizedBox(width: 8),
-              _buildColumnPill(KanbanStatus.inReview, 'In Review', tasks, isDark),
+              _buildColumnPill(KanbanStatus.inReview, 'In Review', tasks),
               const SizedBox(width: 8),
-              _buildColumnPill(KanbanStatus.completed, 'Completed', tasks, isDark),
+              _buildColumnPill(KanbanStatus.completed, 'Completed', tasks),
             ],
           ),
         ),
@@ -60,14 +59,14 @@ class _KanbanBoardScreenState extends ConsumerState<KanbanBoardScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.task_alt_rounded, size: 54, color: isDark ? Colors.white38 : AppColors.textSecondaryLight),
+                            Icon(Icons.task_alt_rounded, size: 54, color: AppColors.textSecondary),
                             const SizedBox(height: 12),
                             Text(
                               'No tasks in ${_activeColumn.name.toUpperCase()}',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                color: AppColors.ink,
                               ),
                             ),
                             const SizedBox(height: 14),
@@ -95,7 +94,7 @@ class _KanbanBoardScreenState extends ConsumerState<KanbanBoardScreen> {
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final task = columnTasks[index];
-                      return _buildKanbanCard(task, isDark);
+                      return _buildKanbanCard(task);
                     },
                   ),
           ),
@@ -104,7 +103,7 @@ class _KanbanBoardScreenState extends ConsumerState<KanbanBoardScreen> {
     );
   }
 
-  Widget _buildColumnPill(KanbanStatus status, String title, List<TaskModel> allTasks, bool isDark) {
+  Widget _buildColumnPill(KanbanStatus status, String title, List<TaskModel> allTasks) {
     final isSelected = _activeColumn == status;
     final count = allTasks.where((t) => t.status == status).length;
 
@@ -114,14 +113,10 @@ class _KanbanBoardScreenState extends ConsumerState<KanbanBoardScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.actionCircleDark
-              : (isDark ? AppColors.surfaceDark : Colors.white),
+          color: isSelected ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.circular(AppSpacing.rPill),
           border: Border.all(
-            color: isSelected
-                ? AppColors.actionCircleDark
-                : (isDark ? AppColors.borderDark : AppColors.borderLight),
+            color: isSelected ? AppColors.primary : AppColors.border,
           ),
         ),
         child: Row(
@@ -130,17 +125,15 @@ class _KanbanBoardScreenState extends ConsumerState<KanbanBoardScreen> {
               title,
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                color: isSelected
-                    ? Colors.white
-                    : (isDark ? Colors.white70 : AppColors.textPrimaryLight),
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                color: AppColors.ink,
               ),
             ),
             const SizedBox(width: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.white24 : AppColors.primaryLight,
+                color: isSelected ? AppColors.surface : AppColors.primarySoft,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -148,7 +141,7 @@ class _KanbanBoardScreenState extends ConsumerState<KanbanBoardScreen> {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? Colors.white : AppColors.primary,
+                  color: isSelected ? AppColors.ink : AppColors.primaryInk,
                 ),
               ),
             ),
@@ -158,7 +151,7 @@ class _KanbanBoardScreenState extends ConsumerState<KanbanBoardScreen> {
     );
   }
 
-  Widget _buildKanbanCard(TaskModel task, bool isDark) {
+  Widget _buildKanbanCard(TaskModel task) {
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
@@ -168,18 +161,9 @@ class _KanbanBoardScreenState extends ConsumerState<KanbanBoardScreen> {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : Colors.white,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isDark ? AppColors.borderDark : AppColors.borderLight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: AppShadows.soft,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,8 +204,8 @@ class _KanbanBoardScreenState extends ConsumerState<KanbanBoardScreen> {
               task.title,
               style: TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
               ),
             ),
             const SizedBox(height: 6),
@@ -231,7 +215,7 @@ class _KanbanBoardScreenState extends ConsumerState<KanbanBoardScreen> {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 13,
-                color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                color: AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: 16),
@@ -243,7 +227,7 @@ class _KanbanBoardScreenState extends ConsumerState<KanbanBoardScreen> {
                 if (task.checklist.isNotEmpty)
                   Row(
                     children: [
-                      const Icon(Icons.check_circle_outline_rounded, size: 16, color: AppColors.primary),
+                      const Icon(Icons.check_circle_outline_rounded, size: 16, color: AppColors.primaryInk),
                       const SizedBox(width: 4),
                       Text(
                         '${task.checklist.where((c) => c.isCompleted).length}/${task.checklist.length}',

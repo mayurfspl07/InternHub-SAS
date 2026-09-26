@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/models/leave_model.dart';
 import '../leave_repository.dart';
@@ -99,12 +98,11 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final req = widget.request;
     final isApprove = widget.isApprove;
 
     return Dialog(
-      backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+      backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: ConstrainedBox(
@@ -124,7 +122,7 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                     height: 38,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isApprove ? AppColors.cardYellow : AppColors.danger.withValues(alpha: 0.15),
+                      color: isApprove ? AppColors.primary : AppColors.danger.withValues(alpha: 0.15),
                     ),
                     child: Icon(
                       isApprove ? Icons.check_rounded : Icons.close_rounded,
@@ -139,10 +137,10 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                       children: [
                         Text(
                           isApprove ? 'Approve Leave Request' : 'Reject Leave Request',
-                          style: GoogleFonts.outfit(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                            color: AppColors.ink,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -150,7 +148,7 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                           'Review leave request for ${req.userName}.',
                           style: TextStyle(
                             fontSize: 12.5,
-                            color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -160,7 +158,7 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                     icon: const Icon(Icons.close_rounded, size: 22),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                    color: AppColors.textSecondary,
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -171,10 +169,10 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.cardDark : const Color(0xFFF9FAFB),
+                  color: AppColors.surfaceMuted,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isDark ? AppColors.borderDark : const Color(0xFFE5E7EB),
+                    color: AppColors.border,
                   ),
                 ),
                 child: Column(
@@ -183,23 +181,21 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                     _buildSummaryRow(
                       label: 'Duration:',
                       value: '${req.start_date} → ${req.end_date} (${req.days} day(s))',
-                      isDark: isDark,
                     ),
                     const SizedBox(height: 8),
                     _buildSummaryRow(
                       label: 'Type:',
                       value: req.typeLabel,
-                      isDark: isDark,
                     ),
                     const SizedBox(height: 8),
-                    Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                    Divider(height: 1, color: AppColors.border),
                     const SizedBox(height: 8),
                     Text(
                       'Reason:',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white54 : AppColors.textSecondaryLight,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -208,7 +204,7 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                       style: TextStyle(
                         fontSize: 13,
                         fontStyle: FontStyle.italic,
-                        color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                        color: AppColors.ink,
                       ),
                     ),
                   ],
@@ -222,15 +218,15 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                   Icon(
                     Icons.chat_bubble_outline_rounded,
                     size: 16,
-                    color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                    color: AppColors.textSecondary,
                   ),
                   const SizedBox(width: 6),
                   Text(
                     'Reviewer Comment (Optional)',
-                    style: GoogleFonts.outfit(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                      color: AppColors.ink,
                     ),
                   ),
                 ],
@@ -241,7 +237,7 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                 maxLines: 3,
                 style: TextStyle(
                   fontSize: 13.5,
-                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                  color: AppColors.ink,
                 ),
                 decoration: InputDecoration(
                   hintText: isApprove
@@ -249,23 +245,23 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                       : 'Provide a reason for rejection...',
                   hintStyle: TextStyle(
                     fontSize: 13,
-                    color: isDark ? Colors.white30 : AppColors.textTertiaryLight,
+                    color: AppColors.textTertiary,
                   ),
                   filled: true,
-                  fillColor: isDark ? AppColors.cardDark : Colors.white,
+                  fillColor: Colors.white,
                   contentPadding: const EdgeInsets.all(12),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                    borderSide: BorderSide(color: AppColors.border),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                    borderSide: BorderSide(color: AppColors.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(
-                      color: isApprove ? AppColors.cardYellow : AppColors.danger,
+                      color: isApprove ? AppColors.primary : AppColors.danger,
                       width: 1.5,
                     ),
                   ),
@@ -282,20 +278,21 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
               const SizedBox(height: 22),
 
               // Action Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              Wrap(
+                alignment: WrapAlignment.end,
+                runSpacing: 8,
                 children: [
                   OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      side: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                      side: BorderSide(color: AppColors.border),
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     ),
                     onPressed: _isSubmitting ? null : () => Navigator.pop(context),
                     child: Text(
                       'Cancel',
                       style: TextStyle(
-                        color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                        color: AppColors.ink,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -303,7 +300,7 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                   const SizedBox(width: 10),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isApprove ? AppColors.cardYellow : AppColors.danger,
+                      backgroundColor: isApprove ? AppColors.primary : AppColors.danger,
                       foregroundColor: isApprove ? Colors.black : Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -321,7 +318,7 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                           )
                         : Text(
                             isApprove ? 'Confirm Approval' : 'Confirm Rejection',
-                            style: GoogleFonts.outfit(
+                            style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 13.5,
                             ),
@@ -339,7 +336,6 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
   Widget _buildSummaryRow({
     required String label,
     required String value,
-    required bool isDark,
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -349,15 +345,15 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white54 : AppColors.textSecondaryLight,
+            color: AppColors.textSecondary,
           ),
         ),
         Text(
           value,
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w700,
-            color: isDark ? Colors.white : AppColors.textPrimaryLight,
+            color: AppColors.ink,
           ),
         ),
       ],

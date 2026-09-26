@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/profile_overview_model.dart';
 import '../../shared/models/user_model.dart';
-import 'app_avatar.dart';
 import 'status_chip.dart';
+import 'reference_components.dart';
 
 class User360ProfileDialog extends ConsumerStatefulWidget {
   final String userId;
@@ -66,13 +66,12 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = _overview?.user ?? widget.fallbackUser;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
+        color: Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
@@ -83,7 +82,7 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
             width: 44,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey.withValues(alpha: 0.3),
+              color: AppColors.textTertiary.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -92,60 +91,51 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                AppAvatar(
-                  url: user?.avatarUrl,
-                  size: 56,
-                  borderColor: AppColors.primary,
-                  borderWidth: 2,
-                  fallbackText: user?.name ?? 'User',
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        user?.name ?? 'User Profile',
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                        ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.border,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        user?.email ?? '',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          StatusChip(
-                            label: user?.role.toApiValue().toUpperCase() ?? 'INTERN',
-                            statusType: StatusType.info,
-                          ),
-                          const SizedBox(width: 8),
-                          if (user?.department != null && user!.department!.isNotEmpty)
-                            Text(
-                              user.department!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
+                    ),
+                    child: Icon(
+                      Icons.arrow_back_rounded,
+                      size: 18,
+                      color: AppColors.ink,
+                    ),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Navigator.pop(context),
+                Text(
+                  'Member Profile',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.border,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.star_border_rounded,
+                    size: 20,
+                    color: AppColors.ink,
+                  ),
                 ),
               ],
             ),
@@ -153,17 +143,24 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
           const Divider(height: 1),
 
           // Tabs
-          TabBar(
-            controller: _tabController,
-            labelColor: AppColors.primary,
-            unselectedLabelColor: isDark ? Colors.white60 : Colors.grey.shade600,
-            indicatorColor: AppColors.primary,
-            tabs: const [
-              Tab(text: 'Overview'),
-              Tab(text: 'Projects'),
-              Tab(text: 'Tasks'),
-              Tab(text: 'Attendance'),
-            ],
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceMuted,
+              borderRadius: BorderRadius.circular(AppSpacing.rPill),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              tabs: const [
+                Tab(height: 34, text: 'Overview'),
+                Tab(height: 34, text: 'Projects'),
+                Tab(height: 34, text: 'Tasks'),
+                Tab(height: 34, text: 'Attendance'),
+              ],
+            ),
           ),
 
           // Tab content
@@ -177,6 +174,55 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
                       ListView(
                         padding: const EdgeInsets.all(20),
                         children: [
+                          CustomerHeroHeader(
+                            name: user?.name ?? 'Member',
+                            subtitle: [
+                              if (user?.roleTitle != null && user!.roleTitle.isNotEmpty) user.roleTitle,
+                              if (user?.department != null && user!.department!.isNotEmpty) user.department!,
+                            ].join(' · '),
+                            avatarUrl: user?.avatarUrl,
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Detailed Information Header
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Detailed Information',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.ink,
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceMuted,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(Icons.edit_outlined, size: 16, color: AppColors.ink),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceMuted,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(Icons.arrow_outward_rounded, size: 16, color: AppColors.ink),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+
                           _buildDetailRow(context, 'Role Title', user?.roleTitle ?? 'N/A'),
                           _buildDetailRow(context, 'Department', user?.department ?? 'N/A'),
                           _buildDetailRow(context, 'Phone', user?.phone ?? 'N/A'),
@@ -190,7 +236,7 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
                           if (_overview?.stats.isNotEmpty ?? false) ...[
                             Text(
                               'Key Performance Indicators',
-                              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 12),
                             Wrap(
@@ -200,21 +246,21 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
                                 return Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                   decoration: BoxDecoration(
-                                    color: isDark ? AppColors.surfaceDark : const Color(0xFFF9FAFB),
+                                    color: AppColors.surfaceMuted,
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                    border: Border.all(color: AppColors.border),
                                   ),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         e.key.replaceAll('_', ' ').toUpperCase(),
-                                        style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
+                                        style: TextStyle(fontSize: 10, color: AppColors.textTertiary, fontWeight: FontWeight.w600),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         e.value.toString(),
-                                        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
+                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                       ),
                                     ],
                                   ),
@@ -256,8 +302,8 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
                                   margin: const EdgeInsets.only(bottom: 12),
                                   child: ListTile(
                                     title: Text(t.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    subtitle: Text(t.projectName),
-                                    trailing: StatusChip(label: t.status.label, statusType: StatusType.info),
+                                    subtitle: Text(t.projectName ?? 'Project #${t.projectId}'),
+                                    trailing: StatusChip(label: t.status.toUpperCase(), statusType: StatusType.info),
                                   ),
                                 );
                               },
@@ -290,7 +336,6 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
   }
 
   Widget _buildDetailRow(BuildContext context, String label, String value) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -302,7 +347,7 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
               label,
               style: TextStyle(
                 fontSize: 13,
-                color: isDark ? Colors.white54 : AppColors.textSecondaryLight,
+                color: AppColors.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -313,7 +358,7 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                color: AppColors.ink,
               ),
             ),
           ),

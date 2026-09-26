@@ -135,15 +135,14 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final dateFormat = DateFormat('dd/MM/yyyy');
 
     return Dialog(
-      backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+      backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppSpacing.r24),
         side: BorderSide(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          color: AppColors.border,
         ),
       ),
       child: ConstrainedBox(
@@ -163,8 +162,8 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                         : 'Export Attendance',
                     style: TextStyle(
                       fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
                     ),
                   ),
                   IconButton(
@@ -172,7 +171,7 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                     icon: Icon(
                       Icons.close,
                       size: 20,
-                      color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                      color: AppColors.textSecondary,
                     ),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -184,7 +183,7 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                 'Filter and export attendance records to CSV / Excel.',
                 style: TextStyle(
                   fontSize: 13,
-                  color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                  color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 20),
@@ -200,7 +199,7 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -210,10 +209,10 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             decoration: BoxDecoration(
-                              color: isDark ? AppColors.cardDark : Colors.white,
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(AppSpacing.r12),
                               border: Border.all(
-                                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                color: AppColors.border,
                               ),
                             ),
                             child: Row(
@@ -224,13 +223,13 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                    color: AppColors.ink,
                                   ),
                                 ),
                                 Icon(
                                   Icons.calendar_today_outlined,
                                   size: 16,
-                                  color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                                  color: AppColors.textSecondary,
                                 ),
                               ],
                             ),
@@ -249,7 +248,7 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -259,10 +258,10 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             decoration: BoxDecoration(
-                              color: isDark ? AppColors.cardDark : Colors.white,
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(AppSpacing.r12),
                               border: Border.all(
-                                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                color: AppColors.border,
                               ),
                             ),
                             child: Row(
@@ -273,13 +272,13 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                    color: AppColors.ink,
                                   ),
                                 ),
                                 Icon(
                                   Icons.calendar_today_outlined,
                                   size: 16,
-                                  color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                                  color: AppColors.textSecondary,
                                 ),
                               ],
                             ),
@@ -301,24 +300,24 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.cardDark : Colors.white,
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(AppSpacing.r12),
                       border: Border.all(
-                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        color: AppColors.border,
                       ),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _selectedStatus,
                         isExpanded: true,
-                        dropdownColor: isDark ? AppColors.cardDark : Colors.white,
+                        dropdownColor: Colors.white,
                         items: const [
                           DropdownMenuItem(value: 'All', child: Text('All statuses')),
                           DropdownMenuItem(value: 'present', child: Text('Present')),
@@ -357,9 +356,9 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        foregroundColor: isDark ? Colors.white : AppColors.textPrimaryLight,
+                        foregroundColor: AppColors.ink,
                         side: BorderSide(
-                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          color: AppColors.border,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppSpacing.rPill),
@@ -374,7 +373,7 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                       onPressed: _isLoading ? null : _handleExport,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppColors.onPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppSpacing.rPill),
@@ -386,7 +385,7 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                               height: 18,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.onPrimary),
                               ),
                             )
                           : const Text(

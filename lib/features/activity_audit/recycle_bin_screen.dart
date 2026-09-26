@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 
@@ -11,27 +12,24 @@ class RecycleBinScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(appStateProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final items = state.recycleBin;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Recycle Bin 🗑️', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+      appBar: pageAppBar(
+        context,
+        title: 'Recycle Bin',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
+          HeaderAction(
+            icon: Icons.refresh_rounded,
             tooltip: 'Refresh',
-            onPressed: () => ref.read(appStateProvider.notifier).fetchRecycleBin(),
+            onTap: () => ref.read(appStateProvider.notifier).fetchRecycleBin(),
           ),
           if (items.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent),
+            HeaderAction(
+              icon: Icons.delete_sweep_rounded,
+              color: AppColors.danger,
               tooltip: 'Empty Recycle Bin',
-              onPressed: () => _confirmClearAll(context, ref),
+              onTap: () => _confirmClearAll(context, ref),
             ),
         ],
       ),
@@ -47,14 +45,14 @@ class RecycleBinScreen extends ConsumerWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.delete_outline_rounded, size: 64, color: isDark ? Colors.white38 : AppColors.textSecondaryLight),
+                          Icon(Icons.delete_outline_rounded, size: 64, color: AppColors.textSecondary),
                           const SizedBox(height: 16),
                           Text(
                             'Recycle bin is empty',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                              color: AppColors.ink,
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -62,7 +60,7 @@ class RecycleBinScreen extends ConsumerWidget {
                             'Deleted records with 30-day retention will appear here.',
                             style: TextStyle(
                               fontSize: 13,
-                              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                         ],
@@ -82,11 +80,9 @@ class RecycleBinScreen extends ConsumerWidget {
                     return Container(
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.surfaceDark : Colors.white,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                        ),
+                        boxShadow: AppShadows.soft,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -97,13 +93,13 @@ class RecycleBinScreen extends ConsumerWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFFEE2E2),
+                                  color: AppColors.dangerSoft,
                                   borderRadius: BorderRadius.circular(AppSpacing.rPill),
                                 ),
                                 child: Text(
                                   item.entityType.toUpperCase(),
                                   style: const TextStyle(
-                                    color: Color(0xFFB91C1C),
+                                    color: AppColors.dangerInk,
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -111,7 +107,7 @@ class RecycleBinScreen extends ConsumerWidget {
                               ),
                               Text(
                                 '${item.daysRemaining} days left to purge',
-                                style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600),
+                                style: const TextStyle(fontSize: 11, color: AppColors.textTertiary, fontWeight: FontWeight.w600),
                               ),
                             ],
                           ),
@@ -121,8 +117,8 @@ class RecycleBinScreen extends ConsumerWidget {
                             item.title,
                             style: TextStyle(
                               fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.ink,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -130,13 +126,14 @@ class RecycleBinScreen extends ConsumerWidget {
                             'Deleted by ${item.deletedBy} on $deletedDate',
                             style: TextStyle(
                               fontSize: 12,
-                              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 16),
 
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
+                          Wrap(
+                            alignment: WrapAlignment.end,
+                            runSpacing: 8,
                             children: [
                               TextButton.icon(
                                 onPressed: () async {
@@ -155,7 +152,7 @@ class RecycleBinScreen extends ConsumerWidget {
                                     }
                                   }
                                 },
-                                icon: const Icon(Icons.restore_from_trash_rounded, size: 18, color: AppColors.primary),
+                                icon: const Icon(Icons.restore_from_trash_rounded, size: 18, color: AppColors.primaryInk),
                                 label: const Text('Restore'),
                               ),
                               const SizedBox(width: 8),
@@ -219,7 +216,7 @@ class RecycleBinScreen extends ConsumerWidget {
                 }
               }
             },
-            child: const Text('Clear All', style: TextStyle(color: Colors.red)),
+            child: const Text('Clear All', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),

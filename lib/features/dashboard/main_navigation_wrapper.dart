@@ -1,35 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_spacing.dart';
+import '../../core/constants/app_typography.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/user_model.dart';
 import '../../shared/widgets/custom_app_bar.dart';
 import '../../shared/widgets/floating_bottom_nav.dart';
 import '../../shared/widgets/app_avatar.dart';
 import '../../shared/widgets/app_logo.dart';
+import '../../shared/widgets/logout_confirm_dialog.dart';
 import 'intern_dashboard_view.dart';
 import 'mentor_dashboard_view.dart';
 import 'admin_dashboard_view.dart';
+import 'widgets/quick_action_sheet.dart';
 import '../attendance/attendance_home_screen.dart';
 import '../projects_tasks/projects_list_screen.dart';
 import '../leaves/leave_dashboard_screen.dart';
 import '../leaves/leave_approval_queue_screen.dart';
-import '../standup/standup_screen.dart';
-import '../standup/standup_feed_screen.dart';
-import '../announcements/announcements_screen.dart';
-import '../notifications/notification_center_screen.dart';
-import '../performance/performance_dashboard_screen.dart';
-import '../directory_cohorts/cohort_management_screen.dart';
-import '../directory_cohorts/team_directory_screen.dart';
-import '../directory_cohorts/user_management_screen.dart';
-import '../assignments/assignments_screen.dart';
-import '../invites/invite_links_screen.dart';
-import '../activity_audit/activity_log_screen.dart';
-import '../activity_audit/recycle_bin_screen.dart';
-import '../admin_ops/data_management_screen.dart';
-import '../profile_settings/profile_screen.dart';
-import '../auth/login_screen.dart';
 
 class MainNavigationWrapper extends ConsumerStatefulWidget {
   const MainNavigationWrapper({super.key});
@@ -42,25 +30,24 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _currentTabIndex = 0;
 
+  // Standup (intern) and Notices (mentor/admin) live in the center "+" sheet and the drawer.
   List<NavItem> _getNavItemsForRole(UserRole role) {
     switch (role) {
       case UserRole.intern:
         return const [
-          NavItem(icon: Icons.dashboard_outlined, selectedIcon: Icons.dashboard_rounded, label: 'Dashboard'),
+          NavItem(icon: Icons.home_outlined, selectedIcon: Icons.home_rounded, label: 'Home'),
           NavItem(icon: Icons.fingerprint_rounded, selectedIcon: Icons.fingerprint_rounded, label: 'Attendance'),
           NavItem(icon: Icons.folder_outlined, selectedIcon: Icons.folder_rounded, label: 'Projects'),
           NavItem(icon: Icons.beach_access_outlined, selectedIcon: Icons.beach_access_rounded, label: 'Leave'),
-          NavItem(icon: Icons.chat_bubble_outline_rounded, selectedIcon: Icons.chat_bubble_rounded, label: 'Standup'),
         ];
       case UserRole.mentor:
       case UserRole.admin:
       case UserRole.superadmin:
         return const [
-          NavItem(icon: Icons.dashboard_outlined, selectedIcon: Icons.dashboard_rounded, label: 'Dashboard'),
+          NavItem(icon: Icons.home_outlined, selectedIcon: Icons.home_rounded, label: 'Home'),
           NavItem(icon: Icons.fingerprint_rounded, selectedIcon: Icons.fingerprint_rounded, label: 'Attendance'),
           NavItem(icon: Icons.folder_outlined, selectedIcon: Icons.folder_rounded, label: 'Projects'),
-          NavItem(icon: Icons.how_to_reg_outlined, selectedIcon: Icons.how_to_reg_rounded, label: 'Leave'),
-          NavItem(icon: Icons.campaign_outlined, selectedIcon: Icons.campaign_rounded, label: 'Notices'),
+          NavItem(icon: Icons.how_to_reg_outlined, selectedIcon: Icons.how_to_reg_rounded, label: 'Approvals'),
         ];
     }
   }
@@ -73,7 +60,6 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> {
           AttendanceHomeScreen(),
           ProjectsListScreen(),
           LeaveDashboardScreen(),
-          StandupScreen(),
         ];
       case UserRole.mentor:
         return const [
@@ -81,7 +67,6 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> {
           AttendanceHomeScreen(),
           ProjectsListScreen(),
           LeaveApprovalQueueScreen(),
-          AnnouncementsScreen(),
         ];
       case UserRole.admin:
       case UserRole.superadmin:
@@ -90,178 +75,113 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> {
           AttendanceHomeScreen(),
           ProjectsListScreen(),
           LeaveApprovalQueueScreen(),
-          AnnouncementsScreen(),
         ];
     }
   }
 
+  void _go(String route) {
+    Navigator.pop(context);
+    Navigator.pushNamed(context, route);
+  }
+
   Widget _buildRoleAwareDrawer(BuildContext context, UserModel user) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final role = user.role;
 
     return Drawer(
-      backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
       child: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Drawer Header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight)),
-              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const AppLogo.horizontal(height: 26),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      AppAvatar(url: user.avatarUrl, size: 48, fallbackText: user.name),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(user.name, style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 2),
-                            Text(
-                              user.roleTitle,
-                              style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : AppColors.textSecondaryLight),
-                            ),
-                          ],
+                  const SizedBox(height: 18),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(AppSpacing.rTile),
+                    ),
+                    child: Row(
+                      children: [
+                        AppAvatar(url: user.avatarUrl, size: 44, fallbackText: user.name),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(user.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.cardTitle),
+                              const SizedBox(height: 2),
+                              Text(user.roleTitle, style: AppTypography.caption),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-
-            // Drawer Items
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 children: [
                   if (role == UserRole.intern) ...[
-                    _drawerTile(Icons.assignment_outlined, 'Assignments', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const AssignmentsScreen()));
-                    }),
-                    _drawerTile(Icons.campaign_outlined, 'Announcements', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const AnnouncementsScreen()));
-                    }),
-                    _drawerTile(Icons.stars_outlined, 'Performance Reviews', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const PerformanceDashboardScreen()));
-                    }),
-                    _drawerTile(Icons.notifications_outlined, 'Notification Center', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationCenterScreen()));
-                    }),
-                    _drawerTile(Icons.person_outline_rounded, 'My Profile', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
-                    }),
+                    _drawerTile(Icons.chat_bubble_outline_rounded, 'Standup', () => _go('/standup')),
+                    _drawerTile(Icons.assignment_outlined, 'Assignments', () => _go('/intern-assignments')),
+                    _drawerTile(Icons.campaign_outlined, 'Announcements', () => _go('/announcements')),
+                    _drawerTile(Icons.article_outlined, 'Blogs', () => _go('/blogs')),
+                    _drawerTile(Icons.notifications_outlined, 'Notification Center', () => _go('/notifications')),
+                    _drawerTile(Icons.person_outline_rounded, 'My Profile', () => _go('/profile')),
                   ] else if (role == UserRole.mentor) ...[
-                    _drawerTile(Icons.people_alt_outlined, 'My Interns', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const UserManagementScreen()));
-                    }),
-                    _drawerTile(Icons.assignment_outlined, 'Intern Assignments', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const AssignmentsScreen()));
-                    }),
-                    _drawerTile(Icons.link_rounded, 'Invite Links', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const InviteLinksScreen()));
-                    }),
-                    _drawerTile(Icons.hub_outlined, 'Cohorts', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const CohortManagementScreen()));
-                    }),
-                    _drawerTile(Icons.forum_outlined, 'Standup Feed', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const StandupFeedScreen()));
-                    }),
-                    _drawerTile(Icons.stars_outlined, 'Reviews', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const PerformanceDashboardScreen()));
-                    }),
-                    _drawerTile(Icons.history_rounded, 'Activity Trail', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ActivityLogScreen()));
-                    }),
-                    _drawerTile(Icons.notifications_outlined, 'Notifications', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationCenterScreen()));
-                    }),
-                    _drawerTile(Icons.person_outline_rounded, 'Profile', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
-                    }),
+                    _drawerTile(Icons.people_alt_outlined, 'My Interns', () => _go('/admin')),
+                    _drawerTile(Icons.campaign_outlined, 'Announcements', () => _go('/announcements')),
+                    _drawerTile(Icons.assignment_outlined, 'Intern Assignments', () => _go('/intern-assignments')),
+                    _drawerTile(Icons.link_rounded, 'Invite Links', () => _go('/invite-links')),
+                    _drawerTile(Icons.chat_bubble_outline_rounded, 'Standup', () => _go('/standup')),
+                    _drawerTile(Icons.stars_outlined, 'Reviews', () => _go('/reviews')),
+                    _drawerTile(Icons.hub_outlined, 'Cohorts', () => _go('/cohorts')),
+                    _drawerTile(Icons.article_outlined, 'Blogs', () => _go('/blogs')),
+                    _drawerTile(Icons.insights_rounded, 'Activity', () => _go('/activity')),
+                    _drawerTile(Icons.notifications_outlined, 'Notifications', () => _go('/notifications')),
+                    _drawerTile(Icons.person_outline_rounded, 'Profile', () => _go('/profile')),
                   ] else ...[
-                    _drawerTile(Icons.people_outline_rounded, 'User Directory', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const UserManagementScreen()));
-                    }),
-                    _drawerTile(Icons.group_outlined, 'Team Directory', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const TeamDirectoryScreen()));
-                    }),
-                    _drawerTile(Icons.link_rounded, 'Invite Links & Signups', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const InviteLinksScreen()));
-                    }),
-                    _drawerTile(Icons.assignment_outlined, 'Intern Assignments', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const AssignmentsScreen()));
-                    }),
-                    _drawerTile(Icons.hub_outlined, 'Cohorts', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const CohortManagementScreen()));
-                    }),
-                    _drawerTile(Icons.stars_outlined, 'Performance Reviews', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const PerformanceDashboardScreen()));
-                    }),
-                    _drawerTile(Icons.history_rounded, 'Activity Audit Trail', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ActivityLogScreen()));
-                    }),
-                    _drawerTile(Icons.delete_outline_rounded, 'Recycle Bin', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const RecycleBinScreen()));
-                    }),
-                    _drawerTile(Icons.dangerous_outlined, 'Danger Zone (Data)', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const DataManagementScreen()));
-                    }, isDestructive: true),
-                    _drawerTile(Icons.notifications_outlined, 'Notifications', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationCenterScreen()));
-                    }),
-                    _drawerTile(Icons.person_outline_rounded, 'Profile', () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
-                    }),
+                    _drawerTile(Icons.people_outline_rounded, 'User Directory', () => _go('/admin')),
+                    _drawerTile(Icons.group_outlined, 'Team Directory', () => _go('/team')),
+                    _drawerTile(Icons.campaign_outlined, 'Announcements', () => _go('/announcements')),
+                    _drawerTile(Icons.link_rounded, 'Invite Links & Signups', () => _go('/invite-links')),
+                    _drawerTile(Icons.assignment_outlined, 'Intern Assignments', () => _go('/intern-assignments')),
+                    _drawerTile(Icons.chat_bubble_outline_rounded, 'Standup', () => _go('/standup')),
+                    _drawerTile(Icons.stars_outlined, 'Performance Reviews', () => _go('/reviews')),
+                    _drawerTile(Icons.hub_outlined, 'Cohorts', () => _go('/cohorts')),
+                    _drawerTile(Icons.article_outlined, 'Blogs', () => _go('/blogs')),
+                    _drawerTile(Icons.insights_rounded, 'Activity', () => _go('/activity')),
+                    _drawerTile(Icons.delete_outline_rounded, 'Recycle Bin', () => _go('/bin')),
+                    _drawerTile(Icons.dangerous_outlined, 'Danger Zone (Data)', () => _go('/data'), isDestructive: true),
+                    if (role == UserRole.admin) ...[
+                      _drawerSectionHeader('MASTERS'),
+                      _drawerTile(Icons.checklist_rounded, 'Task Status', () => _go('/task-statuses')),
+                      _drawerTile(Icons.layers_outlined, 'Project Status', () => _go('/project-statuses')),
+                      _drawerTile(Icons.access_time_rounded, 'Duration', () => _go('/internship-durations')),
+                      _drawerSectionHeader('SETTINGS'),
+                      _drawerTile(Icons.mark_email_read_outlined, 'Mail Configuration', () => _go('/admin/settings/mail')),
+                    ],
+                    _drawerSectionHeader('ACCOUNT'),
+                    _drawerTile(Icons.notifications_outlined, 'Notifications', () => _go('/notifications')),
+                    _drawerTile(Icons.person_outline_rounded, 'Profile', () => _go('/profile')),
                   ],
                 ],
               ),
             ),
-
-            // Footer
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: ListTile(
-                leading: const Icon(Icons.logout_rounded, color: AppColors.danger),
-                title: const Text('Log Out', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _confirmLogout(context);
-                },
-              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 4, 0, 16),
+              child: _drawerTile(Icons.logout_rounded, 'Log out', () {
+                Navigator.pop(context);
+                showLogoutConfirmDialog(context, ref);
+              }, isDestructive: true),
             ),
           ],
         ),
@@ -269,44 +189,31 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> {
     );
   }
 
-  Widget _drawerTile(IconData icon, String title, VoidCallback onTap, {bool isDestructive = false}) {
-    return ListTile(
-      leading: Icon(icon, size: 22, color: isDestructive ? AppColors.danger : null),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: isDestructive ? AppColors.danger : null,
-        ),
-      ),
-      onTap: onTap,
+  Widget _drawerSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 18, 20, 6),
+      child: Text(title, style: AppTypography.label.copyWith(color: AppColors.textTertiary, letterSpacing: 1.2)),
     );
   }
 
-  void _confirmLogout(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Log Out'),
-        content: const Text('Are you sure you want to log out of InternHub?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: Colors.white),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await ref.read(appStateProvider.notifier).logout();
-              if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                );
-              }
-            },
-            child: const Text('Log Out'),
+  Widget _drawerTile(IconData icon, String title, VoidCallback onTap, {bool isDestructive = false}) {
+    final color = isDestructive ? AppColors.danger : AppColors.ink;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
+      child: ListTile(
+        dense: true,
+        leading: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: isDestructive ? AppColors.dangerSoft : AppColors.surface,
+            shape: BoxShape.circle,
           ),
-        ],
+          child: Icon(icon, size: 18, color: color),
+        ),
+        title: Text(title, style: AppTypography.bodyStrong.copyWith(color: color)),
+        onTap: onTap,
       ),
     );
   }
@@ -325,42 +232,32 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> {
       drawer: _buildRoleAwareDrawer(context, user),
       body: SafeArea(
         bottom: false,
-        child: Stack(
+        child: Column(
           children: [
-            Column(
-              children: [
-                // Top Custom Header
-                CustomAppBar(
-                  onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
-                  onNotificationTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const NotificationCenterScreen()),
-                    );
-                  },
-                ),
-
-                // Main Role-Specific Body
-                Expanded(
-                  child: IndexedStack(
-                    index: activeIndex,
-                    children: screens,
-                  ),
-                ),
-              ],
+            CustomAppBar(
+              onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
+              onNotificationTap: () {
+                Navigator.of(context).pushNamed('/notifications');
+              },
             ),
-
-            // Role-Specific Floating Bottom Navigation Bar
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: FloatingBottomNav(
-                currentIndex: activeIndex,
-                onTap: (index) => setState(() => _currentTabIndex = index),
-                items: navItems,
+            Expanded(
+              child: IndexedStack(
+                index: activeIndex,
+                children: screens,
               ),
             ),
           ],
+        ),
+      ),
+      bottomNavigationBar: FloatingBottomNav(
+        currentIndex: activeIndex,
+        onTap: (index) => setState(() => _currentTabIndex = index),
+        items: navItems,
+        onCenterTap: () => QuickActionSheet.show(
+          context,
+          ref: ref,
+          role: user.role,
+          onSelectTab: (index) => setState(() => _currentTabIndex = index),
         ),
       ),
     );

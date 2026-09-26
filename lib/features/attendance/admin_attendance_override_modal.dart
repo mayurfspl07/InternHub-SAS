@@ -59,7 +59,6 @@ class _AdminAttendanceOverrideModalState extends ConsumerState<AdminAttendanceOv
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final state = ref.watch(appStateProvider);
     final interns = state.allUsers.where((u) => u.role == UserRole.intern).toList();
 
@@ -83,7 +82,7 @@ class _AdminAttendanceOverrideModalState extends ConsumerState<AdminAttendanceOv
               width: 44,
               height: 5,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
@@ -94,8 +93,8 @@ class _AdminAttendanceOverrideModalState extends ConsumerState<AdminAttendanceOv
             'Admin Attendance Manual Record 🛡️',
             style: TextStyle(
               fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
             ),
           ),
           const SizedBox(height: 6),
@@ -103,7 +102,7 @@ class _AdminAttendanceOverrideModalState extends ConsumerState<AdminAttendanceOv
             'Manually adjust or excuse an attendance check-in for an intern.',
             style: TextStyle(
               fontSize: 13,
-              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+              color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 20),
@@ -114,24 +113,24 @@ class _AdminAttendanceOverrideModalState extends ConsumerState<AdminAttendanceOv
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+              color: AppColors.ink,
             ),
           ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.surfaceDark : Colors.white,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(AppSpacing.r16),
               border: Border.all(
-                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                color: AppColors.border,
               ),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _selectedUserId,
                 isExpanded: true,
-                dropdownColor: isDark ? AppColors.surfaceDark : Colors.white,
+                dropdownColor: Colors.white,
                 items: interns
                     .map((i) => DropdownMenuItem(
                           value: i.id,
@@ -139,7 +138,7 @@ class _AdminAttendanceOverrideModalState extends ConsumerState<AdminAttendanceOv
                             '${i.name} (${i.department ?? 'Engineering'})',
                             style: TextStyle(
                               fontSize: 14,
-                              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                              color: AppColors.ink,
                             ),
                           ),
                         ))
@@ -158,24 +157,24 @@ class _AdminAttendanceOverrideModalState extends ConsumerState<AdminAttendanceOv
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+              color: AppColors.ink,
             ),
           ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.surfaceDark : Colors.white,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(AppSpacing.r16),
               border: Border.all(
-                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                color: AppColors.border,
               ),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<AttendanceStatus>(
                 value: _overrideStatus,
                 isExpanded: true,
-                dropdownColor: isDark ? AppColors.surfaceDark : Colors.white,
+                dropdownColor: Colors.white,
                 items: AttendanceStatus.values
                     .map((s) => DropdownMenuItem(
                           value: s,
@@ -183,7 +182,7 @@ class _AdminAttendanceOverrideModalState extends ConsumerState<AdminAttendanceOv
                             s.toApiValue().toUpperCase(),
                             style: TextStyle(
                               fontSize: 14,
-                              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                              color: AppColors.ink,
                             ),
                           ),
                         ))

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/api_config.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/page_header.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/custom_text_field.dart';
@@ -121,7 +121,7 @@ class _JoinInviteScreenState extends ConsumerState<JoinInviteScreen> {
             builder: (ctx) => AlertDialog(
               title: const Row(
                 children: [
-                  Icon(Icons.hourglass_top_rounded, color: AppColors.primary),
+                  Icon(Icons.hourglass_top_rounded, color: AppColors.primaryInk),
                   SizedBox(width: 8),
                   Text('Registration Pending'),
                 ],
@@ -173,17 +173,10 @@ class _JoinInviteScreenState extends ConsumerState<JoinInviteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: AppBar(
-        title: Text(
-          'Join via Invite',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
-        ),
-        elevation: 0,
-      ),
+      backgroundColor: AppColors.canvas,
+      appBar: pageAppBar(context, title: 'Join via Invite'),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -194,10 +187,10 @@ class _JoinInviteScreenState extends ConsumerState<JoinInviteScreen> {
               children: [
                 Text(
                   'Onboard to Your Workspace',
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                    color: AppColors.ink,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -205,7 +198,7 @@ class _JoinInviteScreenState extends ConsumerState<JoinInviteScreen> {
                   'Enter the invite code provided by your organization admin or mentor',
                   style: TextStyle(
                     fontSize: 13,
-                    color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 24),

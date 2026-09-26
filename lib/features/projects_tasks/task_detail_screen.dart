@@ -1,12 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../core/api/api_client.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/page_header.dart';
+import '../../core/constants/app_spacing.dart';
 import '../../core/services/file_export_service.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/project_model.dart';
@@ -164,7 +165,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary),
                 onPressed: () async {
                   final text = commentController.text.trim();
                   if (text.isEmpty && pickedFile == null) {
@@ -255,7 +256,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary),
                 onPressed: () async {
                   if (pickedFile == null) {
                     setDialogState(() => fileError = 'Please choose a file to upload.');
@@ -312,7 +313,6 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final state = ref.watch(appStateProvider);
     final user = state.currentUser;
 
@@ -323,17 +323,10 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
         _task.assignedTo == user.id;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF9FAFC),
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded, size: 22),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          _task.projectName.isNotEmpty ? _task.projectName : 'Task Details',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        elevation: 0,
+      backgroundColor: AppColors.canvas,
+      appBar: pageAppBar(
+        context,
+        title: _task.projectName.isNotEmpty ? _task.projectName : 'Task Details',
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -349,7 +342,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                       Expanded(
                         child: Text(
                           _task.title,
-                          style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                         ),
                       ),
                       StatusChip(label: _task.rawStatus.toUpperCase().replaceAll('_', ' '), statusType: StatusType.primary),
@@ -363,7 +356,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                     runSpacing: 8,
                     children: [
                       Chip(
-                        avatar: const Icon(Icons.flag_rounded, size: 16, color: AppColors.primary),
+                        avatar: const Icon(Icons.flag_rounded, size: 16, color: AppColors.primaryInk),
                         label: Text('Priority: ${_task.priority.name.toUpperCase()}'),
                       ),
                       Chip(
@@ -382,20 +375,20 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                   // Description
                   Text(
                     'Notes / Description',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 6),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E222D) : Colors.white,
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: isDark ? const Color(0xFF2C3242) : const Color(0xFFE5E7EB)),
-                    ),
+        boxShadow: AppShadows.soft,
+      ),
                     child: Text(
                       _task.description.isNotEmpty ? _task.description : 'No additional description provided.',
-                      style: TextStyle(fontSize: 13, height: 1.4, color: isDark ? Colors.white70 : Colors.black87),
+                      style: TextStyle(fontSize: 13, height: 1.4, color: AppColors.ink),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -404,20 +397,20 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                   if (canManageTasks && _task.canMove) ...[
                     Text(
                       'Update Status',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 8),
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          _buildStatusButton('todo', 'To Do', _task.rawStatus, const Color(0xFF6B7280)),
+                          _buildStatusButton('todo', 'To Do', _task.rawStatus, AppColors.textSecondary),
                           const SizedBox(width: 8),
-                          _buildStatusButton('in_progress', 'In Progress', _task.rawStatus, const Color(0xFF3B82F6)),
+                          _buildStatusButton('in_progress', 'In Progress', _task.rawStatus, AppColors.info),
                           const SizedBox(width: 8),
-                          _buildStatusButton('testing', 'Review', _task.rawStatus, const Color(0xFFF59E0B)),
+                          _buildStatusButton('testing', 'Review', _task.rawStatus, AppColors.warning),
                           const SizedBox(width: 8),
-                          _buildStatusButton('completed', 'Completed', _task.rawStatus, const Color(0xFF10B981)),
+                          _buildStatusButton('completed', 'Completed', _task.rawStatus, AppColors.success),
                         ],
                       ),
                     ),
@@ -432,7 +425,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                     children: [
                       Text(
                         'Comments (${_comments.length})',
-                        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       TextButton.icon(
                         icon: const Icon(Icons.add_comment_rounded, size: 16),
@@ -445,7 +438,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                   _comments.isEmpty
                       ? Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Text('No comments yet on this task.', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                          child: Text('No comments yet on this task.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                         )
                       : ListView.builder(
                           shrinkWrap: true,
@@ -457,10 +450,10 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                               margin: const EdgeInsets.only(bottom: 10),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E222D) : Colors.white,
+                                color: Colors.white,
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: isDark ? const Color(0xFF2C3242) : const Color(0xFFE5E7EB)),
-                              ),
+        boxShadow: AppShadows.soft,
+      ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -476,7 +469,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                                             Text(c.authorName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                             Text(
                                               DateFormat('yyyy-MM-dd').format(c.createdAt),
-                                              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                                              style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
                                             ),
                                           ],
                                         ),
@@ -495,17 +488,17 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                                             child: Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                               decoration: BoxDecoration(
-                                                color: const Color(0x153B82F6),
+                                                color: AppColors.infoSoft,
                                                 borderRadius: BorderRadius.circular(8),
                                               ),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  const Icon(Icons.attachment_rounded, size: 14, color: Color(0xFF3B82F6)),
+                                                  const Icon(Icons.attachment_rounded, size: 14, color: AppColors.info),
                                                   const SizedBox(width: 4),
                                                   Text(
                                                     c.fileName ?? 'View Attachment',
-                                                    style: const TextStyle(fontSize: 11, color: Color(0xFF3B82F6), fontWeight: FontWeight.bold),
+                                                    style: const TextStyle(fontSize: 11, color: AppColors.info, fontWeight: FontWeight.bold),
                                                   ),
                                                 ],
                                               ),
@@ -516,7 +509,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                                     ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.grey),
+                                    icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.textTertiary),
                                     onPressed: () async {
                                       await ApiClient().delete('/api/projects/tasks/comments/${c.id}');
                                       _loadTaskDetails();
@@ -535,7 +528,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                     children: [
                       Text(
                         'Attachments (${_attachments.length})',
-                        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       TextButton.icon(
                         icon: const Icon(Icons.upload_file_rounded, size: 16),
@@ -548,7 +541,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                   _attachments.isEmpty
                       ? Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Text('No files attached.', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                          child: Text('No files attached.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                         )
                       : ListView.builder(
                           shrinkWrap: true,
@@ -560,13 +553,13 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                               margin: const EdgeInsets.only(bottom: 10),
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E222D) : Colors.white,
+                                color: Colors.white,
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: isDark ? const Color(0xFF2C3242) : const Color(0xFFE5E7EB)),
-                              ),
+        boxShadow: AppShadows.soft,
+      ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.attach_file_rounded, color: AppColors.primary),
+                                  const Icon(Icons.attach_file_rounded, color: AppColors.primaryInk),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Column(
@@ -574,7 +567,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                                       children: [
                                         Text(att.fileName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                         if (att.description != null && att.description!.isNotEmpty)
-                                          Text(att.description!, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                                          Text(att.description!, style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                                       ],
                                     ),
                                   ),
@@ -588,7 +581,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                                     },
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
+                                    icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
                                     onPressed: () async {
                                       await ApiClient().delete('/api/projects/tasks/attachments/${att.id}');
                                       _loadTaskDetails();

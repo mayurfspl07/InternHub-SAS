@@ -99,12 +99,11 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.80,
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
+        color: Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
@@ -115,7 +114,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
             width: 44,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey.withValues(alpha: 0.3),
+              color: AppColors.textTertiary.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -129,7 +128,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
                 hintText: 'Search users, projects, tasks...',
-                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
+                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primaryInk),
                 suffixIcon: _isLoading
                     ? const Padding(
                         padding: EdgeInsets.all(12),
@@ -145,7 +144,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
                           )
                         : null),
                 filled: true,
-                fillColor: isDark ? const Color(0xFF1E143B) : const Color(0xFFF3F4F6),
+                fillColor: AppColors.surfaceMuted,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -165,7 +164,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
                           ? 'Type to search across InternHub'
                           : 'No results found',
                       style: TextStyle(
-                        color: isDark ? Colors.white54 : Colors.grey.shade500,
+                        color: AppColors.textTertiary,
                       ),
                     ),
                   )
@@ -179,7 +178,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white54 : Colors.grey.shade600,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -204,7 +203,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white54 : Colors.grey.shade600,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -217,7 +216,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
                                   color: AppColors.primary.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: const Icon(Icons.folder_outlined, color: AppColors.primary),
+                                child: const Icon(Icons.folder_outlined, color: AppColors.primaryInk),
                               ),
                               title: Text(p.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                               subtitle: Text('${(p.progress * 100).toInt()}% progress • ${p.status}'),
@@ -236,7 +235,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white54 : Colors.grey.shade600,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -246,10 +245,10 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: AppColors.secondary.withValues(alpha: 0.15),
+                                  color: AppColors.cocoa.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: const Icon(Icons.assignment_outlined, color: AppColors.secondary),
+                                child: const Icon(Icons.assignment_outlined, color: AppColors.cocoa),
                               ),
                               title: Text(t.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                               subtitle: Text('${t.projectName} • ${t.status.label}'),

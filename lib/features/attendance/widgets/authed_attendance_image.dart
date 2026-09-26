@@ -110,7 +110,7 @@ class _AuthedAttendanceImageState extends State<AuthedAttendanceImage> {
             IconButton(
               onPressed: () => Navigator.pop(ctx),
               icon: const CircleAvatar(
-                backgroundColor: Colors.black54,
+                backgroundColor: AppColors.textSecondary,
                 child: Icon(Icons.close, color: Colors.white),
               ),
             ),
@@ -122,7 +122,6 @@ class _AuthedAttendanceImageState extends State<AuthedAttendanceImage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final r = widget.borderRadius ?? BorderRadius.circular(16);
 
     if (_isLoading) {
@@ -130,10 +129,10 @@ class _AuthedAttendanceImageState extends State<AuthedAttendanceImage> {
         width: widget.width ?? double.infinity,
         height: widget.height ?? double.infinity,
         decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : Colors.grey.shade100,
+          color: AppColors.surfaceMuted,
           borderRadius: r,
           border: Border.all(
-            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            color: AppColors.border,
           ),
         ),
         child: const Center(
@@ -157,13 +156,13 @@ class _AuthedAttendanceImageState extends State<AuthedAttendanceImage> {
             decoration: BoxDecoration(
               borderRadius: r,
               border: Border.all(
-                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                color: AppColors.border,
               ),
             ),
             foregroundDecoration: BoxDecoration(
               borderRadius: r,
               border: Border.all(
-                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                color: AppColors.border,
               ),
             ),
             child: Image.memory(
@@ -171,25 +170,25 @@ class _AuthedAttendanceImageState extends State<AuthedAttendanceImage> {
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
-              errorBuilder: (context, error, stackTrace) => _buildFallback(isDark, r),
+              errorBuilder: (context, error, stackTrace) => _buildFallback(r),
             ),
           ),
         ),
       );
     }
 
-    return _buildFallback(isDark, r);
+    return _buildFallback(r);
   }
 
-  Widget _buildFallback(bool isDark, BorderRadius r) {
+  Widget _buildFallback(BorderRadius r) {
     return Container(
       width: widget.width ?? double.infinity,
       height: widget.height ?? double.infinity,
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark.withValues(alpha: 0.5) : const Color(0xFFF9FAFB),
+        color: AppColors.surfaceMuted,
         borderRadius: r,
         border: Border.all(
-          color: isDark ? AppColors.borderDark : const Color(0xFFE5E7EB),
+          color: AppColors.border,
           style: BorderStyle.solid,
         ),
       ),
@@ -199,14 +198,14 @@ class _AuthedAttendanceImageState extends State<AuthedAttendanceImage> {
           Icon(
             Icons.camera_alt_outlined,
             size: 28,
-            color: isDark ? Colors.white38 : AppColors.textTertiaryLight,
+            color: AppColors.textTertiary,
           ),
           const SizedBox(height: 8),
           Text(
             widget.fallbackLabel,
             style: TextStyle(
               fontSize: 12,
-              color: isDark ? Colors.white54 : AppColors.textSecondaryLight,
+              color: AppColors.textSecondary,
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,

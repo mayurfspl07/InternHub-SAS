@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_avatar.dart';
+import '../../core/constants/app_colors.dart';
 
 class AvatarStack extends StatelessWidget {
   final List<String> avatarUrls;
@@ -40,7 +41,7 @@ class AvatarStack extends StatelessWidget {
                 width: size,
                 height: size,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF181A20),
+                  color: AppColors.ink,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                 ),

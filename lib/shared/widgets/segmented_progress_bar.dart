@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_spacing.dart';
 
 class SegmentedProgressBar extends StatelessWidget {
   final int totalSegments;
@@ -14,22 +15,18 @@ class SegmentedProgressBar extends StatelessWidget {
     required this.completedSegments,
     required this.percentage,
     this.activeColor = AppColors.primary,
-    this.inactiveColor = const Color(0xFFE5E7EB),
+    this.inactiveColor = AppColors.border,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-          width: 1,
-        ),
+        boxShadow: AppShadows.soft,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,7 +42,7 @@ class SegmentedProgressBar extends StatelessWidget {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
+                        color: AppColors.primarySoft,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Center(
@@ -60,7 +57,7 @@ class SegmentedProgressBar extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                          color: AppColors.ink,
                         ),
                       ),
                     ),
@@ -72,8 +69,8 @@ class SegmentedProgressBar extends StatelessWidget {
                 '${(percentage * 100).toInt()}%',
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
                 ),
               ),
             ],
@@ -88,7 +85,7 @@ class SegmentedProgressBar extends StatelessWidget {
                   child: Container(
                     height: 8,
                     decoration: BoxDecoration(
-                      color: i < completedSegments ? activeColor : (isDark ? const Color(0xFF2D3243) : inactiveColor),
+                      color: i < completedSegments ? activeColor : (inactiveColor),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -104,7 +101,7 @@ class SegmentedProgressBar extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+              color: AppColors.textSecondary,
             ),
           ),
         ],

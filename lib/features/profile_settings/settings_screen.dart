@@ -1,150 +1,133 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
+import '../../core/constants/app_typography.dart';
 import '../../core/state/app_state_provider.dart';
-import '../auth/login_screen.dart';
+import '../../shared/widgets/logout_confirm_dialog.dart';
+import '../../shared/widgets/reference_components.dart';
+import '../profile_settings/change_password_dialog.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(appStateProvider);
-    final isDark = state.themeMode == ThemeMode.dark;
+    final user = ref.watch(appStateProvider).currentUser;
+    final isAdmin = user.role.name.toLowerCase().contains('admin');
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings & Preferences ⚙️', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.p20),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 12, AppSpacing.p20, 40),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'App Preferences',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
-                ),
+              PageHeader(
+                title: 'Settings',
+                padding: EdgeInsets.zero,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 24),
 
-              Material(
-                color: isDark ? AppColors.surfaceDark : Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  side: BorderSide(
-                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                  ),
+              if (isAdmin) ...[
+                _buildSettingsNavCard(
+                  icon: Icons.mark_email_read_outlined,
+                  tint: AppColors.butter,
+                  iconColor: AppColors.butterInk,
+                  title: 'Mail Configuration',
+                  subtitle: 'Configure SMTP & mail settings',
+                  onTap: () => Navigator.pushNamed(context, '/admin/settings/mail'),
                 ),
-                child: Column(
-                  children: [
-                    SwitchListTile.adaptive(
-                      title: const Text('Dark Mode', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                      subtitle: const Text('Switch between sleek dark and clean light themes', style: TextStyle(fontSize: 12)),
-                      value: isDark,
-                      activeTrackColor: AppColors.primary,
-                      onChanged: (val) {
-                        ref.read(appStateProvider.notifier).toggleThemeMode();
-                      },
-                    ),
-                    const Divider(height: 1),
-                    SwitchListTile.adaptive(
-                      title: const Text('Biometric Quick Auth', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                      subtitle: const Text('Use FaceID / Fingerprint for check-ins', style: TextStyle(fontSize: 12)),
-                      value: true,
-                      activeTrackColor: AppColors.primary,
-                      onChanged: (val) {},
-                    ),
-                    const Divider(height: 1),
-                    const ListTile(
-                      title: Text('Offline Queue Sync', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                      subtitle: Text('Sync attendance & standups when connected (0 pending)', style: TextStyle(fontSize: 12)),
-                      trailing: Icon(Icons.cloud_done_rounded, color: AppColors.success),
-                    ),
-                  ],
-                ),
+                const SizedBox(height: 12),
+              ],
+
+              _buildSettingsNavCard(
+                icon: Icons.notifications_outlined,
+                tint: AppColors.peach,
+                iconColor: AppColors.peachInk,
+                title: 'Notifications',
+                subtitle: 'Manage notification preferences & alerts',
+                onTap: () => Navigator.pushNamed(context, '/notifications'),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 12),
 
-              Text(
-                'Account & Security',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
-                ),
+              _buildSettingsNavCard(
+                icon: Icons.storage_rounded,
+                tint: AppColors.lavender,
+                iconColor: AppColors.lavenderInk,
+                title: 'System & Sync',
+                subtitle: 'Offline queue, cache, and cloud data',
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('System and offline queue are up to date.')),
+                  );
+                },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
 
-              Material(
-                color: isDark ? AppColors.surfaceDark : Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  side: BorderSide(
-                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.lock_reset_rounded, color: AppColors.primary),
-                      title: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () {},
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.shield_outlined, color: AppColors.primary),
-                      title: const Text('Privacy & Enterprise Terms', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () {},
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.help_outline_rounded, color: AppColors.primary),
-                      title: const Text('Help & Support', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () {},
-                    ),
-                  ],
-                ),
+              _buildSettingsNavCard(
+                icon: Icons.security_rounded,
+                tint: AppColors.sage,
+                iconColor: AppColors.sageInk,
+                title: 'Security & Access',
+                subtitle: 'Change password, two-factor auth & permissions',
+                onTap: () => ChangePasswordDialog.show(context),
               ),
               const SizedBox(height: 32),
 
-              // Logout Button
               SizedBox(
                 width: double.infinity,
+                height: 52,
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      (route) => false,
-                    );
-                  },
-                  icon: const Icon(Icons.logout_rounded, color: Colors.white),
-                  label: const Text('Sign Out'),
+                  onPressed: () => showLogoutConfirmDialog(context, ref),
+                  icon: const Icon(Icons.logout_rounded, size: 20),
+                  label: const Text('Log out'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.danger,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsNavCard({
+    required IconData icon,
+    required Color tint,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ReferenceCard(
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+            child: Icon(icon, color: iconColor, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTypography.cardTitle),
+                const SizedBox(height: 2),
+                Text(subtitle, style: AppTypography.caption),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, size: 22, color: AppColors.textTertiary),
+        ],
       ),
     );
   }

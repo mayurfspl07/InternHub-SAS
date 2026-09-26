@@ -1,12 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:camera/camera.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/page_header.dart';
+import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 
 class CheckinCheckoutScreen extends ConsumerStatefulWidget {
@@ -204,7 +205,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Acquiring GPS location. Please wait a moment...'),
-            backgroundColor: AppColors.warning,
+            backgroundColor: AppColors.ink,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -242,7 +243,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('👋 Checked Out! Working hours recorded.'),
-              backgroundColor: AppColors.primary,
+              backgroundColor: AppColors.ink,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -285,7 +286,6 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final state = ref.watch(appStateProvider);
     final isCheckOutMode = widget.isCheckOut ??
         (state.todayAttendance != null && state.todayAttendance?.checkOut == null);
@@ -297,27 +297,10 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
     final bool isReadyToSubmit = !_isProcessing && _currentPosition != null;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 20,
-            color: isDark ? Colors.white : AppColors.textPrimaryLight,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          isCheckOutMode ? 'Check Out Verification' : 'Check In Verification',
-          style: GoogleFonts.outfit(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: isDark ? Colors.white : AppColors.textPrimaryLight,
-          ),
-        ),
-        centerTitle: true,
+      backgroundColor: AppColors.canvas,
+      appBar: pageAppBar(
+        context,
+        title: isCheckOutMode ? 'Check Out Verification' : 'Check In Verification',
       ),
       body: SafeArea(
         child: LayoutBuilder(
@@ -361,11 +344,11 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                               const SizedBox(width: 8),
                               Text(
                                 isCheckOutMode ? 'SHIFT CHECK-OUT' : 'SHIFT CHECK-IN',
-                                style: GoogleFonts.outfit(
+                                style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 0.8,
-                                  color: isCheckOutMode ? AppColors.primary : AppColors.success,
+                                  color: isCheckOutMode ? AppColors.primaryInk : AppColors.success,
                                 ),
                               ),
                             ],
@@ -378,7 +361,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 13,
-                          color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -410,14 +393,14 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                               height: 220,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: isDark ? AppColors.surfaceDark : const Color(0xFFF3F4F6),
+                                color: AppColors.surfaceMuted,
                                 border: Border.all(
                                   color: isCheckOutMode ? AppColors.primary : AppColors.success,
                                   width: 2.5,
                                 ),
                               ),
                               child: ClipOval(
-                                child: _buildLiveCameraView(isDark),
+                                child: _buildLiveCameraView(),
                               ),
                             ),
 
@@ -518,18 +501,9 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: isDark ? AppColors.surfaceDark : Colors.white,
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                          boxShadow: AppShadows.soft,
                         ),
                         child: Column(
                           children: [
@@ -561,10 +535,10 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                             _currentPosition != null
                                                 ? 'GPS Geolocation Locked'
                                                 : 'Detecting Location...',
-                                            style: GoogleFonts.outfit(
+                                            style: TextStyle(
                                               fontWeight: FontWeight.w600,
                                               fontSize: 14,
-                                              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                              color: AppColors.ink,
                                             ),
                                           ),
                                           const SizedBox(width: 6),
@@ -593,7 +567,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                             : 'Waiting for high-accuracy GPS signal',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                                          color: AppColors.textSecondary,
                                         ),
                                       ),
                                     ],
@@ -618,7 +592,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               child: Divider(
                                 height: 1,
-                                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                color: AppColors.border,
                               ),
                             ),
 
@@ -634,7 +608,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                   ),
                                   child: const Icon(
                                     Icons.access_time_filled_rounded,
-                                    color: AppColors.primary,
+                                    color: AppColors.primaryInk,
                                     size: 22,
                                   ),
                                 ),
@@ -645,10 +619,10 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                     children: [
                                       Text(
                                         'Verification Timestamp',
-                                        style: GoogleFonts.outfit(
+                                        style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           fontSize: 14,
-                                          color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                          color: AppColors.ink,
                                         ),
                                       ),
                                       const SizedBox(height: 3),
@@ -656,7 +630,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                         '$formattedDate • $formattedTime',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                                          color: AppColors.textSecondary,
                                         ),
                                       ),
                                     ],
@@ -671,10 +645,10 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                   ),
                                   child: Text(
                                     formattedTime,
-                                    style: GoogleFonts.outfit(
+                                    style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
-                                      color: isCheckOutMode ? AppColors.primary : AppColors.success,
+                                      color: isCheckOutMode ? AppColors.primaryInk : AppColors.success,
                                     ),
                                   ),
                                 ),
@@ -692,12 +666,12 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                         height: 52,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: isCheckOutMode ? AppColors.cardPink : AppColors.primary,
-                            foregroundColor: Colors.white,
-                            disabledBackgroundColor: (isDark ? AppColors.surfaceDark : Colors.grey.shade300),
-                            disabledForegroundColor: isDark ? Colors.white30 : Colors.grey.shade500,
+                            backgroundColor: isCheckOutMode ? AppColors.cocoa : AppColors.primary,
+                            foregroundColor: isCheckOutMode ? Colors.white : AppColors.onPrimary,
+                            disabledBackgroundColor: AppColors.border,
+                            disabledForegroundColor: AppColors.textTertiary,
                             elevation: isReadyToSubmit ? 4 : 0,
-                            shadowColor: (isCheckOutMode ? AppColors.cardPink : AppColors.primary)
+                            shadowColor: (isCheckOutMode ? AppColors.cocoa : AppColors.primary)
                                 .withValues(alpha: 0.4),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
@@ -707,7 +681,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                               ? () => _handleConfirmAction(isCheckOutMode)
                               : null,
                           child: _isProcessing
-                              ? const Row(
+                              ? Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     SizedBox(
@@ -715,7 +689,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                       height: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2.2,
-                                        color: Colors.white,
+                                        color: isCheckOutMode ? Colors.white : AppColors.onPrimary,
                                       ),
                                     ),
                                     SizedBox(width: 12),
@@ -724,7 +698,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                       style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                        color: isCheckOutMode ? Colors.white : AppColors.onPrimary,
                                       ),
                                     ),
                                   ],
@@ -741,7 +715,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                     const SizedBox(width: 8),
                                     Text(
                                       isCheckOutMode ? 'Confirm Check-Out' : 'Confirm Check-In',
-                                      style: GoogleFonts.outfit(
+                                      style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w700,
                                         letterSpacing: 0.3,
@@ -760,14 +734,14 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                           Icon(
                             Icons.shield_outlined,
                             size: 14,
-                            color: isDark ? Colors.white38 : AppColors.textTertiaryLight,
+                            color: AppColors.textTertiary,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             'One-click biometric snapshot & tamper-proof GPS log',
                             style: TextStyle(
                               fontSize: 11,
-                              color: isDark ? Colors.white38 : AppColors.textTertiaryLight,
+                              color: AppColors.textTertiary,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -785,7 +759,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
     );
   }
 
-  Widget _buildLiveCameraView(bool isDark) {
+  Widget _buildLiveCameraView() {
     // 1. If photo was captured on submit, show it
     if (_capturedSelfie != null) {
       return Image.file(
@@ -825,10 +799,10 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
           const SizedBox(height: 12),
           Text(
             'Starting live camera...',
-            style: GoogleFonts.outfit(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+              color: AppColors.ink,
             ),
           ),
         ],
@@ -842,15 +816,15 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
         Icon(
           Icons.videocam_off_rounded,
           size: 42,
-          color: isDark ? Colors.white54 : AppColors.primary.withValues(alpha: 0.7),
+          color: AppColors.primaryInk.withValues(alpha: 0.7),
         ),
         const SizedBox(height: 8),
         Text(
           'Camera Drivers Unlinked',
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+            color: AppColors.ink,
           ),
         ),
         const SizedBox(height: 4),
@@ -861,7 +835,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 11,
-              color: isDark ? Colors.white38 : AppColors.textTertiaryLight,
+              color: AppColors.textTertiary,
             ),
           ),
         ),

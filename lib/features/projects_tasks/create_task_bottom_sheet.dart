@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/api_exception.dart';
 import '../../shared/models/project_model.dart';
+import '../../core/constants/app_colors.dart';
 
 class CreateTaskBottomSheet extends ConsumerStatefulWidget {
   final ProjectModel? project;
@@ -184,7 +185,7 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(widget.taskToEdit != null ? 'Task updated successfully!' : 'Task created successfully!'),
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: AppColors.success,
           ),
         );
         widget.onTaskCreated?.call();
@@ -195,7 +196,7 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e is ApiException ? e.message : 'Failed: $e'),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -204,7 +205,6 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final proj = widget.project;
     final members = proj?.members ?? [];
 
@@ -216,7 +216,7 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
     }).toList();
 
     return Dialog(
-      backgroundColor: isDark ? const Color(0xFF1A1D24) : Colors.white,
+      backgroundColor: Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
@@ -236,9 +236,8 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                         widget.taskToEdit != null ? 'Edit Task' : 'Create New Task',
                         style: TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          fontFamily: 'Outfit',
-                          color: isDark ? Colors.white : const Color(0xFF111827),
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
                         ),
                       ),
                       IconButton(
@@ -256,30 +255,28 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Title *
-                          _buildLabel('TITLE *', isDark),
+                          _buildLabel('TITLE *'),
                           TextField(
                             controller: _titleController,
                             onChanged: (_) => _validate(),
-                            style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black87),
+                            style: TextStyle(fontSize: 13, color: AppColors.ink),
                             decoration: _inputDecoration(
                               hint: 'e.g. Implement authentication middleware',
                               errorText: _titleError,
-                              isDark: isDark,
                             ),
                           ),
                           const SizedBox(height: 14),
 
                           // Notes / Description
-                          _buildLabel('NOTES / DESCRIPTION', isDark),
+                          _buildLabel('NOTES / DESCRIPTION'),
                           TextField(
                             controller: _descController,
                             maxLines: 3,
                             onChanged: (_) => _validate(),
-                            style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black87),
+                            style: TextStyle(fontSize: 13, color: AppColors.ink),
                             decoration: _inputDecoration(
                               hint: 'Add implementation instructions, context or links...',
                               errorText: _descError,
-                              isDark: isDark,
                             ),
                           ),
                           const SizedBox(height: 14),
@@ -292,20 +289,20 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildLabel('STATUS', isDark),
+                                    _buildLabel('STATUS'),
                                     Container(
                                       height: 42,
                                       padding: const EdgeInsets.symmetric(horizontal: 12),
                                       decoration: BoxDecoration(
-                                        color: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
+                                        color: AppColors.surfaceMuted,
                                         borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+                                        border: Border.all(color: AppColors.border),
                                       ),
                                       child: DropdownButtonHideUnderline(
                                         child: DropdownButton<String>(
                                           value: _selectedStatus,
                                           isExpanded: true,
-                                          dropdownColor: isDark ? const Color(0xFF1A1D24) : Colors.white,
+                                          dropdownColor: Colors.white,
                                           items: _taskStatuses.map((s) {
                                             return DropdownMenuItem(
                                               value: s.key,
@@ -317,7 +314,7 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                                                     decoration: BoxDecoration(color: s.color, shape: BoxShape.circle),
                                                   ),
                                                   const SizedBox(width: 8),
-                                                  Text(s.title, style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black87)),
+                                                  Text(s.title, style: TextStyle(fontSize: 13, color: AppColors.ink)),
                                                 ],
                                               ),
                                             );
@@ -338,20 +335,20 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildLabel('PRIORITY', isDark),
+                                    _buildLabel('PRIORITY'),
                                     Container(
                                       height: 42,
                                       padding: const EdgeInsets.symmetric(horizontal: 12),
                                       decoration: BoxDecoration(
-                                        color: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
+                                        color: AppColors.surfaceMuted,
                                         borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+                                        border: Border.all(color: AppColors.border),
                                       ),
                                       child: DropdownButtonHideUnderline(
                                         child: DropdownButton<String>(
                                           value: _selectedPriority,
                                           isExpanded: true,
-                                          dropdownColor: isDark ? const Color(0xFF1A1D24) : Colors.white,
+                                          dropdownColor: Colors.white,
                                           items: const [
                                             DropdownMenuItem(value: 'low', child: Text('Low Priority')),
                                             DropdownMenuItem(value: 'medium', child: Text('Medium Priority')),
@@ -371,16 +368,16 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                           const SizedBox(height: 14),
 
                           // Assignee *
-                          _buildLabel('ASSIGNEE *', isDark),
+                          _buildLabel('ASSIGNEE *'),
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
+                              color: AppColors.surfaceMuted,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: _assigneeError != null
-                                    ? const Color(0xFFEF4444)
-                                    : (isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+                                    ? AppColors.danger
+                                    : AppColors.border,
                               ),
                             ),
                             child: Column(
@@ -390,17 +387,17 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                                   child: TextField(
                                     controller: _assigneeSearchController,
                                     onChanged: (_) => setState(() {}),
-                                    style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black87),
+                                    style: TextStyle(fontSize: 12, color: AppColors.ink),
                                     decoration: InputDecoration(
                                       hintText: 'Search intern name...',
-                                      hintStyle: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : const Color(0xFF9CA3AF)),
-                                      prefixIcon: const Icon(Icons.search, size: 16, color: Color(0xFF9CA3AF)),
+                                      hintStyle: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                                      prefixIcon: const Icon(Icons.search, size: 16, color: AppColors.textTertiary),
                                       filled: true,
-                                      fillColor: isDark ? const Color(0xFF1A1D24) : Colors.white,
+                                      fillColor: Colors.white,
                                       contentPadding: EdgeInsets.zero,
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(10),
-                                        borderSide: BorderSide(color: isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+                                        borderSide: BorderSide(color: AppColors.border),
                                       ),
                                     ),
                                   ),
@@ -428,11 +425,11 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                           decoration: BoxDecoration(
                                             color: isSelected
-                                                ? (isDark ? const Color(0xFF2C384A) : const Color(0xFFE0E7FF))
-                                                : (isDark ? const Color(0xFF1A1D24) : Colors.white),
+                                                ? AppColors.lavender
+                                                : Colors.white,
                                             borderRadius: BorderRadius.circular(10),
                                             border: Border.all(
-                                              color: isSelected ? const Color(0xFF3B82F6) : (isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+                                              color: isSelected ? AppColors.info : AppColors.border,
                                               width: isSelected ? 1.5 : 1.0,
                                             ),
                                           ),
@@ -444,12 +441,12 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                                  color: isSelected ? const Color(0xFF1D4ED8) : (isDark ? Colors.white : Colors.black87),
+                                                  color: isSelected ? AppColors.info : AppColors.ink,
                                                 ),
                                               ),
                                               Text(
                                                 mem['email']?.toString() ?? '',
-                                                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF6B7280)),
+                                                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
                                               ),
                                             ],
                                           ),
@@ -464,12 +461,12 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                           if (_assigneeError != null)
                             Padding(
                               padding: const EdgeInsets.only(top: 4, left: 4),
-                              child: Text(_assigneeError!, style: const TextStyle(fontSize: 11, color: Color(0xFFEF4444))),
+                              child: Text(_assigneeError!, style: const TextStyle(fontSize: 11, color: AppColors.danger)),
                             ),
                           const SizedBox(height: 14),
 
                           // Due Date
-                          _buildLabel('DUE DATE', isDark),
+                          _buildLabel('DUE DATE'),
                           InkWell(
                             onTap: () async {
                               final picked = await showDatePicker(
@@ -487,10 +484,10 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                               height: 42,
                               padding: const EdgeInsets.symmetric(horizontal: 14),
                               decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
+                                color: AppColors.surfaceMuted,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: _dueDateError != null ? const Color(0xFFEF4444) : (isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+                                  color: _dueDateError != null ? AppColors.danger : AppColors.border,
                                 ),
                               ),
                               child: Row(
@@ -500,10 +497,10 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                                     _dueDate != null ? DateFormat('dd/MM/yyyy').format(_dueDate!) : 'dd/mm/yyyy',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: _dueDate != null ? (isDark ? Colors.white : Colors.black87) : const Color(0xFF9CA3AF),
+                                      color: _dueDate != null ? AppColors.ink : AppColors.textTertiary,
                                     ),
                                   ),
-                                  const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFF6B7280)),
+                                  const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textSecondary),
                                 ],
                               ),
                             ),
@@ -511,7 +508,7 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                           if (_dueDateError != null)
                             Padding(
                               padding: const EdgeInsets.only(top: 4, left: 4),
-                              child: Text(_dueDateError!, style: const TextStyle(fontSize: 11, color: Color(0xFFEF4444))),
+                              child: Text(_dueDateError!, style: const TextStyle(fontSize: 11, color: AppColors.danger)),
                             ),
                         ],
                       ),
@@ -520,8 +517,9 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                   const SizedBox(height: 16),
 
                   // Actions: Cancel & Create Task
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    runSpacing: 8,
                     children: [
                       OutlinedButton(
                         onPressed: () => Navigator.pop(context),
@@ -535,13 +533,13 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
                       ElevatedButton(
                         onPressed: _isSubmitting ? null : _submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF97316),
-                          foregroundColor: Colors.white,
+                          backgroundColor: AppColors.warning,
+                          foregroundColor: AppColors.onPrimary,
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         child: _isSubmitting
-                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2))
                             : Text(widget.taskToEdit != null ? 'Update Task' : 'Create Task', style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ],
@@ -552,36 +550,36 @@ class _CreateTaskBottomSheetState extends ConsumerState<CreateTaskBottomSheet> {
     );
   }
 
-  Widget _buildLabel(String text, bool isDark) {
+  Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text,
         style: TextStyle(
           fontSize: 11,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w700,
           letterSpacing: 0.5,
-          color: isDark ? Colors.white70 : const Color(0xFF374151),
+          color: AppColors.textSecondary,
         ),
       ),
     );
   }
 
-  InputDecoration _inputDecoration({required String hint, String? errorText, required bool isDark}) {
+  InputDecoration _inputDecoration({required String hint, String? errorText}) {
     return InputDecoration(
       hintText: hint,
       errorText: errorText,
-      hintStyle: TextStyle(fontSize: 13, color: isDark ? Colors.white38 : const Color(0xFF9CA3AF)),
+      hintStyle: TextStyle(fontSize: 13, color: AppColors.textTertiary),
       filled: true,
-      fillColor: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
+      fillColor: AppColors.surfaceMuted,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+        borderSide: BorderSide(color: AppColors.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+        borderSide: BorderSide(color: AppColors.border),
       ),
     );
   }

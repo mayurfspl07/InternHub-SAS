@@ -11,13 +11,12 @@ class RoleSwitchBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentRole = ref.watch(appStateProvider).currentUser.role;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.p20, vertical: 6),
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1F2330) : const Color(0xFFEBEFF8),
+        color: AppColors.surfaceMuted,
         borderRadius: BorderRadius.circular(AppSpacing.rPill),
       ),
       child: Row(
@@ -55,7 +54,6 @@ class RoleSwitchBanner extends ConsumerWidget {
     required String label,
     required bool isSelected,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Expanded(
       child: GestureDetector(
@@ -73,9 +71,7 @@ class RoleSwitchBanner extends ConsumerWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected
-                ? (isDark ? AppColors.primary : Colors.white)
-                : Colors.transparent,
+            color: isSelected ? AppColors.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(AppSpacing.rPill),
             boxShadow: isSelected
                 ? [
@@ -92,10 +88,10 @@ class RoleSwitchBanner extends ConsumerWidget {
               label,
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                 color: isSelected
-                    ? (isDark ? Colors.white : AppColors.textPrimaryLight)
-                    : (isDark ? Colors.white60 : AppColors.textSecondaryLight),
+                    ? AppColors.ink
+                    : AppColors.textSecondary,
               ),
             ),
           ),

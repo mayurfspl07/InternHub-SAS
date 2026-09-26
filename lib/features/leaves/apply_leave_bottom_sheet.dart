@@ -49,7 +49,7 @@ class _ApplyLeaveBottomSheetState extends ConsumerState<ApplyLeaveBottomSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter a reason for your leave request.'),
-          backgroundColor: AppColors.warning,
+          backgroundColor: AppColors.ink,
         ),
       );
       return;
@@ -89,14 +89,17 @@ class _ApplyLeaveBottomSheetState extends ConsumerState<ApplyLeaveBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final totalDays = _endDate.difference(_startDate).inDays + 1;
 
-    return Padding(
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       padding: EdgeInsets.only(
         left: 24,
         right: 24,
-        top: 24,
+        top: 16,
         bottom: MediaQuery.of(context).viewInsets.bottom + 32,
       ),
       child: Column(
@@ -108,7 +111,7 @@ class _ApplyLeaveBottomSheetState extends ConsumerState<ApplyLeaveBottomSheet> {
               width: 44,
               height: 5,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
@@ -119,8 +122,8 @@ class _ApplyLeaveBottomSheetState extends ConsumerState<ApplyLeaveBottomSheet> {
             'Apply for Leave 🏖️',
             style: TextStyle(
               fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
             ),
           ),
           const SizedBox(height: 6),
@@ -128,7 +131,7 @@ class _ApplyLeaveBottomSheetState extends ConsumerState<ApplyLeaveBottomSheet> {
             'Select your leave quota type and specify duration.',
             style: TextStyle(
               fontSize: 13,
-              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+              color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 20),
@@ -139,7 +142,7 @@ class _ApplyLeaveBottomSheetState extends ConsumerState<ApplyLeaveBottomSheet> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+              color: AppColors.ink,
             ),
           ),
           const SizedBox(height: 8),
@@ -155,7 +158,7 @@ class _ApplyLeaveBottomSheetState extends ConsumerState<ApplyLeaveBottomSheet> {
                     selected: isSelected,
                     selectedColor: AppColors.primary,
                     labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                      color: AppColors.ink,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
                     onSelected: (_) => setState(() => _selectedType = type),
@@ -172,7 +175,7 @@ class _ApplyLeaveBottomSheetState extends ConsumerState<ApplyLeaveBottomSheet> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+              color: AppColors.ink,
             ),
           ),
           const SizedBox(height: 8),
@@ -181,19 +184,19 @@ class _ApplyLeaveBottomSheetState extends ConsumerState<ApplyLeaveBottomSheet> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: isDark ? AppColors.surfaceDark : const Color(0xFFF3F4F6),
+                color: AppColors.surfaceMuted,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.date_range_rounded, color: AppColors.primary, size: 20),
+                  const Icon(Icons.date_range_rounded, color: AppColors.primaryInk, size: 20),
                   const SizedBox(width: 12),
                   Text(
                     '${DateFormat('MMM d').format(_startDate)} - ${DateFormat('MMM d, yyyy').format(_endDate)}',
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   const Spacer(),
-                  const Text('Change', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+                  const Text('Change', style: TextStyle(color: AppColors.primaryInk, fontWeight: FontWeight.bold, fontSize: 12)),
                 ],
               ),
             ),

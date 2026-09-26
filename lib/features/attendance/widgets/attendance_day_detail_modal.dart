@@ -80,22 +80,22 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
       case 'present':
         return AppColors.success;
       case 'late':
-        return const Color(0xFFEAB308); // Amber/Yellow
+        return AppColors.warning; // Amber/Yellow
       case 'half_day':
       case 'halfday':
-        return const Color(0xFF0284C7); // Sky Blue
+        return AppColors.info; // Sky Blue
       case 'absent':
-        return const Color(0xFFEF4444); // Red
+        return AppColors.danger; // Red
       case 'on_leave':
       case 'leave':
-        return const Color(0xFF8B5CF6); // Purple
+        return AppColors.lavenderInk; // Purple
       case 'excused':
-        return const Color(0xFF0D9488); // Teal
+        return AppColors.success; // Teal
       case 'week_off':
       case 'off':
-        return Colors.grey.shade600;
+        return AppColors.textSecondary;
       default:
-        return AppColors.textSecondaryLight;
+        return AppColors.textSecondary;
     }
   }
 
@@ -121,7 +121,6 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final dateTitle = DateFormat('EEEE, MMMM d, yyyy').format(widget.date);
     final statusColor = _getStatusColor(widget.status);
     final displayStatus = widget.status.replaceAll('_', ' ').toUpperCase();
@@ -133,11 +132,11 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
         : '0.0h';
 
     return Dialog(
-      backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+      backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppSpacing.r24),
         side: BorderSide(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          color: AppColors.border,
         ),
       ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -162,8 +161,8 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                           dateTitle,
                           style: TextStyle(
                             fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
                           ),
                         ),
                         Container(
@@ -188,7 +187,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                     onPressed: () => Navigator.pop(context),
                     icon: Icon(
                       Icons.close,
-                      color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                      color: AppColors.textSecondary,
                       size: 20,
                     ),
                     padding: EdgeInsets.zero,
@@ -204,7 +203,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                 'Detailed shift verification, selfie photos, GPS coordinates, and task audit trail.',
                 style: TextStyle(
                   fontSize: 12,
-                  color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ),
@@ -227,7 +226,6 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                               context: context,
                               title: 'LOGIN',
                               value: loginStr,
-                              isDark: isDark,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -236,7 +234,6 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                               context: context,
                               title: 'LOGOUT',
                               value: logoutStr,
-                              isDark: isDark,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -245,7 +242,6 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                               context: context,
                               title: 'HOURS',
                               value: hoursStr,
-                              isDark: isDark,
                               isYellow: true,
                             ),
                           ),
@@ -266,7 +262,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                                  color: AppColors.textSecondary,
                                   letterSpacing: 0.5,
                                 ),
                               ),
@@ -293,7 +289,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                                  color: AppColors.textSecondary,
                                   letterSpacing: 0.5,
                                 ),
                               ),
@@ -321,7 +317,6 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                         children: [
                           Expanded(
                             child: _buildLocationCard(
-                              isDark: isDark,
                               title: 'Check-in Location',
                               location: widget.record?.checkInLocation,
                             ),
@@ -329,7 +324,6 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: _buildLocationCard(
-                              isDark: isDark,
                               title: 'Check-out Location',
                               location: widget.record?.checkOutLocation,
                             ),
@@ -343,10 +337,10 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.cardDark : Colors.white,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(AppSpacing.r16),
                         border: Border.all(
-                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          color: AppColors.border,
                         ),
                       ),
                       child: Column(
@@ -357,7 +351,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                               const Icon(
                                 Icons.format_list_bulleted_rounded,
                                 size: 18,
-                                color: Color(0xFFF97316), // Orange list icon
+                                color: AppColors.warning, // Orange list icon
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -366,7 +360,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
-                                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                    color: AppColors.ink,
                                   ),
                                 ),
                               ),
@@ -390,7 +384,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontStyle: FontStyle.italic,
-                                color: isDark ? Colors.white54 : AppColors.textTertiaryLight,
+                                color: AppColors.textTertiary,
                               ),
                             )
                           else
@@ -415,7 +409,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                                         '$taskTitle ($changeType)',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                                          color: AppColors.ink,
                                         ),
                                       ),
                                     ),
@@ -440,9 +434,9 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: isDark ? Colors.white : AppColors.textPrimaryLight,
+                    foregroundColor: AppColors.ink,
                     side: BorderSide(
-                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      color: AppColors.border,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppSpacing.rPill),
@@ -465,20 +459,19 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
     required BuildContext context,
     required String title,
     required String value,
-    required bool isDark,
     bool isYellow = false,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: BoxDecoration(
         color: isYellow
-            ? (isDark ? const Color(0xFFCA8A04) : AppColors.cardYellow)
-            : (isDark ? AppColors.cardDark : Colors.white),
+            ? AppColors.primary
+            : Colors.white,
         borderRadius: BorderRadius.circular(AppSpacing.r16),
         border: Border.all(
           color: isYellow
               ? Colors.transparent
-              : (isDark ? AppColors.borderDark : AppColors.borderLight),
+              : AppColors.border,
         ),
       ),
       child: Column(
@@ -489,8 +482,8 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: isYellow
-                  ? const Color(0xFF713F12)
-                  : (isDark ? Colors.white60 : AppColors.textSecondaryLight),
+                  ? AppColors.warningInk
+                  : AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 4),
@@ -498,10 +491,10 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
             value,
             style: TextStyle(
               fontSize: 16,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
               color: isYellow
-                  ? Colors.black87
-                  : (isDark ? Colors.white : AppColors.textPrimaryLight),
+                  ? AppColors.ink
+                  : AppColors.ink,
             ),
           ),
         ],
@@ -510,7 +503,6 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
   }
 
   Widget _buildLocationCard({
-    required bool isDark,
     required String title,
     required AttendanceLocation? location,
   }) {
@@ -521,10 +513,10 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(AppSpacing.r16),
         border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          color: AppColors.border,
         ),
       ),
       child: Row(
@@ -533,7 +525,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
           const Icon(
             Icons.location_on_outlined,
             size: 20,
-            color: Color(0xFFEF4444), // Red pin
+            color: AppColors.danger, // Red pin
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -545,7 +537,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                    color: AppColors.ink,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -553,7 +545,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                   address,
                   style: TextStyle(
                     fontSize: 11,
-                    color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                    color: AppColors.textSecondary,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,

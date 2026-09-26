@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/models/announcement_model.dart';
 import '../announcements_repository.dart';
@@ -90,7 +89,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(firstErr!),
-          backgroundColor: Colors.red.shade700,
+          backgroundColor: AppColors.dangerInk,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -125,7 +124,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceAll('Exception:', '').trim()),
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: AppColors.dangerInk,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -135,12 +134,11 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final titleLength = _titleController.text.length;
     final bodyLength = _bodyController.text.length;
 
-    final borderColor = isDark ? AppColors.borderDark : const Color(0xFF1E293B);
-    final cardBg = isDark ? AppColors.surfaceDark : Colors.white;
+    final borderColor = AppColors.border;
+    final cardBg = Colors.white;
 
     return Dialog(
       backgroundColor: cardBg,
@@ -162,10 +160,10 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                 children: [
                   Text(
                     isEditing ? 'Edit Announcement' : 'New Announcement',
-                    style: GoogleFonts.outfit(
+                    style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                      color: AppColors.ink,
                     ),
                   ),
                   InkWell(
@@ -176,13 +174,13 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          color: AppColors.border,
                         ),
                       ),
                       child: Icon(
                         Icons.close_rounded,
                         size: 20,
-                        color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ),
@@ -195,18 +193,18 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                 children: [
                   Text(
                     'ANNOUNCEMENT TITLE',
-                    style: GoogleFonts.outfit(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.8,
-                      color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                      color: AppColors.ink,
                     ),
                   ),
                   const SizedBox(width: 4),
                   const Text(
                     '*',
                     style: TextStyle(
-                      color: Color(0xFFEF4444),
+                      color: AppColors.danger,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
@@ -218,30 +216,30 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                 controller: _titleController,
                 maxLength: 100,
                 buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
-                style: GoogleFonts.outfit(
+                style: TextStyle(
                   fontSize: 15,
-                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                  color: AppColors.ink,
                 ),
                 decoration: InputDecoration(
                   hintText: 'e.g., Q3 Project Showcase Schedule',
-                  hintStyle: GoogleFonts.outfit(
+                  hintStyle: TextStyle(
                     fontSize: 14,
-                    color: isDark ? Colors.white38 : AppColors.textSecondaryLight.withValues(alpha: 0.6),
+                    color: AppColors.textSecondary.withValues(alpha: 0.6),
                   ),
                   filled: true,
-                  fillColor: isDark ? AppColors.surfaceDark : Colors.white,
+                  fillColor: Colors.white,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(
-                      color: _titleError != null ? Colors.red : borderColor,
+                      color: _titleError != null ? AppColors.danger : borderColor,
                       width: 1.5,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(
-                      color: _titleError != null ? Colors.red : AppColors.cardYellowDark,
+                      color: _titleError != null ? AppColors.danger : AppColors.butter,
                       width: 2,
                     ),
                   ),
@@ -256,15 +254,15 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                     if (_titleError != null)
                       Text(
                         _titleError!,
-                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                        style: const TextStyle(color: AppColors.danger, fontSize: 12),
                       )
                     else
                       const SizedBox.shrink(),
                     Text(
                       '$titleLength/100',
-                      style: GoogleFonts.outfit(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: titleLength > 100 ? Colors.red : (isDark ? Colors.white38 : AppColors.textSecondaryLight),
+                        color: titleLength > 100 ? AppColors.danger : AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -277,18 +275,18 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                 children: [
                   Text(
                     'MESSAGE CONTENT',
-                    style: GoogleFonts.outfit(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.8,
-                      color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                      color: AppColors.ink,
                     ),
                   ),
                   const SizedBox(width: 4),
                   const Text(
                     '*',
                     style: TextStyle(
-                      color: Color(0xFFEF4444),
+                      color: AppColors.danger,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
@@ -302,30 +300,30 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                 maxLines: 8,
                 maxLength: 3000,
                 buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
-                style: GoogleFonts.outfit(
+                style: TextStyle(
                   fontSize: 15,
-                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                  color: AppColors.ink,
                 ),
                 decoration: InputDecoration(
                   hintText: 'Provide detailed information, instructions, or links...',
-                  hintStyle: GoogleFonts.outfit(
+                  hintStyle: TextStyle(
                     fontSize: 14,
-                    color: isDark ? Colors.white38 : AppColors.textSecondaryLight.withValues(alpha: 0.6),
+                    color: AppColors.textSecondary.withValues(alpha: 0.6),
                   ),
                   filled: true,
-                  fillColor: isDark ? AppColors.surfaceDark : Colors.white,
+                  fillColor: Colors.white,
                   contentPadding: const EdgeInsets.all(16),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide(
-                      color: _bodyError != null ? Colors.red : borderColor,
+                      color: _bodyError != null ? AppColors.danger : borderColor,
                       width: 1.5,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide(
-                      color: _bodyError != null ? Colors.red : AppColors.cardYellowDark,
+                      color: _bodyError != null ? AppColors.danger : AppColors.butter,
                       width: 2,
                     ),
                   ),
@@ -340,15 +338,15 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                     if (_bodyError != null)
                       Text(
                         _bodyError!,
-                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                        style: const TextStyle(color: AppColors.danger, fontSize: 12),
                       )
                     else
                       const SizedBox.shrink(),
                     Text(
                       '$bodyLength/3000',
-                      style: GoogleFonts.outfit(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: bodyLength > 3000 ? Colors.red : (isDark ? Colors.white38 : AppColors.textSecondaryLight),
+                        color: bodyLength > 3000 ? AppColors.danger : AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -374,10 +372,10 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                         children: [
                           Text(
                             'Pin to top',
-                            style: GoogleFonts.outfit(
+                            style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                              color: AppColors.ink,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -385,7 +383,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                             'Keep this announcement highlighted at the top of the feed',
                             style: TextStyle(
                               fontSize: 12,
-                              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                         ],
@@ -395,7 +393,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                     Switch(
                       value: _isPinned,
                       activeThumbColor: Colors.black,
-                      activeTrackColor: AppColors.cardYellow,
+                      activeTrackColor: AppColors.primary,
                       onChanged: _isSubmitting
                           ? null
                           : (val) {
@@ -409,19 +407,20 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
 
               // Divider
               Divider(
-                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                color: AppColors.border,
                 height: 1,
               ),
               const SizedBox(height: 20),
 
               // Action Buttons Row: Cancel & Publish
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              Wrap(
+                alignment: WrapAlignment.end,
+                runSpacing: 8,
                 children: [
                   OutlinedButton(
                     onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                      foregroundColor: AppColors.ink,
                       side: BorderSide(
                         color: borderColor,
                         width: 1.5,
@@ -433,7 +432,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                     ),
                     child: Text(
                       'Cancel',
-                      style: GoogleFonts.outfit(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -443,7 +442,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                   ElevatedButton(
                     onPressed: _isSubmitting ? null : _handleSubmit,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.cardYellow,
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.black,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -462,7 +461,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                           )
                         : Text(
                             isEditing ? 'Save Changes' : 'Publish Announcement',
-                            style: GoogleFonts.outfit(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
                             ),
@@ -511,7 +510,7 @@ class _DeleteAnnouncementDialogState extends State<DeleteAnnouncementDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceAll('Exception:', '').trim()),
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: AppColors.dangerInk,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -521,33 +520,32 @@ class _DeleteAnnouncementDialogState extends State<DeleteAnnouncementDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AlertDialog(
-      backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+      backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       title: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.red.withValues(alpha: 0.12),
+              color: AppColors.danger.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 24),
+            child: const Icon(Icons.delete_outline_rounded, color: AppColors.danger, size: 24),
           ),
           const SizedBox(width: 12),
           Text(
             'Delete Announcement',
-            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
         ],
       ),
       content: Text(
         'Are you sure you want to delete "${widget.announcement.title}"? This action cannot be undone.',
-        style: GoogleFonts.outfit(
+        style: TextStyle(
           fontSize: 14,
-          color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+          color: AppColors.textSecondary,
         ),
       ),
       actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -556,12 +554,12 @@ class _DeleteAnnouncementDialogState extends State<DeleteAnnouncementDialog> {
           onPressed: _isDeleting ? null : () => Navigator.of(context).pop(false),
           child: Text(
             'Cancel',
-            style: GoogleFonts.outfit(color: isDark ? Colors.white70 : Colors.black87),
+            style: TextStyle(color: AppColors.ink),
           ),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.danger,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           ),

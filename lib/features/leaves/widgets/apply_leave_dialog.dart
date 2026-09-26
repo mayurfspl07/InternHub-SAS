@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
@@ -207,12 +206,11 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final remainingQuota = widget.balance.remaining;
     final requested = _requestedDays;
 
     return Dialog(
-      backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+      backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: ConstrainedBox(
@@ -236,10 +234,10 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                         children: [
                           Text(
                             'Apply for Leave',
-                            style: GoogleFonts.outfit(
+                            style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                              color: AppColors.ink,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -247,7 +245,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                             'Submit a leave request for mentor review and approval.',
                             style: TextStyle(
                               fontSize: 12.5,
-                              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                         ],
@@ -257,7 +255,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                       icon: const Icon(Icons.close_rounded, size: 22),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                      color: AppColors.textSecondary,
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
@@ -268,25 +266,25 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF28233A) : const Color(0xFFEDE9FE),
+                    color: AppColors.lavender,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: isDark ? AppColors.primary.withValues(alpha: 0.3) : const Color(0xFFDDD6FE),
+                      color: AppColors.lavender,
                     ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primary),
+                      const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primaryInk),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           requested > 0
                               ? 'Available Quota: $remainingQuota days • Requesting $requested day(s)'
                               : 'Available Quota: $remainingQuota days',
-                          style: GoogleFonts.outfit(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : const Color(0xFF4C1D95),
+                            color: AppColors.lavenderInk,
                           ),
                         ),
                       ),
@@ -302,14 +300,13 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildFieldLabel('START DATE *', isDark),
+                          _buildFieldLabel('START DATE *'),
                           const SizedBox(height: 6),
                           GestureDetector(
                             onTap: _pickStartDate,
                             child: _buildDateDisplayBox(
                               date: _startDate,
                               placeholder: 'dd/mm/yyyy',
-                              isDark: isDark,
                             ),
                           ),
                         ],
@@ -320,14 +317,13 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildFieldLabel('END DATE *', isDark),
+                          _buildFieldLabel('END DATE *'),
                           const SizedBox(height: 6),
                           GestureDetector(
                             onTap: _pickEndDate,
                             child: _buildDateDisplayBox(
                               date: _endDate,
                               placeholder: 'dd/mm/yyyy',
-                              isDark: isDark,
                             ),
                           ),
                         ],
@@ -338,22 +334,22 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                 const SizedBox(height: 16),
 
                 // Leave Type Dropdown
-                _buildFieldLabel('LEAVE TYPE *', isDark),
+                _buildFieldLabel('LEAVE TYPE *'),
                 const SizedBox(height: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
-                    color: isDark ? AppColors.cardDark : Colors.white,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      color: AppColors.border,
                     ),
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value: _selectedType,
                       isExpanded: true,
-                      dropdownColor: isDark ? AppColors.surfaceDark : Colors.white,
+                      dropdownColor: Colors.white,
                       items: const [
                         DropdownMenuItem(value: 'casual', child: Text('Casual')),
                         DropdownMenuItem(value: 'sick', child: Text('Sick')),
@@ -372,7 +368,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildFieldLabel('REASON FOR LEAVE *', isDark),
+                    _buildFieldLabel('REASON FOR LEAVE *'),
                     ValueListenableBuilder<TextEditingValue>(
                       valueListenable: _reasonController,
                       builder: (context, value, _) {
@@ -382,7 +378,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                             fontSize: 11,
                             color: value.text.length > 300
                                 ? AppColors.danger
-                                : (isDark ? Colors.white38 : AppColors.textTertiaryLight),
+                                : AppColors.textTertiary,
                           ),
                         );
                       },
@@ -397,24 +393,24 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                   buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                   style: TextStyle(
                     fontSize: 13.5,
-                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                    color: AppColors.ink,
                   ),
                   decoration: InputDecoration(
                     hintText: 'Briefly describe why you are requesting leave...',
                     hintStyle: TextStyle(
                       fontSize: 13,
-                      color: isDark ? Colors.white30 : AppColors.textTertiaryLight,
+                      color: AppColors.textTertiary,
                     ),
                     filled: true,
-                    fillColor: isDark ? AppColors.cardDark : Colors.white,
+                    fillColor: Colors.white,
                     contentPadding: const EdgeInsets.all(12),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                      borderSide: BorderSide(color: AppColors.border),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                      borderSide: BorderSide(color: AppColors.border),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -434,19 +430,19 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                 const SizedBox(height: 14),
 
                 // Supporting Attachment
-                _buildFieldLabel('SUPPORTING ATTACHMENT (OPTIONAL — MAX 2MB)', isDark),
+                _buildFieldLabel('SUPPORTING ATTACHMENT (OPTIONAL — MAX 2MB)'),
                 const SizedBox(height: 6),
                 GestureDetector(
                   onTap: _pickAttachment,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.cardDark : const Color(0xFFF9FAFB),
+                      color: AppColors.surfaceMuted,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: _attachmentError != null
                             ? AppColors.danger
-                            : (isDark ? AppColors.borderDark : const Color(0xFFD1D5DB)),
+                            : AppColors.border,
                         style: BorderStyle.solid,
                       ),
                     ),
@@ -456,15 +452,15 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                               Icon(
                                 Icons.file_upload_outlined,
                                 size: 24,
-                                color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                                color: AppColors.textSecondary,
                               ),
                               const SizedBox(height: 6),
                               Text(
                                 'Click to upload supporting file',
-                                style: GoogleFonts.outfit(
+                                style: TextStyle(
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                  color: AppColors.ink,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -472,7 +468,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                                 'PDF, PNG, JPG, or DOC up to 2MB (e.g. medical certificate)',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: isDark ? Colors.white38 : AppColors.textTertiaryLight,
+                                  color: AppColors.textTertiary,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -487,7 +483,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                                   color: AppColors.primary.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: const Icon(Icons.attach_file_rounded, color: AppColors.primary, size: 20),
+                                child: const Icon(Icons.attach_file_rounded, color: AppColors.primaryInk, size: 20),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
@@ -505,7 +501,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                                         '${(_attachmentSizeBytes! / 1024).toStringAsFixed(1)} KB',
                                         style: TextStyle(
                                           fontSize: 11,
-                                          color: isDark ? Colors.white54 : AppColors.textSecondaryLight,
+                                          color: AppColors.textSecondary,
                                         ),
                                       ),
                                   ],
@@ -547,20 +543,21 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                 const SizedBox(height: 24),
 
                 // Bottom Buttons (Cancel & Submit)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  runSpacing: 8,
                   children: [
                     OutlinedButton(
                       style: OutlinedButton.styleFrom(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        side: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                        side: BorderSide(color: AppColors.border),
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       ),
                       onPressed: _isSubmitting ? null : () => Navigator.pop(context),
                       child: Text(
                         'Cancel',
                         style: TextStyle(
-                          color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                          color: AppColors.ink,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -568,7 +565,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                     const SizedBox(width: 10),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.cardYellow,
+                        backgroundColor: AppColors.primary,
                         foregroundColor: Colors.black,
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -587,7 +584,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                                 const SizedBox(width: 4),
                                 Text(
                                   'Submit Leave Request',
-                                  style: GoogleFonts.outfit(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13.5,
                                     color: Colors.black,
@@ -606,14 +603,14 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
     );
   }
 
-  Widget _buildFieldLabel(String label, bool isDark) {
+  Widget _buildFieldLabel(String label) {
     return Text(
       label,
-      style: GoogleFonts.outfit(
+      style: TextStyle(
         fontSize: 10.5,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w700,
         letterSpacing: 0.6,
-        color: isDark ? Colors.white70 : const Color(0xFF4B5563),
+        color: AppColors.textSecondary,
       ),
     );
   }
@@ -621,7 +618,6 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
   Widget _buildDateDisplayBox({
     required DateTime? date,
     required String placeholder,
-    required bool isDark,
   }) {
     final text = date != null ? DateFormat('dd/MM/yyyy').format(date) : placeholder;
     final isSelected = date != null;
@@ -629,10 +625,10 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          color: AppColors.border,
         ),
       ),
       child: Row(
@@ -644,14 +640,14 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
               fontSize: 13,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               color: isSelected
-                  ? (isDark ? Colors.white : AppColors.textPrimaryLight)
-                  : (isDark ? Colors.white30 : AppColors.textTertiaryLight),
+                  ? AppColors.ink
+                  : AppColors.textTertiary,
             ),
           ),
           Icon(
             Icons.calendar_month_outlined,
             size: 18,
-            color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+            color: AppColors.textSecondary,
           ),
         ],
       ),

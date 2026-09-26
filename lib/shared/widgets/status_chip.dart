@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
+import '../../core/constants/app_typography.dart';
 import '../models/attendance_model.dart';
 import '../models/project_model.dart';
 import '../models/leave_model.dart';
@@ -33,38 +35,38 @@ class StatusChip extends StatelessWidget {
   static Color _resolveBg(StatusType? type) {
     switch (type) {
       case StatusType.primary:
-        return const Color(0xFFEDE9FE);
+        return AppColors.primarySoft;
       case StatusType.success:
-        return const Color(0xFFD1FAE5);
+        return AppColors.successSoft;
       case StatusType.warning:
-        return const Color(0xFFFEF3C7);
+        return AppColors.warningSoft;
       case StatusType.danger:
       case StatusType.error:
-        return const Color(0xFFFEE2E2);
+        return AppColors.dangerSoft;
       case StatusType.info:
-        return const Color(0xFFE0F2FE);
+        return AppColors.infoSoft;
       case StatusType.neutral:
       default:
-        return const Color(0xFFF3F4F6);
+        return AppColors.neutralSoft;
     }
   }
 
   static Color _resolveText(StatusType? type) {
     switch (type) {
       case StatusType.primary:
-        return const Color(0xFF7B61FF);
+        return AppColors.primaryInk;
       case StatusType.success:
-        return const Color(0xFF047857);
+        return AppColors.successInk;
       case StatusType.warning:
-        return const Color(0xFFB45309);
+        return AppColors.warningInk;
       case StatusType.danger:
       case StatusType.error:
-        return const Color(0xFFB91C1C);
+        return AppColors.dangerInk;
       case StatusType.info:
-        return const Color(0xFF0369A1);
+        return AppColors.infoInk;
       case StatusType.neutral:
       default:
-        return const Color(0xFF374151);
+        return AppColors.neutralInk;
     }
   }
 
@@ -73,63 +75,55 @@ class StatusChip extends StatelessWidget {
       case AttendanceStatus.present:
         return const StatusChip(
           label: 'Present',
-          backgroundColor: Color(0xFFD1FAE5),
-          textColor: Color(0xFF065F46),
+          statusType: StatusType.success,
           icon: Icons.check_circle_rounded,
         );
       case AttendanceStatus.late:
         return const StatusChip(
           label: 'Late Check-in',
-          backgroundColor: Color(0xFFFEF3C7),
-          textColor: Color(0xFF92400E),
+          statusType: StatusType.warning,
           icon: Icons.access_time_rounded,
         );
       case AttendanceStatus.halfDay:
         return const StatusChip(
           label: 'Half Day',
-          backgroundColor: Color(0xFFFFEDD5),
-          textColor: Color(0xFF9A3412),
+          backgroundColor: AppColors.peach,
+          textColor: AppColors.peachInk,
           icon: Icons.timelapse_rounded,
         );
       case AttendanceStatus.absent:
         return const StatusChip(
           label: 'Absent',
-          backgroundColor: Color(0xFFFEE2E2),
-          textColor: Color(0xFF991B1B),
+          statusType: StatusType.danger,
           icon: Icons.cancel_rounded,
         );
       case AttendanceStatus.leave:
       case AttendanceStatus.onLeave:
         return const StatusChip(
           label: 'On Leave',
-          backgroundColor: Color(0xFFEDE9FE),
-          textColor: Color(0xFF5B21B6),
+          backgroundColor: AppColors.lavender,
+          textColor: AppColors.lavenderInk,
           icon: Icons.beach_access_rounded,
         );
       case AttendanceStatus.excused:
         return const StatusChip(
           label: 'Excused',
-          backgroundColor: Color(0xFFE0F2FE),
-          textColor: Color(0xFF075985),
+          statusType: StatusType.info,
           icon: Icons.info_outline_rounded,
         );
       case AttendanceStatus.weekOff:
-        return const StatusChip(
-          label: 'Off',
-          backgroundColor: Color(0xFFF3F4F6),
-          textColor: Color(0xFF4B5563),
-        );
+        return const StatusChip(label: 'Off', statusType: StatusType.neutral);
       case AttendanceStatus.notJoined:
         return const StatusChip(
           label: 'Not Joined',
-          backgroundColor: Color(0xFFF3F4F6),
-          textColor: Color(0xFF9CA3AF),
+          backgroundColor: AppColors.neutralSoft,
+          textColor: AppColors.textTertiary,
         );
       case AttendanceStatus.upcoming:
         return const StatusChip(
           label: 'Upcoming',
-          backgroundColor: Color(0xFFF3F4F6),
-          textColor: Color(0xFF9CA3AF),
+          backgroundColor: AppColors.neutralSoft,
+          textColor: AppColors.textTertiary,
         );
     }
   }
@@ -137,58 +131,34 @@ class StatusChip extends StatelessWidget {
   factory StatusChip.fromKanban(KanbanStatus status) {
     switch (status) {
       case KanbanStatus.todo:
-        return const StatusChip(
-          label: 'To Do',
-          backgroundColor: Color(0xFFF3F4F6),
-          textColor: Color(0xFF374151),
-        );
+        return const StatusChip(label: 'To Do', statusType: StatusType.neutral);
       case KanbanStatus.inProgress:
-        return const StatusChip(
-          label: 'In Progress',
-          backgroundColor: Color(0xFFE0F2FE),
-          textColor: Color(0xFF0369A1),
-        );
+        return const StatusChip(label: 'In Progress', statusType: StatusType.info);
       case KanbanStatus.inReview:
-        return const StatusChip(
-          label: 'In Review',
-          backgroundColor: Color(0xFFFEF3C7),
-          textColor: Color(0xFFB45309),
-        );
+        return const StatusChip(label: 'In Review', statusType: StatusType.warning);
       case KanbanStatus.completed:
-        return const StatusChip(
-          label: 'Completed',
-          backgroundColor: Color(0xFFD1FAE5),
-          textColor: Color(0xFF047857),
-        );
+        return const StatusChip(label: 'Completed', statusType: StatusType.success);
     }
   }
 
   factory StatusChip.fromPriority(TaskPriority priority) {
     switch (priority) {
       case TaskPriority.low:
-        return const StatusChip(
-          label: 'Low',
-          backgroundColor: Color(0xFFF3F4F6),
-          textColor: Color(0xFF4B5563),
-        );
+        return const StatusChip(label: 'Low', statusType: StatusType.neutral);
       case TaskPriority.medium:
         return const StatusChip(
           label: 'Medium',
-          backgroundColor: Color(0xFFFEF3C7),
-          textColor: Color(0xFF92400E),
+          backgroundColor: AppColors.butter,
+          textColor: AppColors.butterInk,
         );
       case TaskPriority.high:
         return const StatusChip(
           label: 'High',
-          backgroundColor: Color(0xFFFFEDD5),
-          textColor: Color(0xFFC2410C),
+          backgroundColor: AppColors.peach,
+          textColor: AppColors.peachInk,
         );
       case TaskPriority.urgent:
-        return const StatusChip(
-          label: 'Urgent',
-          backgroundColor: Color(0xFFFEE2E2),
-          textColor: Color(0xFFB91C1C),
-        );
+        return const StatusChip(label: 'Urgent', statusType: StatusType.danger);
     }
   }
 
@@ -197,25 +167,42 @@ class StatusChip extends StatelessWidget {
       case LeaveStatus.pending:
         return const StatusChip(
           label: 'Pending Approval',
-          backgroundColor: Color(0xFFFEF3C7),
-          textColor: Color(0xFFB45309),
+          statusType: StatusType.warning,
           icon: Icons.hourglass_top_rounded,
         );
       case LeaveStatus.approved:
         return const StatusChip(
           label: 'Approved',
-          backgroundColor: Color(0xFFD1FAE5),
-          textColor: Color(0xFF047857),
+          statusType: StatusType.success,
           icon: Icons.check_circle_rounded,
         );
       case LeaveStatus.rejected:
         return const StatusChip(
           label: 'Rejected',
-          backgroundColor: Color(0xFFFEE2E2),
-          textColor: Color(0xFFB91C1C),
+          statusType: StatusType.danger,
           icon: Icons.highlight_off_rounded,
         );
     }
+  }
+
+  factory StatusChip.onTrack({String label = 'On Track'}) {
+    return StatusChip(label: label, statusType: StatusType.success, icon: Icons.check_circle_rounded);
+  }
+
+  factory StatusChip.atRisk({String label = 'At Risk'}) {
+    return StatusChip(label: label, statusType: StatusType.danger, icon: Icons.warning_amber_rounded);
+  }
+
+  factory StatusChip.pending({String label = 'Pending'}) {
+    return StatusChip(label: label, statusType: StatusType.warning, icon: Icons.hourglass_empty_rounded);
+  }
+
+  factory StatusChip.completed({String label = 'Completed'}) {
+    return StatusChip(label: label, statusType: StatusType.success, icon: Icons.done_all_rounded);
+  }
+
+  factory StatusChip.inProgress({String label = 'In Progress'}) {
+    return StatusChip(label: label, statusType: StatusType.info, icon: Icons.timelapse_rounded);
   }
 
   @override
@@ -240,11 +227,7 @@ class StatusChip extends StatelessWidget {
             child: Text(
               label,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: text,
-              ),
+              style: AppTypography.label.copyWith(color: text),
             ),
           ),
         ],

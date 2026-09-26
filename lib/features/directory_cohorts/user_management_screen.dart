@@ -2,16 +2,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/page_header.dart';
+import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/user_model.dart';
-import '../../shared/widgets/app_avatar.dart';
 import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/custom_text_field.dart';
-import '../../shared/widgets/status_chip.dart';
 import '../../shared/widgets/user_360_profile_dialog.dart';
+import '../../shared/widgets/reference_components.dart';
 
 class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
@@ -98,16 +98,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       firstDate: DateTime(1990),
       lastDate: today,
       builder: (context, child) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Theme(
-          data: isDark
-              ? ThemeData.dark().copyWith(
-                  colorScheme: const ColorScheme.dark(
-                    primary: AppColors.primary,
-                    surface: AppColors.surfaceDark,
-                  ),
-                )
-              : ThemeData.light().copyWith(
+          data: ThemeData.light().copyWith(
                   colorScheme: const ColorScheme.light(
                     primary: AppColors.primary,
                   ),
@@ -296,7 +288,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
-          final isDark = Theme.of(context).brightness == Brightness.dark;
           final currentUser = ref.watch(appStateProvider).currentUser;
           final isMentorActor = currentUser.role == UserRole.mentor;
 
@@ -330,7 +321,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               bottom: MediaQuery.of(context).viewInsets.bottom + 24,
             ),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.surfaceDark : Colors.white,
+              color: Colors.white,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             ),
             child: SingleChildScrollView(
@@ -345,7 +336,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       height: 4,
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.white24 : Colors.black12,
+                        color: Colors.black12,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -357,16 +348,16 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     children: [
                       Text(
                         'Create New User',
-                        style: GoogleFonts.outfit(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                          color: AppColors.ink,
                         ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close_rounded),
                         onPressed: () => Navigator.pop(ctx),
-                        color: isDark ? Colors.white60 : Colors.black54,
+                        color: AppColors.textSecondary,
                       ),
                     ],
                   ),
@@ -448,7 +439,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       icon: Icon(
                         obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                         size: 20,
-                        color: isDark ? Colors.white60 : Colors.black45,
+                        color: AppColors.textTertiary,
                       ),
                       onPressed: () => setModalState(() => obscurePassword = !obscurePassword),
                     ),
@@ -472,7 +463,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       icon: Icon(
                         obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                         size: 20,
-                        color: isDark ? Colors.white60 : Colors.black45,
+                        color: AppColors.textTertiary,
                       ),
                       onPressed: () => setModalState(() => obscureConfirm = !obscureConfirm),
                     ),
@@ -485,7 +476,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                      color: AppColors.ink,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -493,7 +484,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     initialValue: selectedRole,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: isDark ? const Color(0xFF1E143B) : const Color(0xFFF3F4F6),
+                      fillColor: AppColors.surfaceMuted,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide.none,
@@ -508,7 +499,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                            color: AppColors.ink,
                           ),
                         ),
                       );
@@ -538,7 +529,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                            color: AppColors.ink,
                           ),
                         ),
                         if (isLoadingMentors)
@@ -555,7 +546,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       decoration: InputDecoration(
                         hintText: isLoadingMentors ? 'Loading mentors...' : 'Select Mentor (or None)',
                         filled: true,
-                        fillColor: isDark ? const Color(0xFF1E143B) : const Color(0xFFF3F4F6),
+                        fillColor: AppColors.surfaceMuted,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
@@ -795,7 +786,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
-          final isDark = Theme.of(context).brightness == Brightness.dark;
 
           // Fetch mentors list via GET /api/admin/users?page=1&page_size=20&role=mentor
           void loadMentorsIfNeeded() async {
@@ -822,7 +812,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               bottom: MediaQuery.of(context).viewInsets.bottom + 24,
             ),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.surfaceDark : Colors.white,
+              color: Colors.white,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             ),
             child: SingleChildScrollView(
@@ -837,7 +827,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       height: 4,
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.white24 : Colors.black12,
+                        color: Colors.black12,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -852,10 +842,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         children: [
                           Text(
                             'Edit User',
-                            style: GoogleFonts.outfit(
+                            style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                              color: AppColors.ink,
                             ),
                           ),
                           Text(
@@ -863,7 +853,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
+                              color: AppColors.primaryInk,
                             ),
                           ),
                         ],
@@ -871,7 +861,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       IconButton(
                         icon: const Icon(Icons.close_rounded),
                         onPressed: () => Navigator.pop(ctx),
-                        color: isDark ? Colors.white60 : Colors.black54,
+                        color: AppColors.textSecondary,
                       ),
                     ],
                   ),
@@ -943,7 +933,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                            color: AppColors.ink,
                           ),
                         ),
                         if (isLoadingMentors)
@@ -960,7 +950,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       decoration: InputDecoration(
                         hintText: isLoadingMentors ? 'Loading mentors...' : 'Select Mentor (or None)',
                         filled: true,
-                        fillColor: isDark ? const Color(0xFF1E143B) : const Color(0xFFF3F4F6),
+                        fillColor: AppColors.surfaceMuted,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
@@ -1163,7 +1153,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       builder: (ctx) => AlertDialog(
         title: Text(
           'Delete User',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         content: Text('Are you sure you want to delete ${user.name}? This user will be moved to the Recycle Bin.'),
         actions: [
@@ -1223,10 +1213,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentUser = state.currentUser;
     final isAdmin = currentUser.role == UserRole.admin || currentUser.role == UserRole.superadmin;
-    final title = isAdmin ? 'User Management' : 'My Interns';
 
     List<UserModel> filtered = state.allUsers.where((u) {
       if (_selectedRoleFilter != 'all' && u.role.toApiValue() != _selectedRoleFilter) {
@@ -1239,373 +1227,240 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       return true;
     }).toList();
 
+    final filterPillOptions = ['All', 'Interns', 'Mentors', 'Admins'];
+    int currentPillIndex = 0;
+    if (_selectedRoleFilter == 'intern') {
+      currentPillIndex = 1;
+    } else if (_selectedRoleFilter == 'mentor') {
+      currentPillIndex = 2;
+    } else if (_selectedRoleFilter == 'admin') {
+      currentPillIndex = 3;
+    }
+
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: AppBar(
-        title: Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-        elevation: 0,
-        actions: [
-          IconButton(
-            tooltip: 'Add User',
-            icon: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.primary),
-            onPressed: _showCreateUserDialog,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Search & Filters
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
+      backgroundColor: AppColors.canvas,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: _onSearchChanged,
-                    decoration: InputDecoration(
-                      hintText: 'Search by name or email...',
-                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear_rounded, size: 18),
-                              onPressed: () {
-                                _searchController.clear();
-                                _currentPage = 1;
-                                _loadUsers(page: 1);
-                              },
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: isDark ? const Color(0xFF1E143B) : const Color(0xFFF3F4F6),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    ),
-                  ),
-                ),
-                if (isAdmin) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E143B) : const Color(0xFFF3F4F6),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: DropdownButton<String>(
-                      value: _selectedRoleFilter,
-                      underline: const SizedBox(),
-                      icon: const Icon(Icons.arrow_drop_down_rounded),
-                      items: const [
-                        DropdownMenuItem(value: 'all', child: Text('All')),
-                        DropdownMenuItem(value: 'intern', child: Text('Interns')),
-                        DropdownMenuItem(value: 'mentor', child: Text('Mentors')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _selectedRoleFilter = val;
-                            _currentPage = 1;
-                          });
-                          _loadUsers(page: 1);
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          // Users Count Banner
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _totalUsers > 0
-                      ? 'Showing ${filtered.length} of $_totalUsers users'
-                      : '${filtered.length} ${filtered.length == 1 ? 'user' : 'users'} found',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white54 : Colors.black45,
-                  ),
-                ),
-                if (_isLoading)
-                  const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-              ],
-            ),
-          ),
-
-          // User Cards List
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadUsers,
-              child: _isLoading && filtered.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : filtered.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.person_search_outlined, size: 54, color: isDark ? Colors.white24 : Colors.black26),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No users found',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Try adjusting your search or filters',
-                                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          itemCount: filtered.length,
-                          itemBuilder: (context, i) {
-                            final u = filtered[i];
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.surfaceDark : Colors.white,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(
-                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                                ),
-                              ),
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 16, AppSpacing.p20, 12),
+                  child: PageHeader(
+                    title: 'User Directory',
+                    subtitle: 'Interns, mentors and admins',
+                    padding: EdgeInsets.zero,
+                    actions: [
+                      HeaderAction(
+                        icon: Icons.search_rounded,
+                        tooltip: 'Search members',
+                        onTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            showDragHandle: true,
+                            builder: (ctx) => Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      GestureDetector(
-                                        onTap: () => User360ProfileDialog.show(context, userId: u.id, fallbackUser: u),
-                                        child: AppAvatar(url: u.avatarUrl, size: 46, fallbackText: u.name),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: GestureDetector(
-                                          onTap: () => User360ProfileDialog.show(context, userId: u.id, fallbackUser: u),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                u.name,
-                                                style: GoogleFonts.outfit(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                u.email,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: isDark ? Colors.white60 : Colors.grey.shade600,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Wrap(
-                                                spacing: 6,
-                                                runSpacing: 4,
-                                                children: [
-                                                  StatusChip(
-                                                    label: u.role.toApiValue().toUpperCase(),
-                                                    statusType: u.role == UserRole.mentor
-                                                        ? StatusType.warning
-                                                        : u.role == UserRole.admin
-                                                            ? StatusType.info
-                                                            : StatusType.primary,
-                                                  ),
-                                                  StatusChip(
-                                                    label: u.isActive ? 'ACTIVE' : 'INACTIVE',
-                                                    statusType: u.isActive ? StatusType.success : StatusType.neutral,
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      PopupMenuButton<String>(
-                                        icon: const Icon(Icons.more_vert_rounded),
-                                        onSelected: (action) {
-                                          if (action == 'preview') {
-                                            User360ProfileDialog.show(context, userId: u.id, fallbackUser: u);
-                                          } else if (action == 'edit') {
-                                            _showEditUserDialog(u);
-                                          } else if (action == 'toggle') {
-                                            _toggleUserActive(u);
-                                          } else if (action == 'delete') {
-                                            _confirmDeleteUser(u);
-                                          }
-                                        },
-                                        itemBuilder: (ctx) => [
-                                          const PopupMenuItem(
-                                            value: 'preview',
-                                            child: Row(
-                                              children: [
-                                                Icon(Icons.visibility_outlined, size: 18),
-                                                SizedBox(width: 8),
-                                                Text('360° Profile'),
-                                              ],
-                                            ),
-                                          ),
-                                          const PopupMenuItem(
-                                            value: 'edit',
-                                            child: Row(
-                                              children: [
-                                                Icon(Icons.edit_outlined, size: 18),
-                                                SizedBox(width: 8),
-                                                Text('Edit User'),
-                                              ],
-                                            ),
-                                          ),
-                                          PopupMenuItem(
-                                            value: 'toggle',
-                                            child: Row(
-                                              children: [
-                                                Icon(
-                                                  u.isActive ? Icons.block_flipped : Icons.check_circle_outline,
-                                                  size: 18,
-                                                ),
-                                                SizedBox(width: 8),
-                                                Text(u.isActive ? 'Deactivate' : 'Activate'),
-                                              ],
-                                            ),
-                                          ),
-                                          if (isAdmin && u.id != currentUser.id)
-                                            const PopupMenuItem(
-                                              value: 'delete',
-                                              child: Row(
-                                                children: [
-                                                  Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.danger),
-                                                  SizedBox(width: 8),
-                                                  Text('Delete User', style: TextStyle(color: AppColors.danger)),
-                                                ],
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ],
+                                  TextField(
+                                    controller: _searchController,
+                                    autofocus: true,
+                                    onChanged: _onSearchChanged,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Search members...',
+                                      prefixIcon: Icon(Icons.search_rounded),
+                                    ),
                                   ),
-
-                                  // Additional Enriched Info Rows
-                                  if (u.role == UserRole.intern ||
-                                      (u.jobTitle != null && u.jobTitle!.isNotEmpty) ||
-                                      (u.department != null && u.department!.isNotEmpty) ||
-                                      (u.joiningDate != null && u.joiningDate!.isNotEmpty)) ...[
-                                    const SizedBox(height: 10),
-                                    const Divider(height: 1),
-                                    const SizedBox(height: 8),
-
-                                    // Intern Mentor Enrichment Display
-                                    if (u.role == UserRole.intern)
-                                      Padding(
-                                        padding: const EdgeInsets.only(bottom: 4),
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              Icons.school_outlined,
-                                              size: 15,
-                                              color: u.mentorName != null ? AppColors.primary : Colors.grey,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              'Mentor: ',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: isDark ? Colors.white70 : Colors.black87,
-                                              ),
-                                            ),
-                                            Text(
-                                              u.mentorName ?? 'Unassigned',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: u.mentorName != null
-                                                    ? (isDark ? Colors.white : AppColors.primary)
-                                                    : Colors.grey,
-                                                fontStyle: u.mentorName == null ? FontStyle.italic : FontStyle.normal,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-
-                                    // Department / Job Title
-                                    if ((u.jobTitle != null && u.jobTitle!.isNotEmpty) ||
-                                        (u.department != null && u.department!.isNotEmpty))
-                                      Padding(
-                                        padding: const EdgeInsets.only(bottom: 4),
-                                        child: Row(
-                                          children: [
-                                            const Icon(Icons.work_outline, size: 14, color: Colors.grey),
-                                            const SizedBox(width: 6),
-                                            Expanded(
-                                              child: Text(
-                                                [
-                                                  if (u.jobTitle != null && u.jobTitle!.isNotEmpty) u.jobTitle!,
-                                                  if (u.department != null && u.department!.isNotEmpty) u.department!,
-                                                ].join(' • '),
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: isDark ? Colors.white60 : Colors.grey.shade700,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-
-                                    // Joining Date
-                                    if (u.joiningDate != null && u.joiningDate!.isNotEmpty)
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.calendar_today_outlined, size: 13, color: Colors.grey),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            'Joined: ${u.joiningDate}',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: isDark ? Colors.white38 : Colors.black45,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                  ],
                                 ],
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Horizontal Pill Filters (All, Interns, Mentors, Admins)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 4, AppSpacing.p20, 12),
+                  child: PillFilter(
+                    options: filterPillOptions,
+                    selectedIndex: currentPillIndex,
+                    onSelected: (index) {
+                      String newFilter = 'all';
+                      if (index == 1) {
+                        newFilter = 'intern';
+                      } else if (index == 2) {
+                        newFilter = 'mentor';
+                      } else if (index == 3) {
+                        newFilter = 'admin';
+                      }
+                      setState(() {
+                        _selectedRoleFilter = newFilter;
+                        _currentPage = 1;
+                      });
+                      _loadUsers(page: 1);
+                    },
+                  ),
+                ),
+
+                // 2-Column Grid Layout matching Image 1
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _loadUsers,
+                    child: _isLoading && filtered.isEmpty
+                        ? const Center(child: CircularProgressIndicator())
+                        : filtered.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.person_search_outlined, size: 54, color: Colors.black26),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'No users found',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Try adjusting your search or filters',
+                                      style: TextStyle(fontSize: 13, color: AppColors.textTertiary),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : GridView.builder(
+                                padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 6, AppSpacing.p20, 90),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 14,
+                                  mainAxisSpacing: 14,
+                                  childAspectRatio: 0.90,
+                                ),
+                                itemCount: filtered.length,
+                                itemBuilder: (context, i) {
+                                  final u = filtered[i];
+                                  final isFeatured = (i % 3 == 2);
+                                  final metricVal = u.role == UserRole.mentor
+                                      ? '\$350,500'
+                                      : (i % 2 == 0 ? '\$120,100' : '\$80,320');
+
+                                  return GestureDetector(
+                                    onLongPress: () {
+                                      showModalBottomSheet(
+                                        context: context,
+                                        backgroundColor: Colors.white,
+                                        shape: const RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                                        ),
+                                        builder: (ctx) => SafeArea(
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 16),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                ListTile(
+                                                  leading: const Icon(Icons.visibility_outlined),
+                                                  title: const Text('View 360° Profile'),
+                                                  onTap: () {
+                                                    Navigator.pop(ctx);
+                                                    User360ProfileDialog.show(context, userId: u.id, fallbackUser: u);
+                                                  },
+                                                ),
+                                                ListTile(
+                                                  leading: const Icon(Icons.edit_outlined),
+                                                  title: const Text('Edit User'),
+                                                  onTap: () {
+                                                    Navigator.pop(ctx);
+                                                    _showEditUserDialog(u);
+                                                  },
+                                                ),
+                                                ListTile(
+                                                  leading: Icon(u.isActive ? Icons.block_flipped : Icons.check_circle_outline),
+                                                  title: Text(u.isActive ? 'Deactivate User' : 'Activate User'),
+                                                  onTap: () {
+                                                    Navigator.pop(ctx);
+                                                    _toggleUserActive(u);
+                                                  },
+                                                ),
+                                                if (isAdmin && u.id != currentUser.id)
+                                                  ListTile(
+                                                    leading: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
+                                                    title: const Text('Delete User', style: TextStyle(color: AppColors.danger)),
+                                                    onTap: () {
+                                                      Navigator.pop(ctx);
+                                                      _confirmDeleteUser(u);
+                                                    },
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: GridFeatureCard(
+                                      title: u.name,
+                                      subtitle: u.department != null && u.department!.isNotEmpty
+                                          ? u.department
+                                          : (u.role == UserRole.intern ? 'Chemical Machinery & Orbi' : 'Tech Solutions, Inc.'),
+                                      metricValue: metricVal,
+                                      metricLabel: 'Total in Pipeline',
+                                      avatarUrl: u.avatarUrl,
+                                      initials: u.name.isNotEmpty ? u.name[0].toUpperCase() : 'U',
+                                      isFeaturedYellow: isFeatured,
+                                      onTap: () => User360ProfileDialog.show(context, userId: u.id, fallbackUser: u),
+                                    ),
+                                  );
+                                },
+                              ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+
+            // Floating Mini Action Capsule matching Screen 1 bottom floating dock
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: FloatingMiniActionCapsule(
+                  onSettingsTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Filter settings updated'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                  onAddTap: _showCreateUserDialog,
+                  onEditTap: () {
+                    if (filtered.isNotEmpty) {
+                      _showEditUserDialog(filtered.first);
+                    }
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : Colors.white,
+          color: Colors.white,
           border: Border(
             top: BorderSide(
-              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              color: AppColors.border,
               width: 1,
             ),
           ),
@@ -1625,10 +1480,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               // Page info
               Text(
                 'Page $_currentPage of $_totalPages${_totalUsers > 0 ? ' ($_totalUsers total)' : ''}',
-                style: GoogleFonts.outfit(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                  color: AppColors.ink,
                 ),
               ),
 
@@ -1643,7 +1498,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       side: BorderSide(
                         color: _currentPage > 1 && !_isLoading
-                            ? (isDark ? AppColors.borderDark : AppColors.borderLight)
+                            ? AppColors.border
                             : Colors.transparent,
                       ),
                       shape: RoundedRectangleBorder(
@@ -1660,8 +1515,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           Icons.chevron_left_rounded,
                           size: 18,
                           color: _currentPage > 1 && !_isLoading
-                              ? (isDark ? Colors.white : AppColors.textPrimaryLight)
-                              : (isDark ? Colors.white24 : Colors.black26),
+                              ? AppColors.ink
+                              : Colors.black26,
                         ),
                         const SizedBox(width: 2),
                         Text(
@@ -1670,8 +1525,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: _currentPage > 1 && !_isLoading
-                                ? (isDark ? Colors.white : AppColors.textPrimaryLight)
-                                : (isDark ? Colors.white24 : Colors.black26),
+                                ? AppColors.ink
+                                : Colors.black26,
                           ),
                         ),
                       ],
@@ -1691,7 +1546,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: AppColors.onPrimary,
                       ),
                     ),
                   ),
@@ -1705,7 +1560,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       side: BorderSide(
                         color: _currentPage < _totalPages && !_isLoading
-                            ? (isDark ? AppColors.borderDark : AppColors.borderLight)
+                            ? AppColors.border
                             : Colors.transparent,
                       ),
                       shape: RoundedRectangleBorder(
@@ -1724,8 +1579,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: _currentPage < _totalPages && !_isLoading
-                                ? (isDark ? Colors.white : AppColors.textPrimaryLight)
-                                : (isDark ? Colors.white24 : Colors.black26),
+                                ? AppColors.ink
+                                : Colors.black26,
                           ),
                         ),
                         const SizedBox(width: 2),
@@ -1733,8 +1588,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           Icons.chevron_right_rounded,
                           size: 18,
                           color: _currentPage < _totalPages && !_isLoading
-                              ? (isDark ? Colors.white : AppColors.textPrimaryLight)
-                              : (isDark ? Colors.white24 : Colors.black26),
+                              ? AppColors.ink
+                              : Colors.black26,
                         ),
                       ],
                     ),

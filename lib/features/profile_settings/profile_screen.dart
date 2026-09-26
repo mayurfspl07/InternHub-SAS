@@ -1,280 +1,369 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
+import '../../shared/models/profile_overview_model.dart';
 import '../../shared/models/user_model.dart';
-import '../../shared/widgets/app_avatar.dart';
-import '../../shared/widgets/user_360_profile_dialog.dart';
-import '../attendance/attendance_home_screen.dart';
-import '../attendance/admin_attendance_override_modal.dart';
-import '../performance/performance_dashboard_screen.dart';
-import '../leaves/leave_dashboard_screen.dart';
-import '../leaves/leave_approval_queue_screen.dart';
-import '../projects_tasks/projects_list_screen.dart';
-import '../directory_cohorts/team_directory_screen.dart';
-import '../directory_cohorts/cohort_management_screen.dart';
-import '../standup/standup_feed_screen.dart';
-import '../activity_audit/activity_log_screen.dart';
-import '../activity_audit/recycle_bin_screen.dart';
-import '../auth/login_screen.dart';
+import 'change_password_dialog.dart';
+import 'profile_repository.dart';
 import 'settings_screen.dart';
+import 'widgets/edit_profile_dialog.dart';
 
-class ProfileScreen extends ConsumerWidget {
-  const ProfileScreen({super.key});
+class ProfileScreen extends ConsumerStatefulWidget {
+  final bool showBackButton;
+  const ProfileScreen({super.key, this.showBackButton = false});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(appStateProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final user = state.currentUser;
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
 
-    return Scaffold(
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () => ref.read(appStateProvider.notifier).fetchCurrentUser(),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(left: 20, right: 20, top: 12, bottom: 120),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Top Bar with Settings Cog
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Profile 👤',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined, size: 22),
-                          tooltip: 'Edit Profile',
-                          onPressed: () => _showEditProfileBottomSheet(context, ref, user),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.settings_outlined, size: 22),
-                          tooltip: 'Settings',
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  final ProfileRepository _repository = ProfileRepository();
 
-                // User Info Card
-                Row(
-                  children: [
-                    AppAvatar(
-                      url: user.avatarUrl,
-                      size: 72,
-                      borderColor: AppColors.primary,
-                      borderWidth: 2.5,
-                      fallbackText: user.name,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user.name,
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${user.roleTitle} • ${user.location}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
-                            ),
-                          ),
-                          if (user.bio != null && user.bio!.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              user.bio!,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isDark ? Colors.white70 : Colors.black54,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
+  UserModel? _profileUser;
+  UserProfileOverview? _overview;
 
-                // 3 Colored Stat Boxes (Strictly tailored to user role)
-                if (user.role == UserRole.intern)
-                  Row(
-                    children: [
-                      _buildProfileStatBox('Performance', '⭐ ${user.performanceRating.toStringAsFixed(1)}', const Color(0xFFD1FAE5), isDark),
-                      const SizedBox(width: 10),
-                      _buildProfileStatBox('Streak', '🔥 ${user.attendanceStreak}d', const Color(0xFFE0F2FE), isDark),
-                      const SizedBox(width: 10),
-                      _buildProfileStatBox('Coins', '🟡 ${user.streakCoins}', const Color(0xFFFFEDD5), isDark),
-                    ],
-                  )
-                else if (user.role == UserRole.mentor)
-                  Row(
-                    children: [
-                      _buildProfileStatBox('Rating', '⭐ ${user.performanceRating.toStringAsFixed(1)}', const Color(0xFFD1FAE5), isDark),
-                      const SizedBox(width: 10),
-                      _buildProfileStatBox('Interns', '👥 ${state.allUsers.where((u) => u.role == UserRole.intern).length}', const Color(0xFFE0F2FE), isDark),
-                      const SizedBox(width: 10),
-                      _buildProfileStatBox('Cohort', '🎓 ${user.cohortName ?? 'Active'}', const Color(0xFFFFEDD5), isDark),
-                    ],
-                  )
-                else
-                  Row(
-                    children: [
-                      _buildProfileStatBox('Role', '🛡️ Admin', const Color(0xFFD1FAE5), isDark),
-                      const SizedBox(width: 10),
-                      _buildProfileStatBox('Cohorts', '🎓 ${state.cohorts.length} Batches', const Color(0xFFE0F2FE), isDark),
-                      const SizedBox(width: 10),
-                      _buildProfileStatBox('Users', '👥 ${state.allUsers.length}', const Color(0xFFFFEDD5), isDark),
-                    ],
-                  ),
-                const SizedBox(height: 24),
+  bool _isLoadingProfile = true;
+  bool _isLoadingOverview = false;
+  String? _errorMessage;
 
-                // Internship Summary (Interns only)
-                if (user.role == UserRole.intern) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.surfaceDark : Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '🎓 Internship Summary',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        _buildSummaryRow('Join Date', user.joiningDate ?? 'Active Session', isDark),
-                        _buildSummaryRow('Active Days Tracked', '${state.attendanceRecords.length} Days', isDark),
-                        _buildSummaryRow('Completed Tasks', '${user.completedTasks} Tasks', isDark),
-                        _buildSummaryRow('Assigned Mentor', user.mentorName ?? 'Senior Mentor', isDark),
-                        _buildSummaryRow('Cohort', user.cohortName ?? 'General Cohort', isDark),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
+  UserModel get _activeUser => _profileUser ?? ref.read(appStateProvider).currentUser;
+  bool get _isIntern => _activeUser.role == UserRole.intern;
 
-                // 360 Profile Launch Button
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => User360ProfileDialog.show(context, userId: user.id, fallbackUser: user),
-                    icon: const Icon(Icons.badge_outlined, size: 18),
-                    label: const Text('View Full 360° Profile Sheet'),
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileData();
+  }
 
-                // Menu List
-                Material(
-                  color: isDark ? AppColors.surfaceDark : Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
-                    side: BorderSide(
-                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                    ),
-                  ),
-                  child: Column(
-                    children: _buildRoleSpecificMenuItems(context, state, user, isDark),
-                  ),
-                ),
-                const SizedBox(height: 28),
+  Future<void> _loadProfileData() async {
+    setState(() {
+      _isLoadingProfile = true;
+      _errorMessage = null;
+    });
 
-                // Sign Out Button
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      await ref.read(appStateProvider.notifier).logout();
-                      if (context.mounted) {
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (_) => const LoginScreen()),
-                          (route) => false,
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.logout_rounded, size: 18, color: AppColors.danger),
-                    label: const Text('Sign Out'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                      side: const BorderSide(color: AppColors.danger, width: 1.2),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                ),
-              ],
+    try {
+      final user = await _repository.getProfile();
+      if (mounted) {
+        setState(() {
+          _profileUser = user;
+          _isLoadingProfile = false;
+        });
+
+        // Query 2: GET /api/users/{id}/overview ONLY when isIntern AND activeUser.id is set
+        if (user.role == UserRole.intern && user.id.isNotEmpty) {
+          _loadInternOverview(user.id);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingProfile = false;
+          _errorMessage = e.toString();
+        });
+        // Fallback: If profile fetch fails, check session user for intern overview
+        final sessionUser = ref.read(appStateProvider).currentUser;
+        if (sessionUser.role == UserRole.intern && sessionUser.id.isNotEmpty) {
+          _loadInternOverview(sessionUser.id);
+        }
+      }
+    }
+  }
+
+  Future<void> _loadInternOverview(String userId) async {
+    setState(() => _isLoadingOverview = true);
+    try {
+      final ov = await _repository.getUserOverview(userId);
+      if (mounted) {
+        setState(() {
+          _overview = ov;
+          _isLoadingOverview = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingOverview = false);
+      }
+    }
+  }
+
+  void _openEditDialog() {
+    EditProfileDialog.show(
+      context,
+      user: _activeUser,
+      onSuccess: (updated) {
+        setState(() => _profileUser = updated);
+        ref.read(appStateProvider.notifier).fetchCurrentUser();
+      },
+    );
+  }
+
+  void _confirmLogout() {
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.r28),
+        ),
+        title: const Text('Are you sure?', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: const Text(
+          'You will be logged out from your account and returned to the login screen.',
+          style: TextStyle(fontSize: 14),
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-        ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.rPill),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(appStateProvider.notifier).logout();
+              if (mounted) {
+                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+              }
+            },
+            child: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildSummaryRow(String label, String value, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+  Widget _buildHeaderCard(Color cardBg, Color borderColor, Color primaryTextColor, Color secondaryTextColor) {
+    final user = _activeUser;
+    final initial = user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U';
+
+    final isIntern = user.role == UserRole.intern;
+    final box1Value = isIntern ? '${_overview?.totalProjectsCount ?? 4}' : '12';
+    final box1Label = isIntern ? 'Tasks' : 'Interns';
+    final box2Value = isIntern ? '${_overview?.totalProjectsCount ?? 2}' : '5';
+    final box2Label = 'Projects';
+    final box3Value = '4.8';
+    final box3Label = 'Rating';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 1. Centered Profile Card (Screen 14 in Reference UI)
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(AppSpacing.r28),
+            boxShadow: AppShadows.soft,
+          ),
+          child: Column(
+            children: [
+              // Centered Avatar with Edit camera badge
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 46,
+                    backgroundColor: AppColors.primary,
+                    child: Text(
+                      initial,
+                      style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.warningInk,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: GestureDetector(
+                      onTap: _openEditDialog,
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: cardBg, width: 2.5),
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt_rounded,
+                          size: 15,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Name
+              Text(
+                user.name,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: primaryTextColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+
+              // Role & Department Subtitle
+              Text(
+                '${user.role.name.toUpperCase()} • ${user.department ?? "Engineering"}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: secondaryTextColor,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 3 KPI Metric Cards in a row
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildMetricTile(box1Value, box1Label, cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildMetricTile(box2Value, box2Label, cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildMetricTile(box3Value, box3Label, cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // 2. Settings / Account Options (Screen 14 in Reference UI)
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(AppSpacing.r24),
+        boxShadow: AppShadows.soft,
+      ),
+          child: Column(
+            children: [
+              _buildOptionItem(
+                icon: Icons.person_outline_rounded,
+                title: 'My Profile',
+                primaryTextColor: primaryTextColor,
+                secondaryTextColor: secondaryTextColor,
+                onTap: _openEditDialog,
+              ),
+              Divider(height: 1, color: borderColor),
+              _buildOptionItem(
+                icon: Icons.settings_outlined,
+                title: 'Settings',
+                primaryTextColor: primaryTextColor,
+                secondaryTextColor: secondaryTextColor,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  );
+                },
+              ),
+              Divider(height: 1, color: borderColor),
+              _buildOptionItem(
+                icon: Icons.lock_outline_rounded,
+                title: 'Change Password',
+                primaryTextColor: primaryTextColor,
+                secondaryTextColor: secondaryTextColor,
+                onTap: () => ChangePasswordDialog.show(context),
+              ),
+              Divider(height: 1, color: borderColor),
+              _buildOptionItem(
+                icon: Icons.headset_mic_outlined,
+                title: 'Help & Support',
+                primaryTextColor: primaryTextColor,
+                secondaryTextColor: secondaryTextColor,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Support email: support@internhub.app')),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // 3. Bottom Coral/Red Pill Button: Log Out (Screen 14 & 21 in Reference UI)
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            onPressed: _confirmLogout,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger, // Coral / Red from reference
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.rPill),
+              ),
+            ),
+            child: Text(
+              'Log Out',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricTile(String value, String label, Color cardBg, Color borderColor, Color primaryTextColor, Color secondaryTextColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppSpacing.r16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        children: [
           Text(
             value,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+              color: primaryTextColor,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: secondaryTextColor,
             ),
           ),
         ],
@@ -282,387 +371,860 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showEditProfileBottomSheet(BuildContext context, WidgetRef ref, UserModel user) {
-    final bioCtrl = TextEditingController(text: user.bio ?? '');
-    final phoneCtrl = TextEditingController(text: user.phone ?? '');
-    final skillsCtrl = TextEditingController(text: user.skills.join(', '));
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 32,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildOptionItem({
+    required IconData icon,
+    required String title,
+    required Color primaryTextColor,
+    required Color secondaryTextColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+        child: Row(
           children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(10),
+            Icon(icon, size: 20, color: AppColors.ink),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: primaryTextColor,
                 ),
               ),
             ),
-            const SizedBox(height: 18),
-            const Text(
-              'Edit Profile ✏️',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: bioCtrl,
-              maxLines: 2,
-              decoration: const InputDecoration(labelText: 'Bio / About You'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: phoneCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Phone Number'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: skillsCtrl,
-              decoration: const InputDecoration(labelText: 'Skills (comma separated)'),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  try {
-                    await ref.read(appStateProvider.notifier).updateProfile({
-                      'bio': bioCtrl.text.trim(),
-                      'phone': phoneCtrl.text.trim(),
-                      'skills': skillsCtrl.text.trim(),
-                    });
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Profile updated successfully!')),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Failed to update profile: $e')),
-                      );
-                    }
-                  }
-                },
-                child: const Text('Save Profile'),
-              ),
-            ),
+            Icon(Icons.chevron_right_rounded, size: 18, color: secondaryTextColor),
           ],
         ),
       ),
     );
   }
 
-  List<Widget> _buildRoleSpecificMenuItems(
-    BuildContext context,
-    AppState state,
-    UserModel user,
-    bool isDark,
-  ) {
-    if (user.role == UserRole.intern) {
-      return [
-        _buildMenuItem(
-          icon: Icons.fingerprint_rounded,
-          iconColor: AppColors.primary,
-          title: 'Attendance & GPS Log',
-          subtitle: '${state.attendanceRecords.length} Verified Check-ins',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AttendanceHomeScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
-        _buildDivider(isDark),
-        _buildMenuItem(
-          icon: Icons.star_rate_rounded,
-          iconColor: Colors.amber,
-          title: '360 Performance Reviews',
-          subtitle: 'Skills breakdown & mentor feedback',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const PerformanceDashboardScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
-        _buildDivider(isDark),
-        _buildMenuItem(
-          icon: Icons.beach_access_rounded,
-          iconColor: AppColors.cardPink,
-          title: 'Leave Balances & History',
-          subtitle: '${state.leaveBalance.remaining} Days Remaining',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const LeaveDashboardScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
-        _buildDivider(isDark),
-        _buildMenuItem(
-          icon: Icons.assignment_outlined,
-          iconColor: AppColors.cardBlue,
-          title: 'Sprint Projects & Tasks',
-          subtitle: '${user.completedTasks} Tasks completed',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ProjectsListScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
-        _buildDivider(isDark),
-        _buildMenuItem(
-          icon: Icons.tune_rounded,
-          iconColor: AppColors.cardGreen,
-          title: 'Settings & Security',
-          subtitle: 'Biometrics, themes, offline mode',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
-      ];
-    } else if (user.role == UserRole.mentor) {
-      return [
-        _buildMenuItem(
-          icon: Icons.people_alt_rounded,
-          iconColor: AppColors.primary,
-          title: 'Supervised Interns Directory',
-          subtitle: 'Review performance & assign tasks',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const TeamDirectoryScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
-        _buildDivider(isDark),
-        _buildMenuItem(
-          icon: Icons.forum_rounded,
-          iconColor: AppColors.cardGreen,
-          title: 'Daily Standups Feed',
-          subtitle: 'Review intern blockers & react',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const StandupFeedScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
-        _buildDivider(isDark),
-        _buildMenuItem(
-          icon: Icons.how_to_reg_rounded,
-          iconColor: AppColors.cardPink,
-          title: 'Leave Approvals Queue',
-          subtitle: '${state.leaveRequests.where((l) => l.isPending).length} Pending requests',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const LeaveApprovalQueueScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
-        _buildDivider(isDark),
-        _buildMenuItem(
-          icon: Icons.star_rate_rounded,
-          iconColor: Colors.amber,
-          title: '360 Review Evaluations',
-          subtitle: 'Score technical & team competency',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const PerformanceDashboardScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
-        _buildDivider(isDark),
-        _buildMenuItem(
-          icon: Icons.tune_rounded,
-          iconColor: AppColors.cardBlue,
-          title: 'Settings & Security',
-          subtitle: 'Biometrics, themes, notifications',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
-      ];
-    } else {
-      return [
-        _buildMenuItem(
-          icon: Icons.edit_calendar_rounded,
-          iconColor: AppColors.primary,
-          title: 'Attendance Overrides',
-          subtitle: 'Adjust check-ins & update logs',
-          onTap: () {
-            showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (_) => const AdminAttendanceOverrideModal(),
-            );
-          },
-          isDark: isDark,
-        ),
-        _buildDivider(isDark),
-        _buildMenuItem(
-          icon: Icons.hub_rounded,
-          iconColor: AppColors.cardGreen,
-          title: 'Cohort Lifecycle Control',
-          subtitle: 'Batch schedules & enrollment',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CohortManagementScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
-        _buildDivider(isDark),
-        _buildMenuItem(
-          icon: Icons.history_rounded,
-          iconColor: AppColors.cardOrange,
-          title: 'Enterprise Audit Trail',
-          subtitle: 'Real-time security logs & activities',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ActivityLogScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
-        _buildDivider(isDark),
-        _buildMenuItem(
-          icon: Icons.delete_outline_rounded,
-          iconColor: AppColors.danger,
-          title: 'Recycle Bin & Retention',
-          subtitle: 'Restore deleted items (30-day purge)',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const RecycleBinScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
-        _buildDivider(isDark),
-        _buildMenuItem(
-          icon: Icons.tune_rounded,
-          iconColor: AppColors.cardBlue,
-          title: 'Enterprise Settings',
-          subtitle: 'Security, privacy & system configs',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            );
-          },
-          isDark: isDark,
-        ),
-      ];
-    }
-  }
-
-  Widget _buildProfileStatBox(String label, String value, Color color, bool isDark) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : color,
-          borderRadius: BorderRadius.circular(22),
-          border: isDark ? Border.all(color: AppColors.borderDark) : null,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white60 : Colors.black54,
-              ),
+  Widget _buildDetailRow(String label, String value, IconData icon, Color primaryTextColor, Color secondaryTextColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: AppColors.primaryInk),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: secondaryTextColor,
             ),
-            const SizedBox(height: 4),
-            Text(
+          ),
+          const Spacer(),
+          Flexible(
+            child: Text(
               value,
+              textAlign: TextAlign.right,
               style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: value.startsWith('Not ') ? secondaryTextColor : primaryTextColor,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Quick metrics bar for Interns
+  Widget _buildInternMetricsBar(Color cardBg, Color borderColor, Color primaryTextColor, Color secondaryTextColor) {
+    final ov = _overview;
+    final totalProjects = ov?.totalProjectsCount ?? 0;
+    final activeTasks = ov?.activeTasksCount ?? 0;
+    final completedTasks = ov?.completedTasksCount ?? 0;
+    final attSummary = ov?.resolvedAttendanceSummary;
+    final presentDays = attSummary?.present ?? 0;
+
+    final metrics = [
+      {'label': 'Assigned Projects', 'value': '$totalProjects', 'icon': Icons.folder_special_outlined, 'color': AppColors.info},
+      {'label': 'Active Tasks', 'value': '$activeTasks', 'icon': Icons.check_circle_outline_rounded, 'color': AppColors.primary},
+      {'label': 'Completed Tasks', 'value': '$completedTasks', 'icon': Icons.task_alt_rounded, 'color': AppColors.success},
+      {'label': 'Present (30d)', 'value': '$presentDays days', 'icon': Icons.calendar_today_rounded, 'color': AppColors.lavenderInk},
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 600;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: isWide ? 4 : 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: isWide ? 2.0 : 1.7,
+          ),
+          itemCount: metrics.length,
+          itemBuilder: (context, idx) {
+            final m = metrics[idx];
+            return Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(18),
+        boxShadow: AppShadows.soft,
+      ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        m['label'] as String,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: secondaryTextColor,
+                        ),
+                      ),
+                      Icon(m['icon'] as IconData, size: 16, color: m['color'] as Color),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    m['value'] as String,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: primaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Left card: Contact & Account Information (Non-intern & Intern)
+  Widget _buildContactCard(Color cardBg, Color borderColor, Color primaryTextColor, Color secondaryTextColor) {
+    final user = _activeUser;
+
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.shield_outlined, size: 18, color: AppColors.primaryInk),
+                  const SizedBox(width: 8),
+                  Text(
+                    _isIntern ? 'Professional Details' : 'Contact & Account Information',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: primaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+              OutlinedButton.icon(
+                onPressed: _openEditDialog,
+                icon: const Icon(Icons.edit_outlined, size: 13),
+                label: const Text('Edit Details', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: primaryTextColor,
+                  side: BorderSide(color: borderColor),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildDetailRow('PHONE NUMBER', user.phone ?? 'Not configured', Icons.phone_outlined, primaryTextColor, secondaryTextColor),
+          Divider(height: 1, color: borderColor),
+          _buildDetailRow('DEPARTMENT', user.department ?? 'Not assigned', Icons.business_outlined, primaryTextColor, secondaryTextColor),
+          Divider(height: 1, color: borderColor),
+          _buildDetailRow('JOB TITLE', user.jobTitle ?? 'Not specified', Icons.badge_outlined, primaryTextColor, secondaryTextColor),
+          Divider(height: 1, color: borderColor),
+          _buildDetailRow('JOINING DATE', user.joiningDate ?? 'Not set', Icons.calendar_month_outlined, primaryTextColor, secondaryTextColor),
+          if (_isIntern) ...[
+            Divider(height: 1, color: borderColor),
+            _buildDetailRow('ASSIGNED MENTOR', user.mentorName ?? 'Not assigned', Icons.school_outlined, primaryTextColor, secondaryTextColor),
           ],
-        ),
+          if (user.organizationName != null && user.organizationName!.isNotEmpty) ...[
+            Divider(height: 1, color: borderColor),
+            _buildDetailRow('ORGANIZATION', user.organizationName!, Icons.corporate_fare_outlined, primaryTextColor, secondaryTextColor),
+          ],
+        ],
       ),
     );
   }
 
-  Widget _buildMenuItem({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-    required bool isDark,
-  }) {
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      leading: Container(
-        padding: const EdgeInsets.all(10),
+  // Skills & Competencies Card
+  Widget _buildSkillsCard(Color cardBg, Color borderColor, Color primaryTextColor, Color secondaryTextColor) {
+    final skills = skillList(_activeUser.skills);
+
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.military_tech_outlined, size: 20, color: AppColors.primaryInk),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Skills & Competencies',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: primaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: _openEditDialog,
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    'Add / Edit',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: secondaryTextColor,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (skills.isEmpty)
+            InkWell(
+              onTap: _openEditDialog,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: borderColor, style: BorderStyle.solid),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_rounded, size: 16, color: secondaryTextColor),
+                    const SizedBox(width: 6),
+                    Text('+ Add skills', style: TextStyle(fontSize: 13, color: secondaryTextColor)),
+                  ],
+                ),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: skills.map((s) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceMuted,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: borderColor),
+                  ),
+                  child: Text(
+                    s,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: primaryTextColor,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // About & Summary Card
+  Widget _buildAboutCard(Color cardBg, Color borderColor, Color primaryTextColor, Color secondaryTextColor) {
+    final bio = _activeUser.bio;
+
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.description_outlined, size: 18, color: AppColors.primaryInk),
+                  const SizedBox(width: 8),
+                  Text(
+                    _isIntern ? 'About & Summary' : 'About & Professional Summary',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: primaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: _openEditDialog,
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    'Edit',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: secondaryTextColor,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            (bio != null && bio.trim().isNotEmpty)
+                ? bio.trim()
+                : 'No professional summary provided yet. Click Edit to add details about your experience and background.',
+            style: TextStyle(
+              fontSize: 13,
+              color: (bio != null && bio.trim().isNotEmpty) ? primaryTextColor : secondaryTextColor,
+              fontStyle: (bio != null && bio.trim().isNotEmpty) ? FontStyle.normal : FontStyle.italic,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Right Column for Interns: Projects, Attendance, Leave
+  Widget _buildInternRightColumn(Color cardBg, Color borderColor, Color primaryTextColor, Color secondaryTextColor) {
+    if (_isLoadingOverview && _overview == null) {
+      return Container(
+        padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: iconColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Icon(icon, color: iconColor, size: 22),
+          color: cardBg,
+          borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.soft,
       ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          color: isDark ? Colors.white : AppColors.textPrimaryLight,
+        child: const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
+      );
+    }
+
+    final ov = _overview;
+    final projects = ov?.projects ?? [];
+    final attSummary = ov?.resolvedAttendanceSummary;
+    final leaveSummary = ov?.resolvedLeaveSummary;
+    final balance = ov?.leaveBalance;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Assigned Projects Card
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.soft,
       ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(
-          fontSize: 12,
-          color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.folder_outlined, size: 18, color: AppColors.primaryInk),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Assigned Projects (${projects.length})',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: primaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              if (projects.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    'No projects assigned currently.',
+                    style: TextStyle(fontSize: 13, color: secondaryTextColor, fontStyle: FontStyle.italic),
+                  ),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: projects.length,
+                  separatorBuilder: (_, _) => Divider(height: 20, color: borderColor),
+                  itemBuilder: (context, idx) {
+                    final p = projects[idx];
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                p.name,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryTextColor,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceMuted,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                p.status.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: secondaryTextColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: LinearProgressIndicator(
+                            value: (p.progress / 100).clamp(0.0, 1.0),
+                            minHeight: 6,
+                            backgroundColor: AppColors.border,
+                            color: AppColors.success,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${p.progress.toInt()}% completed',
+                              style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                            ),
+                            if (p.endDate != null && p.endDate!.isNotEmpty)
+                              Text(
+                                'Target: ${p.endDate}',
+                                style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                              ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
+                ),
+            ],
+          ),
         ),
+        const SizedBox(height: 16),
+
+        // Attendance (Last 30 Days)
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.soft,
       ),
-      trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.access_time_rounded, size: 18, color: AppColors.primaryInk),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Attendance (Last 30 Days)',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: primaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildAttendanceStatTile('Present', '${attSummary?.present ?? 0}', AppColors.success),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildAttendanceStatTile('Late', '${attSummary?.late ?? 0}', AppColors.warning),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildAttendanceStatTile('Half-Day', '${attSummary?.halfDay ?? 0}', AppColors.info),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildAttendanceStatTile('Absent/Leave', '${attSummary?.absentIncludingLeave ?? 0}', AppColors.danger),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Leave Overview
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(24),
+        boxShadow: AppShadows.soft,
+      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.beach_access_outlined, size: 18, color: AppColors.primaryInk),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Leave Overview',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: primaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: _buildLeaveStatTile('Total Applied', '${leaveSummary?.total ?? 0}', primaryTextColor, secondaryTextColor)),
+                  Expanded(child: _buildLeaveStatTile('Approved', '${leaveSummary?.approved ?? 0}', AppColors.success, secondaryTextColor)),
+                  Expanded(child: _buildLeaveStatTile('Pending', '${leaveSummary?.pending ?? 0}', AppColors.warning, secondaryTextColor)),
+                  Expanded(child: _buildLeaveStatTile('Rejected', '${leaveSummary?.rejected ?? 0}', AppColors.danger, secondaryTextColor)),
+                ],
+              ),
+              if (balance != null) ...[
+                const SizedBox(height: 18),
+                Divider(height: 1, color: borderColor),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Leave Quota Utilization',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: secondaryTextColor),
+                    ),
+                    Text(
+                      '${balance.remaining} of ${balance.quota} days left',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: primaryTextColor),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: (balance.quota > 0 ? (balance.used / balance.quota) : 0.0).clamp(0.0, 1.0),
+                    minHeight: 8,
+                    backgroundColor: AppColors.border,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildDivider(bool isDark) {
-    return Divider(
-      height: 1,
-      thickness: 1,
-      indent: 64,
-      endIndent: 20,
-      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+  Widget _buildAttendanceStatTile(String label, String count, Color accentColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accentColor.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            count,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: accentColor,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: accentColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLeaveStatTile(String label, String value, Color valueColor, Color secondaryTextColor) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: valueColor,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 11,
+            color: secondaryTextColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = AppColors.canvas;
+    final cardBg = AppColors.surface;
+    final borderColor = AppColors.border;
+    final primaryTextColor = AppColors.ink;
+    final secondaryTextColor = AppColors.textSecondary;
+
+    return Scaffold(
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _loadProfileData,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              // Top Bar
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 16, AppSpacing.p20, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      PageHeader(
+                        title: 'Profile',
+                        showBack: widget.showBackButton && Navigator.canPop(context),
+                        padding: EdgeInsets.zero,
+                        actions: [
+                          HeaderAction(icon: Icons.settings_outlined, tooltip: 'Settings', onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                              );
+                            }),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Loading / Error
+              if (_isLoadingProfile && _profileUser == null)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                )
+              else if (_errorMessage != null && _profileUser == null)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 48),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Failed to load profile',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryTextColor),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(_errorMessage!, style: TextStyle(fontSize: 13, color: secondaryTextColor)),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadProfileData,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Shared Header Card
+                        _buildHeaderCard(cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                        const SizedBox(height: 20),
+
+                        // Intern Metrics Bar (if intern)
+                        if (_isIntern) ...[
+                          _buildInternMetricsBar(cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                          const SizedBox(height: 20),
+                        ],
+
+                        // Main Layout: Two Column on wider screens, stacked on mobile
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isWide = constraints.maxWidth > 768;
+
+                            final leftSection = Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildContactCard(cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                                const SizedBox(height: 16),
+                                _buildSkillsCard(cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                                const SizedBox(height: 16),
+                                _buildAboutCard(cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                              ],
+                            );
+
+                            if (!_isIntern) {
+                              // Non-intern (Admin / Mentor / Superadmin)
+                              if (isWide) {
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      flex: 5,
+                                      child: _buildContactCard(cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      flex: 6,
+                                      child: Column(
+                                        children: [
+                                          _buildSkillsCard(cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                                          const SizedBox(height: 16),
+                                          _buildAboutCard(cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              } else {
+                                return Column(
+                                  children: [
+                                    _buildContactCard(cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                                    const SizedBox(height: 16),
+                                    _buildSkillsCard(cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                                    const SizedBox(height: 16),
+                                    _buildAboutCard(cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                                  ],
+                                );
+                              }
+                            } else {
+                              // Intern layout
+                              final rightSection = _buildInternRightColumn(cardBg, borderColor, primaryTextColor, secondaryTextColor);
+
+                              if (isWide) {
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(flex: 5, child: leftSection),
+                                    const SizedBox(width: 16),
+                                    Expanded(flex: 6, child: rightSection),
+                                  ],
+                                );
+                              } else {
+                                return Column(
+                                  children: [
+                                    leftSection,
+                                    const SizedBox(height: 16),
+                                    rightSection,
+                                  ],
+                                );
+                              }
+                            }
+                          },
+                        ),
+
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

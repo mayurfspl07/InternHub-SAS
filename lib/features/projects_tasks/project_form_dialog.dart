@@ -6,6 +6,7 @@ import '../../core/api/api_exception.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/project_model.dart';
 import '../../shared/models/user_model.dart';
+import '../../core/constants/app_colors.dart';
 
 class ProjectFormDialog extends ConsumerStatefulWidget {
   final ProjectModel? projectToEdit;
@@ -357,7 +358,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(isEdit ? 'Project updated successfully!' : 'Project created successfully!'),
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: AppColors.success,
           ),
         );
         widget.onSuccess();
@@ -368,7 +369,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e is ApiException ? e.message : 'Failed to save project: $e'),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -377,7 +378,6 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final curUser = ref.read(appStateProvider).currentUser;
 
     final mentorFilter = _mentorSearchController.text.trim().toLowerCase();
@@ -395,7 +395,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
     }).toList();
 
     return Dialog(
-      backgroundColor: isDark ? const Color(0xFF1A1D24) : Colors.white,
+      backgroundColor: Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
@@ -421,15 +421,14 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                               isEdit ? 'Edit Project' : 'Create New Project',
                               style: TextStyle(
                                 fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                fontFamily: 'Outfit',
-                                color: isDark ? Colors.white : const Color(0xFF111827),
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               'Configure project details, mentors, sprint timelines, and assigned interns.',
-                              style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF6B7280)),
+                              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
                             ),
                           ],
                         ),
@@ -449,49 +448,47 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Project Name
-                          _buildLabel('PROJECT NAME *', isDark),
+                          _buildLabel('PROJECT NAME *'),
                           TextField(
                             controller: _nameController,
                             onChanged: (_) => _validate(),
-                            style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black87),
+                            style: TextStyle(fontSize: 13, color: AppColors.ink),
                             decoration: _inputDecoration(
                               hint: 'e.g. Intern Operations Portal',
                               errorText: _nameError,
-                              isDark: isDark,
                             ),
                           ),
                           const SizedBox(height: 14),
 
                           // Description
-                          _buildLabel('DESCRIPTION', isDark),
+                          _buildLabel('DESCRIPTION'),
                           TextField(
                             controller: _descController,
                             maxLines: 2,
                             onChanged: (_) => _validate(),
-                            style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black87),
+                            style: TextStyle(fontSize: 13, color: AppColors.ink),
                             decoration: _inputDecoration(
                               hint: 'Brief summary of objectives and deliverables...',
                               errorText: _descError,
-                              isDark: isDark,
                             ),
                           ),
                           const SizedBox(height: 14),
 
                           // Status
-                          _buildLabel('STATUS *', isDark),
+                          _buildLabel('STATUS *'),
                           Container(
                             height: 46,
                             padding: const EdgeInsets.symmetric(horizontal: 14),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
+                              color: AppColors.surfaceMuted,
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+                              border: Border.all(color: AppColors.border),
                             ),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(
                                 value: _projectStatuses.contains(_selectedStatus) ? _selectedStatus : _projectStatuses.first,
                                 isExpanded: true,
-                                dropdownColor: isDark ? const Color(0xFF1A1D24) : Colors.white,
+                                dropdownColor: Colors.white,
                                 items: _projectStatuses.map((s) {
                                   return DropdownMenuItem(
                                     value: s,
@@ -501,14 +498,14 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                           width: 8,
                                           height: 8,
                                           decoration: const BoxDecoration(
-                                            color: Color(0xFF3B82F6),
+                                            color: AppColors.info,
                                             shape: BoxShape.circle,
                                           ),
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
                                           s[0].toUpperCase() + s.substring(1).replaceAll('_', ' '),
-                                          style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black87),
+                                          style: TextStyle(fontSize: 13, color: AppColors.ink),
                                         ),
                                       ],
                                     ),
@@ -523,16 +520,16 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                           const SizedBox(height: 14),
 
                           // Mentors (Multi-select)
-                          _buildLabel('MENTORS *', isDark),
+                          _buildLabel('MENTORS *'),
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
+                              color: AppColors.surfaceMuted,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: _mentorsError != null
-                                    ? const Color(0xFFEF4444)
-                                    : (isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+                                    ? AppColors.danger
+                                    : AppColors.border,
                               ),
                             ),
                             child: Column(
@@ -542,17 +539,17 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                   child: TextField(
                                     controller: _mentorSearchController,
                                     onChanged: (_) => setState(() {}),
-                                    style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black87),
+                                    style: TextStyle(fontSize: 12, color: AppColors.ink),
                                     decoration: InputDecoration(
                                       hintText: 'Search mentors by name or email...',
-                                      hintStyle: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : const Color(0xFF9CA3AF)),
-                                      prefixIcon: const Icon(Icons.search, size: 16, color: Color(0xFF9CA3AF)),
+                                      hintStyle: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                                      prefixIcon: const Icon(Icons.search, size: 16, color: AppColors.textTertiary),
                                       filled: true,
-                                      fillColor: isDark ? const Color(0xFF1A1D24) : Colors.white,
+                                      fillColor: Colors.white,
                                       contentPadding: EdgeInsets.zero,
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(10),
-                                        borderSide: BorderSide(color: isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+                                        borderSide: BorderSide(color: AppColors.border),
                                       ),
                                     ),
                                   ),
@@ -564,7 +561,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                       ? Center(
                                           child: Text(
                                             _mentors.isEmpty ? 'Loading mentors...' : 'No mentors match search',
-                                            style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : Colors.grey),
+                                            style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
                                           ),
                                         )
                                       : ListView.builder(
@@ -581,11 +578,11 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                               visualDensity: VisualDensity.compact,
                                               title: Text(
                                                 m['name']?.toString() ?? 'Mentor',
-                                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
+                                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.ink),
                                               ),
                                               subtitle: Text(
                                                 m['email']?.toString() ?? '',
-                                                style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : const Color(0xFF6B7280)),
+                                                style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
                                               ),
                                               value: isSelected,
                                               onChanged: isSelfMentor
@@ -610,7 +607,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                           if (_mentorsError != null)
                             Padding(
                                padding: const EdgeInsets.only(top: 4, left: 4),
-                               child: Text(_mentorsError!, style: const TextStyle(fontSize: 11, color: Color(0xFFEF4444))),
+                               child: Text(_mentorsError!, style: const TextStyle(fontSize: 11, color: AppColors.danger)),
                             ),
                           const SizedBox(height: 14),
 
@@ -621,7 +618,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildLabel('START DATE *', isDark),
+                                    _buildLabel('START DATE *'),
                                     InkWell(
                                       onTap: () async {
                                         final picked = await showDatePicker(
@@ -639,10 +636,10 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                         height: 42,
                                         padding: const EdgeInsets.symmetric(horizontal: 12),
                                         decoration: BoxDecoration(
-                                          color: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
+                                          color: AppColors.surfaceMuted,
                                           borderRadius: BorderRadius.circular(12),
                                           border: Border.all(
-                                            color: _dateError != null ? const Color(0xFFEF4444) : (isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+                                            color: _dateError != null ? AppColors.danger : AppColors.border,
                                           ),
                                         ),
                                         child: Row(
@@ -652,10 +649,10 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                               _startDate != null ? DateFormat('dd/MM/yyyy').format(_startDate!) : 'dd/mm/yyyy',
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                color: _startDate != null ? (isDark ? Colors.white : Colors.black87) : const Color(0xFF9CA3AF),
+                                                color: _startDate != null ? AppColors.ink : AppColors.textTertiary,
                                               ),
                                             ),
-                                            const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFF6B7280)),
+                                            const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textSecondary),
                                           ],
                                         ),
                                       ),
@@ -668,7 +665,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildLabel('END DATE *', isDark),
+                                    _buildLabel('END DATE *'),
                                     InkWell(
                                       onTap: () async {
                                         final picked = await showDatePicker(
@@ -686,10 +683,10 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                         height: 42,
                                         padding: const EdgeInsets.symmetric(horizontal: 12),
                                         decoration: BoxDecoration(
-                                          color: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
+                                          color: AppColors.surfaceMuted,
                                           borderRadius: BorderRadius.circular(12),
                                           border: Border.all(
-                                            color: _dateError != null ? const Color(0xFFEF4444) : (isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+                                            color: _dateError != null ? AppColors.danger : AppColors.border,
                                           ),
                                         ),
                                         child: Row(
@@ -699,10 +696,10 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                               _endDate != null ? DateFormat('dd/MM/yyyy').format(_endDate!) : 'dd/mm/yyyy',
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                color: _endDate != null ? (isDark ? Colors.white : Colors.black87) : const Color(0xFF9CA3AF),
+                                                color: _endDate != null ? AppColors.ink : AppColors.textTertiary,
                                               ),
                                             ),
-                                            const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFF6B7280)),
+                                            const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textSecondary),
                                           ],
                                         ),
                                       ),
@@ -715,21 +712,21 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                           if (_dateError != null)
                             Padding(
                               padding: const EdgeInsets.only(top: 4, left: 4),
-                              child: Text(_dateError!, style: const TextStyle(fontSize: 11, color: Color(0xFFEF4444))),
+                              child: Text(_dateError!, style: const TextStyle(fontSize: 11, color: AppColors.danger)),
                             ),
                           const SizedBox(height: 14),
 
                           // Assign Interns (Multi-select)
-                          _buildLabel('ASSIGN INTERNS *', isDark),
+                          _buildLabel('ASSIGN INTERNS *'),
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
+                              color: AppColors.surfaceMuted,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: _internsError != null
-                                    ? const Color(0xFFEF4444)
-                                    : (isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+                                    ? AppColors.danger
+                                    : AppColors.border,
                               ),
                             ),
                             child: Column(
@@ -739,17 +736,17 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                   child: TextField(
                                     controller: _internSearchController,
                                     onChanged: (_) => setState(() {}),
-                                    style: TextStyle(fontSize: 12, color: isDark ? Colors.white : Colors.black87),
+                                    style: TextStyle(fontSize: 12, color: AppColors.ink),
                                     decoration: InputDecoration(
                                       hintText: 'Search interns by name or email...',
-                                      hintStyle: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : const Color(0xFF9CA3AF)),
-                                      prefixIcon: const Icon(Icons.search, size: 16, color: Color(0xFF9CA3AF)),
+                                      hintStyle: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                                      prefixIcon: const Icon(Icons.search, size: 16, color: AppColors.textTertiary),
                                       filled: true,
-                                      fillColor: isDark ? const Color(0xFF1A1D24) : Colors.white,
+                                      fillColor: Colors.white,
                                       contentPadding: EdgeInsets.zero,
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(10),
-                                        borderSide: BorderSide(color: isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+                                        borderSide: BorderSide(color: AppColors.border),
                                       ),
                                     ),
                                   ),
@@ -761,7 +758,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                       ? Center(
                                           child: Text(
                                             _interns.isEmpty ? 'Loading interns...' : 'No interns match search',
-                                            style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : Colors.grey),
+                                            style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
                                           ),
                                         )
                                       : ListView.builder(
@@ -777,11 +774,11 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                               visualDensity: VisualDensity.compact,
                                               title: Text(
                                                 intern['name']?.toString() ?? 'Intern',
-                                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
+                                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.ink),
                                               ),
                                               subtitle: Text(
                                                 intern['email']?.toString() ?? '',
-                                                style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : const Color(0xFF6B7280)),
+                                                style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
                                               ),
                                               value: isSelected,
                                               onChanged: (checked) {
@@ -804,7 +801,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                           if (_internsError != null)
                             Padding(
                               padding: const EdgeInsets.only(top: 4, left: 4),
-                              child: Text(_internsError!, style: const TextStyle(fontSize: 11, color: Color(0xFFEF4444))),
+                              child: Text(_internsError!, style: const TextStyle(fontSize: 11, color: AppColors.danger)),
                             ),
                           const SizedBox(height: 20),
                         ],
@@ -815,14 +812,15 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                   const Divider(height: 20),
 
                   // Actions
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    runSpacing: 8,
                     children: [
                       OutlinedButton(
                         onPressed: _isSubmitting ? null : () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: isDark ? Colors.white : const Color(0xFF374151),
-                          side: BorderSide(color: isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+                          foregroundColor: AppColors.textSecondary,
+                          side: BorderSide(color: AppColors.border),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                         ),
@@ -832,13 +830,13 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                       ElevatedButton(
                         onPressed: _isSubmitting ? null : _submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF97316),
-                          foregroundColor: Colors.white,
+                          backgroundColor: AppColors.warning,
+                          foregroundColor: AppColors.onPrimary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
                         ),
                         child: _isSubmitting
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
                             : Text(isEdit ? 'Save Changes' : 'Create Project', style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ],
@@ -849,44 +847,44 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
     );
   }
 
-  Widget _buildLabel(String text, bool isDark) {
+  Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text,
         style: TextStyle(
           fontSize: 11,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w700,
           letterSpacing: 0.5,
-          color: isDark ? Colors.white70 : const Color(0xFF374151),
+          color: AppColors.textSecondary,
         ),
       ),
     );
   }
 
-  InputDecoration _inputDecoration({required String hint, String? errorText, required bool isDark}) {
+  InputDecoration _inputDecoration({required String hint, String? errorText}) {
     return InputDecoration(
       hintText: hint,
       errorText: errorText,
-      hintStyle: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : const Color(0xFF9CA3AF)),
+      hintStyle: TextStyle(fontSize: 12, color: AppColors.textTertiary),
       filled: true,
-      fillColor: isDark ? const Color(0xFF121418) : const Color(0xFFF9FAFB),
+      fillColor: AppColors.surfaceMuted,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+        borderSide: BorderSide(color: AppColors.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: isDark ? const Color(0xFF323846) : const Color(0xFFE5E7EB)),
+        borderSide: BorderSide(color: AppColors.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFF97316), width: 1.5),
+        borderSide: const BorderSide(color: AppColors.warning, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFEF4444)),
+        borderSide: const BorderSide(color: AppColors.danger),
       ),
     );
   }

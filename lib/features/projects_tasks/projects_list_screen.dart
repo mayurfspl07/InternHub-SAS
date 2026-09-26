@@ -5,12 +5,13 @@ import 'package:intl/intl.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/reference_components.dart';
+import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/services/file_export_service.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/project_model.dart';
 import '../../shared/models/user_model.dart';
-import 'project_detail_screen.dart';
 import 'project_form_dialog.dart';
 
 class ProjectsListScreen extends ConsumerStatefulWidget {
@@ -26,6 +27,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
   DateTime? _fromDate;
   DateTime? _toDate;
   String? _selectedMentorId; // null or 'all' means all mentors
+  String _segmentedTab = 'ongoing'; // Screen 3: 'ongoing', 'completed', 'all'
   List<Map<String, dynamic>> _mentorOptions = [];
 
   // Pagination & Data State
@@ -261,68 +263,30 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider);
     final user = state.currentUser;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isAdmin = user.role == UserRole.admin || user.role == UserRole.superadmin;
     final canCreateProject = user.role == UserRole.admin || user.role == UserRole.mentor || user.role == UserRole.superadmin;
 
     final isSearching = _searchController.text.trim().isNotEmpty;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: Column(
           children: [
-            // Top App Bar / Title
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 16, AppSpacing.p20, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Projects',
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                            fontFamily: 'Outfit',
-                            letterSpacing: -0.5,
-                            color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'All projects across mentors and intern cohorts.',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
-                          ),
-                        ),
-                      ],
-                    ),
+            // Header
+            PageHeader(
+              title: 'Projects',
+              subtitle: 'Across mentors and intern cohorts',
+              padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 12, AppSpacing.p20, 8),
+              actions: [
+                if (canCreateProject)
+                  CircularIconButton(
+                    icon: Icons.add_rounded,
+                    backgroundColor: AppColors.primary,
+                    iconColor: AppColors.onPrimary,
+                    onTap: _openCreateProjectModal,
                   ),
-                  if (canCreateProject)
-                    ElevatedButton.icon(
-                      onPressed: _openCreateProjectModal,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shadowColor: AppColors.primary.withValues(alpha: 0.4),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppSpacing.r16),
-                        ),
-                      ),
-                      icon: const Icon(Icons.add_rounded, size: 18),
-                      label: const Text(
-                        'New Project',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                ],
-              ),
+              ],
             ),
 
             // Filter Bar Card
@@ -331,19 +295,9 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
               child: Container(
                 padding: const EdgeInsets.all(AppSpacing.p16),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.cardDark : Colors.white,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(AppSpacing.r24),
-                  border: Border.all(
-                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                      blurRadius: 14,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  boxShadow: AppShadows.soft,
                 ),
                 child: Column(
                   children: [
@@ -353,11 +307,11 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                       child: TextField(
                         controller: _searchController,
                         onChanged: _onSearchChanged,
-                        style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black87),
+                        style: TextStyle(fontSize: 13, color: AppColors.ink),
                         decoration: InputDecoration(
                           hintText: 'Search projects by name or description...',
-                          hintStyle: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : AppColors.textTertiaryLight),
-                          prefixIcon: Icon(Icons.search_rounded, size: 18, color: isDark ? Colors.white38 : AppColors.textTertiaryLight),
+                          hintStyle: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                          prefixIcon: Icon(Icons.search_rounded, size: 18, color: AppColors.textTertiary),
                           suffixIcon: _searchController.text.isNotEmpty
                               ? IconButton(
                                   icon: const Icon(Icons.clear, size: 16),
@@ -368,15 +322,15 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                                 )
                               : null,
                           filled: true,
-                          fillColor: isDark ? AppColors.surfaceDark : const Color(0xFFF9FAFB),
+                          fillColor: AppColors.surfaceMuted,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppSpacing.r16),
-                            borderSide: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            borderSide: BorderSide(color: AppColors.border),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppSpacing.r16),
-                            borderSide: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            borderSide: BorderSide(color: AppColors.border),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppSpacing.r16),
@@ -394,18 +348,16 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                         children: [
                           // From Date
                           _buildFilterButton(
-                            label: _fromDate != null ? DateFormat('dd/MM/yyyy').format(_fromDate!) : 'From: dd/mm/yyyy',
+                            label: _fromDate != null ? DateFormat('dd/MM/yyyy').format(_fromDate!) : 'From',
                             icon: Icons.calendar_today_outlined,
-                            isDark: isDark,
                             onTap: () => _selectDate(context, true),
                           ),
                           const SizedBox(width: 8),
 
                           // To Date
                           _buildFilterButton(
-                            label: _toDate != null ? DateFormat('dd/MM/yyyy').format(_toDate!) : 'To: dd/mm/yyyy',
+                            label: _toDate != null ? DateFormat('dd/MM/yyyy').format(_toDate!) : 'To',
                             icon: Icons.calendar_today_outlined,
-                            isDark: isDark,
                             onTap: () => _selectDate(context, false),
                           ),
                           const SizedBox(width: 8),
@@ -416,14 +368,14 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                               height: 36,
                               padding: const EdgeInsets.symmetric(horizontal: 10),
                               decoration: BoxDecoration(
-                                color: isDark ? AppColors.surfaceDark : const Color(0xFFF9FAFB),
+                                color: AppColors.surfaceMuted,
                                 borderRadius: BorderRadius.circular(AppSpacing.r12),
-                                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                border: Border.all(color: AppColors.border),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.person_outline_rounded, size: 16, color: isDark ? Colors.white60 : AppColors.textSecondaryLight),
+                                  Icon(Icons.person_outline_rounded, size: 16, color: AppColors.textSecondary),
                                   const SizedBox(width: 6),
                                   DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
@@ -432,9 +384,9 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
-                                        color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                                        color: AppColors.ink,
                                       ),
-                                      dropdownColor: isDark ? AppColors.cardDark : Colors.white,
+                                      dropdownColor: Colors.white,
                                       items: [
                                         const DropdownMenuItem(value: 'all', child: Text('All mentors')),
                                         ..._mentorOptions.map((m) {
@@ -461,7 +413,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                             onPressed: _resetFilters,
                             style: TextButton.styleFrom(
                               visualDensity: VisualDensity.compact,
-                              foregroundColor: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                              foregroundColor: AppColors.textSecondary,
                             ),
                             child: const Text('Reset', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                           ),
@@ -473,13 +425,28 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
               ),
             ),
 
+            // Segmented Pill Filter (Screen 3: Ongoing / Completed)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20, vertical: 8),
+              child: Row(
+                children: [
+                  _buildSegmentedTab('Ongoing', 'ongoing'),
+                  const SizedBox(width: 10),
+                  _buildSegmentedTab('Completed', 'completed'),
+                  const SizedBox(width: 10),
+                  _buildSegmentedTab('All', 'all'),
+                ],
+              ),
+            ),
+
+
             // Projects List or Grid
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : RefreshIndicator(
                       onRefresh: () => _loadProjects(page: _currentPage),
-                      child: _projects.isEmpty
+                      child: _displayedProjects.isEmpty
                           ? ListView(
                               physics: const AlwaysScrollableScrollPhysics(),
                               children: [
@@ -492,10 +459,10 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                                         width: 64,
                                         height: 64,
                                         decoration: BoxDecoration(
-                                          color: isDark ? AppColors.surfaceDark : AppColors.primaryLight,
+                                          color: AppColors.primarySoft,
                                           shape: BoxShape.circle,
                                         ),
-                                        child: const Icon(Icons.folder_open_rounded, size: 32, color: AppColors.primary),
+                                        child: const Icon(Icons.folder_open_rounded, size: 32, color: AppColors.primaryInk),
                                       ),
                                       const SizedBox(height: 14),
                                       Text(
@@ -503,7 +470,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
-                                          color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                                          color: AppColors.ink,
                                         ),
                                       ),
                                       const SizedBox(height: 6),
@@ -511,7 +478,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                                         isSearching ? 'Try changing your search keywords.' : 'Create a new project to get started.',
                                         style: TextStyle(
                                           fontSize: 13,
-                                          color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                                          color: AppColors.textSecondary,
                                         ),
                                       ),
                                     ],
@@ -522,11 +489,11 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                           : ListView.separated(
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20, vertical: 12),
-                              itemCount: _projects.length,
+                              itemCount: _displayedProjects.length,
                               separatorBuilder: (_, _) => const SizedBox(height: 14),
                               itemBuilder: (context, index) {
-                                final project = _projects[index];
-                                return _buildProjectCard(project, isDark);
+                                final project = _displayedProjects[index];
+                                return _buildProjectCard(project);
                               },
                             ),
                     ),
@@ -537,9 +504,9 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20, vertical: 12),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.cardDark : Colors.white,
+                  color: Colors.white,
                   border: Border(
-                    top: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                    top: BorderSide(color: AppColors.border),
                   ),
                 ),
                 child: Row(
@@ -550,7 +517,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                     Row(
@@ -559,8 +526,8 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                           onPressed: _currentPage > 1 ? () => _loadProjects(page: _currentPage - 1) : null,
                           style: OutlinedButton.styleFrom(
                             visualDensity: VisualDensity.compact,
-                            foregroundColor: isDark ? Colors.white : AppColors.textPrimaryLight,
-                            side: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            foregroundColor: AppColors.ink,
+                            side: BorderSide(color: AppColors.border),
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r12)),
                           ),
@@ -575,7 +542,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                           ),
                           child: Text(
                             '$_currentPage',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.onPrimary),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -583,8 +550,8 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                           onPressed: _currentPage < _totalPages ? () => _loadProjects(page: _currentPage + 1) : null,
                           style: OutlinedButton.styleFrom(
                             visualDensity: VisualDensity.compact,
-                            foregroundColor: isDark ? Colors.white : AppColors.textPrimaryLight,
-                            side: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                            foregroundColor: AppColors.ink,
+                            side: BorderSide(color: AppColors.border),
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r12)),
                           ),
@@ -601,10 +568,52 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
     );
   }
 
+  List<ProjectModel> get _displayedProjects {
+    if (_segmentedTab == 'ongoing') {
+      return _projects.where((p) => p.status.toLowerCase() != 'completed' && p.status.toLowerCase() != 'done').toList();
+    } else if (_segmentedTab == 'completed') {
+      return _projects.where((p) => p.status.toLowerCase() == 'completed' || p.status.toLowerCase() == 'done').toList();
+    }
+    return _projects;
+  }
+
+  Widget _buildSegmentedTab(String label, String key) {
+    final isSelected = _segmentedTab == key;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _segmentedTab = key;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primary
+              : Colors.white,
+          borderRadius: BorderRadius.circular(AppSpacing.rPill),
+          border: Border.all(
+            color: isSelected
+                ? Colors.transparent
+                : AppColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? AppColors.onPrimary : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFilterButton({
     required String label,
     required IconData icon,
-    required bool isDark,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -614,9 +623,9 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
         height: 36,
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : const Color(0xFFF9FAFB),
+          color: AppColors.surfaceMuted,
           borderRadius: BorderRadius.circular(AppSpacing.r12),
-          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+          border: Border.all(color: AppColors.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -626,11 +635,11 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                color: AppColors.ink,
               ),
             ),
             const SizedBox(width: 6),
-            Icon(icon, size: 14, color: isDark ? Colors.white60 : AppColors.textSecondaryLight),
+            Icon(icon, size: 14, color: AppColors.textSecondary),
           ],
         ),
       ),
@@ -638,7 +647,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
   }
 
   // Modern Clean Project Card matching application theme
-  Widget _buildProjectCard(ProjectModel project, bool isDark) {
+  Widget _buildProjectCard(ProjectModel project) {
     final progressInt = (project.progress * 100).round().clamp(0, 100);
 
     // Status pill coloring:
@@ -646,40 +655,34 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
     Color statusTextColor;
     final statusLower = project.status.toLowerCase();
     if (statusLower == 'completed' || statusLower == 'done') {
-      statusBg = isDark ? AppColors.success.withValues(alpha: 0.2) : const Color(0xFFECFDF5);
-      statusTextColor = isDark ? AppColors.success : const Color(0xFF047857);
+      statusBg = AppColors.successSoft;
+      statusTextColor = AppColors.successInk;
     } else if (statusLower == 'in_progress' || statusLower == 'active') {
-      statusBg = isDark ? AppColors.accent.withValues(alpha: 0.2) : const Color(0xFFE0F2FE);
-      statusTextColor = isDark ? AppColors.accent : const Color(0xFF0284C7);
+      statusBg = AppColors.infoSoft;
+      statusTextColor = AppColors.info;
     } else if (statusLower == 'planning') {
-      statusBg = isDark ? AppColors.primaryDark.withValues(alpha: 0.3) : AppColors.primaryLight;
-      statusTextColor = isDark ? AppColors.primaryLight : AppColors.primaryDark;
+      statusBg = AppColors.primarySoft;
+      statusTextColor = AppColors.primaryInk;
     } else {
-      statusBg = isDark ? AppColors.warning.withValues(alpha: 0.2) : const Color(0xFFFEF3C7);
-      statusTextColor = isDark ? AppColors.warning : const Color(0xFFD97706);
+      statusBg = AppColors.warningSoft;
+      statusTextColor = AppColors.warning;
     }
 
     return InkWell(
       onTap: () {
-        Navigator.push(
+        Navigator.pushNamed(
           context,
-          MaterialPageRoute(builder: (_) => ProjectDetailScreen(project: project)),
+          '/projects/${project.id}',
+          arguments: project,
         ).then((_) => _loadProjects(page: _currentPage));
       },
       borderRadius: BorderRadius.circular(AppSpacing.r24),
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.p20),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : Colors.white,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(AppSpacing.r24),
-          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: AppShadows.soft,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -698,7 +701,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                     project.status.toUpperCase(),
                     style: TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       color: statusTextColor,
                       letterSpacing: 0.5,
                     ),
@@ -707,12 +710,12 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                 Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.file_download_outlined, size: 20, color: isDark ? Colors.white70 : AppColors.textSecondaryLight),
+                      icon: Icon(Icons.file_download_outlined, size: 20, color: AppColors.textSecondary),
                       tooltip: 'Export project',
                       visualDensity: VisualDensity.compact,
                       onPressed: () => _exportProject(project),
                     ),
-                    Icon(Icons.bookmark_outline_rounded, size: 20, color: isDark ? Colors.white60 : AppColors.textTertiaryLight),
+                    Icon(Icons.bookmark_outline_rounded, size: 20, color: AppColors.textTertiary),
                   ],
                 ),
               ],
@@ -724,10 +727,9 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
               project.name.isNotEmpty ? project.name : project.title,
               style: TextStyle(
                 fontSize: 19,
-                fontWeight: FontWeight.w800,
-                fontFamily: 'Outfit',
+                fontWeight: FontWeight.w700,
                 letterSpacing: -0.3,
-                color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                color: AppColors.ink,
               ),
             ),
             const SizedBox(height: 4),
@@ -740,7 +742,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 13,
-                  color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                  color: AppColors.textSecondary,
                   height: 1.4,
                 ),
               ),
@@ -755,15 +757,15 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 Text(
                   '$progressInt%',
                   style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryInk,
                   ),
                 ),
               ],
@@ -776,7 +778,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
               child: LinearProgressIndicator(
                 value: project.progress.clamp(0.0, 1.0),
                 minHeight: 7,
-                backgroundColor: isDark ? const Color(0xFF2A2E3B) : const Color(0xFFF1F4F9),
+                backgroundColor: AppColors.surfaceMuted,
                 valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
               ),
             ),
@@ -790,14 +792,14 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                 const SizedBox(width: 12),
 
                 // Calendar date
-                Icon(Icons.calendar_today_rounded, size: 14, color: isDark ? Colors.white60 : AppColors.textTertiaryLight),
+                Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.textTertiary),
                 const SizedBox(width: 5),
                 Text(
                   DateFormat('yyyy-MM-dd').format(project.endDate),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const Spacer(),
@@ -805,14 +807,15 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
                 // View CTA Button
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.push(
+                    Navigator.pushNamed(
                       context,
-                      MaterialPageRoute(builder: (_) => ProjectDetailScreen(project: project)),
+                      '/projects/${project.id}',
+                      arguments: project,
                     ).then((_) => _loadProjects(page: _currentPage));
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.onPrimary,
                     elevation: 0,
                     shadowColor: AppColors.primary.withValues(alpha: 0.3),
                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
@@ -845,19 +848,19 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
         width: 28,
         height: 28,
         decoration: const BoxDecoration(
-          color: AppColors.primaryLight,
+          color: AppColors.primarySoft,
           shape: BoxShape.circle,
         ),
         child: const Center(
-          child: Text('P', style: TextStyle(color: AppColors.primaryDark, fontSize: 11, fontWeight: FontWeight.bold)),
+          child: Text('P', style: TextStyle(color: AppColors.primaryInk, fontSize: 11, fontWeight: FontWeight.bold)),
         ),
       );
     }
 
     final colors = [
       AppColors.primary,
-      AppColors.cardPurple,
-      AppColors.accent,
+      AppColors.info,
+      AppColors.info,
     ];
 
     return SizedBox(

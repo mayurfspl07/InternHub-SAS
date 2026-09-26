@@ -46,7 +46,7 @@ class AppAvatar extends StatelessWidget {
 
   Widget _buildFallback() {
     return Container(
-      color: AppColors.primaryLight,
+      color: AppColors.primarySoft,
       child: Center(
         child: Text(
           fallbackText != null && fallbackText!.isNotEmpty
@@ -55,7 +55,7 @@ class AppAvatar extends StatelessWidget {
           style: TextStyle(
             fontSize: size * 0.45,
             fontWeight: FontWeight.bold,
-            color: AppColors.primary,
+            color: AppColors.primaryInk,
           ),
         ),
       ),

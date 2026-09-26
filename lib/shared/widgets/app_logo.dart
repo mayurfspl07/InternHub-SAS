@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_typography.dart';
 
 enum AppLogoVariant {
   horizontal,
   mark,
 }
 
-/// Global InternHub Logo Component
-/// Automatically selects [Logo_lightmode.png] or [logo_darkmode.png] based on theme,
-/// or uses [Favicon.png] for mark-only display.
+/// Global InternHub logo: [Logo_lightmode.png] for the horizontal lockup,
+/// [Favicon.png] for mark-only display.
 class AppLogo extends StatelessWidget {
   final double? height;
   final double? width;
   final AppLogoVariant variant;
-  final bool? isDark;
   final BoxFit fit;
 
   const AppLogo({
@@ -20,7 +20,6 @@ class AppLogo extends StatelessWidget {
     this.height,
     this.width,
     this.variant = AppLogoVariant.horizontal,
-    this.isDark,
     this.fit = BoxFit.contain,
   });
 
@@ -28,7 +27,6 @@ class AppLogo extends StatelessWidget {
     super.key,
     this.height = 36,
     this.width = 36,
-    this.isDark,
     this.fit = BoxFit.contain,
   }) : variant = AppLogoVariant.mark;
 
@@ -36,37 +34,27 @@ class AppLogo extends StatelessWidget {
     super.key,
     this.height = 32,
     this.width,
-    this.isDark,
     this.fit = BoxFit.contain,
   }) : variant = AppLogoVariant.horizontal;
 
   @override
   Widget build(BuildContext context) {
-    final effectiveIsDark = isDark ?? (Theme.of(context).brightness == Brightness.dark);
-
     if (variant == AppLogoVariant.mark) {
       return Image.asset(
         'assets/images/Favicon.png',
         height: height,
         width: width,
         fit: fit,
-        errorBuilder: (context, error, stackTrace) => const Icon(Icons.hub_rounded, color: Color(0xFF7C3AED)),
+        errorBuilder: (context, error, stackTrace) => const Icon(Icons.hub_rounded, color: AppColors.primaryInk),
       );
     }
 
-    final assetPath = effectiveIsDark
-        ? 'assets/images/logo_darkmode.png'
-        : 'assets/images/Logo_lightmode.png';
-
     return Image.asset(
-      assetPath,
+      'assets/images/Logo_lightmode.png',
       height: height,
       width: width,
       fit: fit,
-      errorBuilder: (context, error, stackTrace) => const Text(
-        'InternHub',
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-      ),
+      errorBuilder: (context, error, stackTrace) => Text('InternHub', style: AppTypography.section),
     );
   }
 }

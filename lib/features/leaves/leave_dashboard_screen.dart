@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/page_header.dart';
+import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/leave_model.dart';
 import '../../shared/models/user_model.dart';
@@ -22,6 +23,7 @@ class _LeaveDashboardScreenState extends ConsumerState<LeaveDashboardScreen> {
   bool _isLoading = false;
   LeaveMineResponse? _mineResponse;
   String? _errorMessage;
+  String _activeTab = 'my_leaves'; // 'my_leaves' or 'apply'
 
   @override
   void initState() {
@@ -57,9 +59,17 @@ class _LeaveDashboardScreenState extends ConsumerState<LeaveDashboardScreen> {
     }
   }
 
+  void _openApplyDialog() {
+    final balance = _mineResponse?.balance ?? const LeaveBalance(used: 0, quota: 15, remaining: 15);
+    ApplyLeaveDialog.show(
+      context,
+      balance: balance,
+      onSuccess: _loadData,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final state = ref.watch(appStateProvider);
     final user = state.currentUser;
 
@@ -67,104 +77,39 @@ class _LeaveDashboardScreenState extends ConsumerState<LeaveDashboardScreen> {
     final canApproveLeave =
         user.role == UserRole.admin || user.role == UserRole.mentor || user.role == UserRole.superadmin;
 
-    final canPop = Navigator.canPop(context);
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadData,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 16, AppSpacing.p20, 120),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Top PageHeader row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (canPop) ...[
-                      IconButton(
-                        icon: Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          size: 20,
-                          color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                        ),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      const SizedBox(width: 4),
-                    ],
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Leave',
-                            style: GoogleFonts.outfit(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            canRequestLeave
-                                ? 'Submit leave requests and view your quota.'
-                                : 'Review and approve pending intern leave requests.',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (canRequestLeave) ...[
-                      const SizedBox(width: 10),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.cardYellow,
-                          foregroundColor: Colors.black,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        ),
-                        icon: const Icon(Icons.add_rounded, size: 18, color: Colors.black),
-                        label: Text(
-                          'Apply for Leave',
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: Colors.black,
-                          ),
-                        ),
-                        onPressed: () {
-                          final balance = _mineResponse?.balance ??
-                              const LeaveBalance(used: 0, quota: 15, remaining: 15);
-                          ApplyLeaveDialog.show(
-                            context,
-                            balance: balance,
-                            onSuccess: _loadData,
-                          );
-                        },
-                      ),
-                    ] else ...[
-                      IconButton(
-                        icon: Icon(
-                          Icons.refresh_rounded,
-                          color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
-                        ),
-                        tooltip: 'Refresh',
-                        onPressed: _loadData,
-                      ),
-                    ],
+                // Top Page Header Row (Minimal matching reference)
+                PageHeader(
+                  title: 'Leave',
+                  padding: EdgeInsets.zero,
+                  actions: [
+                    HeaderAction(icon: Icons.refresh_rounded, tooltip: 'Refresh', onTap: _loadData),
                   ],
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
+
+                // Segmented Pills [My Leaves] [Apply] (Screen 4 in Reference UI)
+                if (canRequestLeave) ...[
+                  Row(
+                    children: [
+                      _buildPillTab('My Leaves', 'my_leaves'),
+                      const SizedBox(width: 10),
+                      _buildPillTab('Apply', 'apply', onTap: _openApplyDialog),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                ],
 
                 // ==================== INTERN VIEW ====================
                 if (canRequestLeave) ...[
@@ -189,14 +134,47 @@ class _LeaveDashboardScreenState extends ConsumerState<LeaveDashboardScreen> {
                       ),
                     )
                   else ...[
-                    // 1. Leave Balance Cards
+                    // 1. Leave Balance Cards (3 Summary Boxes + 4 Category Squircles)
                     if (_mineResponse != null)
                       LeaveBalanceCards(
                         balance: _mineResponse!.balance,
                         summary: _mineResponse!.summary,
                         totalRequests: _mineResponse!.requests.length,
                       ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
+
+                    // Full-Width Purple Pill Apply Leave Button (Screen 4 in Reference UI)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _openApplyDialog,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.onPrimary,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppSpacing.rPill),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.add_rounded, size: 20, color: AppColors.onPrimary),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Apply Leave',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.onPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
 
                     // 2. My Leave History
                     if (_mineResponse != null)
@@ -213,6 +191,44 @@ class _LeaveDashboardScreenState extends ConsumerState<LeaveDashboardScreen> {
                 ],
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPillTab(String label, String tabKey, {VoidCallback? onTap}) {
+    final isSelected = _activeTab == tabKey;
+    return GestureDetector(
+      onTap: () {
+        if (onTap != null) {
+          onTap();
+        } else {
+          setState(() {
+            _activeTab = tabKey;
+          });
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primary
+              : Colors.white,
+          borderRadius: BorderRadius.circular(AppSpacing.rPill),
+          border: Border.all(
+            color: isSelected
+                ? Colors.transparent
+                : AppColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? AppColors.onPrimary : AppColors.textSecondary,
           ),
         ),
       ),

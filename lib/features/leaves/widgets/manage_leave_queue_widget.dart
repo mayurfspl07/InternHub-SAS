@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_spacing.dart';
 import '../../../shared/models/leave_model.dart';
 import '../leave_repository.dart';
 import 'leave_attachment_viewer.dart';
@@ -66,7 +66,6 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final requests = _response?.requests ?? [];
     final totalCount = _response?.total ?? requests.length;
     final totalPages = _response?.total_pages ?? 1;
@@ -74,18 +73,9 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? AppColors.borderDark : AppColors.borderLight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppShadows.soft,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -97,10 +87,10 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
               Expanded(
                 child: Text(
                   'Manage Leave Requests ($totalCount)',
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                    color: AppColors.ink,
                   ),
                 ),
               ),
@@ -108,18 +98,18 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
               Container(
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.cardDark : const Color(0xFFF3F4F6),
+                  color: AppColors.surfaceMuted,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isDark ? AppColors.borderDark : const Color(0xFFE5E7EB),
+                    color: AppColors.border,
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildStatusTab('pending', 'Pending', isDark),
-                    _buildStatusTab('approved', 'Approved', isDark),
-                    _buildStatusTab('rejected', 'Rejected', isDark),
+                    _buildStatusTab('pending', 'Pending'),
+                    _buildStatusTab('approved', 'Approved'),
+                    _buildStatusTab('rejected', 'Rejected'),
                   ],
                 ),
               ),
@@ -157,14 +147,14 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                   Icon(
                     Icons.done_all_rounded,
                     size: 40,
-                    color: isDark ? Colors.white30 : AppColors.textTertiaryLight,
+                    color: AppColors.textTertiary,
                   ),
                   const SizedBox(height: 10),
                   Text(
                     'No $_activeStatus leave requests found',
                     style: TextStyle(
                       fontSize: 13,
-                      color: isDark ? Colors.white54 : AppColors.textSecondaryLight,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -179,12 +169,12 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
               itemBuilder: (context, index) {
                 final req = requests[index];
                 final srNo = ((_currentPage - 1) * (_response?.page_size ?? 10)) + index + 1;
-                return _buildQueueCard(req, srNo, isDark);
+                return _buildQueueCard(req, srNo);
               },
             ),
 
             const SizedBox(height: 18),
-            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+            Divider(height: 1, color: AppColors.border),
             const SizedBox(height: 14),
 
             // Pagination Controls
@@ -195,7 +185,7 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                   'Page $_currentPage of $totalPages ($totalCount ${totalCount == 1 ? 'request' : 'requests'})',
                   style: TextStyle(
                     fontSize: 12,
-                    color: isDark ? Colors.white54 : AppColors.textSecondaryLight,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 Row(
@@ -215,7 +205,7 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: AppColors.cardYellow,
+                        color: AppColors.primary,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -249,7 +239,7 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
     );
   }
 
-  Widget _buildStatusTab(String key, String label, bool isDark) {
+  Widget _buildStatusTab(String key, String label) {
     final isSelected = _activeStatus == key;
 
     return GestureDetector(
@@ -258,25 +248,25 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? (key == 'pending' ? AppColors.cardYellow : (isDark ? AppColors.primary : Colors.black87))
+              ? AppColors.primary
               : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           label,
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             color: isSelected
-                ? (key == 'pending' ? Colors.black : Colors.white)
-                : (isDark ? Colors.white60 : AppColors.textSecondaryLight),
+                ? AppColors.onPrimary
+                : AppColors.textSecondary,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildQueueCard(LeaveRequest req, int srNo, bool isDark) {
+  Widget _buildQueueCard(LeaveRequest req, int srNo) {
     final initial = req.userName.isNotEmpty ? req.userName[0].toLowerCase() : 'i';
     final statusColor = req.isApproved
         ? AppColors.success
@@ -285,10 +275,10 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : const Color(0xFFF9FAFB),
+        color: AppColors.surfaceMuted,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? AppColors.borderDark : const Color(0xFFE5E7EB),
+          color: AppColors.border,
         ),
       ),
       child: Column(
@@ -302,7 +292,7 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                 height: 22,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isDark ? Colors.white10 : Colors.grey.shade200,
+                  color: AppColors.border,
                 ),
                 child: Center(
                   child: Text(
@@ -310,7 +300,7 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                      color: AppColors.ink,
                     ),
                   ),
                 ),
@@ -323,8 +313,8 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                 height: 28,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
+                  color: AppColors.lavenderInk.withValues(alpha: 0.2),
+                  border: Border.all(color: AppColors.lavenderInk.withValues(alpha: 0.4)),
                 ),
                 child: Center(
                   child: Text(
@@ -332,7 +322,7 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
-                      color: Color(0xFF8B5CF6),
+                      color: AppColors.lavenderInk,
                     ),
                   ),
                 ),
@@ -341,10 +331,10 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
               Expanded(
                 child: Text(
                   req.userName,
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                    color: AppColors.ink,
                   ),
                 ),
               ),
@@ -377,17 +367,17 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
               Expanded(
                 child: Text(
                   '${req.start_date} → ${req.end_date}',
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                    color: AppColors.ink,
                   ),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white12 : Colors.grey.shade200,
+                  color: AppColors.border,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -399,7 +389,7 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white12 : Colors.grey.shade200,
+                  color: AppColors.border,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -421,7 +411,7 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                   style: TextStyle(
                     fontSize: 12.5,
                     fontStyle: FontStyle.italic,
-                    color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -442,11 +432,11 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.attach_file_rounded, size: 14, color: AppColors.primary),
+                        Icon(Icons.attach_file_rounded, size: 14, color: AppColors.primaryInk),
                         SizedBox(width: 3),
                         Text(
                           'Attachment',
-                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.primary),
+                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.primaryInk),
                         ),
                       ],
                     ),
@@ -459,21 +449,21 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
           // If already reviewed, show reviewer details
           if (req.displayReviewer != null || req.displayComment.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+            Divider(height: 1, color: AppColors.border),
             const SizedBox(height: 6),
             Row(
               children: [
                 Icon(
                   Icons.verified_user_outlined,
                   size: 13,
-                  color: isDark ? Colors.white38 : AppColors.textTertiaryLight,
+                  color: AppColors.textTertiary,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   'Reviewed by ${req.displayReviewer ?? 'Mentor'}',
                   style: TextStyle(
                     fontSize: 11,
-                    color: isDark ? Colors.white60 : AppColors.textSecondaryLight,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 if (req.displayComment.isNotEmpty) ...[
@@ -484,7 +474,7 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                       style: TextStyle(
                         fontSize: 11,
                         fontStyle: FontStyle.italic,
-                        color: isDark ? Colors.white70 : AppColors.textPrimaryLight,
+                        color: AppColors.ink,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -504,7 +494,7 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                 // Approve Button (Yellow background)
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.cardYellow,
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.black,
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -514,7 +504,7 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                   icon: const Icon(Icons.check_rounded, size: 16, color: Colors.black),
                   label: Text(
                     'Approve',
-                    style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.w700, color: Colors.black),
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Colors.black),
                   ),
                   onPressed: () {
                     ReviewLeaveDialog.show(
@@ -539,7 +529,7 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                   icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.danger),
                   label: Text(
                     'Reject',
-                    style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.danger),
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.danger),
                   ),
                   onPressed: () {
                     ReviewLeaveDialog.show(

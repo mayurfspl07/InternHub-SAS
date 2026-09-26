@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/api_config.dart';
 import '../../core/api/api_exception.dart';
@@ -83,10 +82,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AlertDialog(
-      backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+      backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       title: Row(
         children: [
@@ -97,15 +95,15 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
               color: AppColors.primary.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.lock_reset_rounded, color: AppColors.primary, size: 22),
+            child: const Icon(Icons.lock_reset_rounded, color: AppColors.primaryInk, size: 22),
           ),
           const SizedBox(width: 12),
           Text(
             'Change Password',
-            style: GoogleFonts.outfit(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : AppColors.textPrimaryLight,
+              color: AppColors.ink,
             ),
           ),
         ],

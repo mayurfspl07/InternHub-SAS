@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../core/constants/app_colors.dart';
 
 enum KanbanStatus {
   todo,
@@ -101,7 +102,7 @@ class TaskStatusColumn {
     final rawSlug = json['slug']?.toString() ?? json['key']?.toString();
     final colKey = (rawSlug ?? rawName.toLowerCase().replaceAll(' ', '_')).trim().toLowerCase();
 
-    Color colColor = const Color(0xFF6B7280);
+    Color colColor = AppColors.textSecondary;
     final colorHex = json['color']?.toString() ?? json['color_hex']?.toString();
     if (colorHex != null && colorHex.isNotEmpty) {
       try {
@@ -110,13 +111,13 @@ class TaskStatusColumn {
       } catch (_) {}
     } else {
       if (colKey.contains('todo') || colKey.contains('to_do')) {
-        colColor = const Color(0xFF6B7280);
+        colColor = AppColors.textSecondary;
       } else if (colKey.contains('progress')) {
-        colColor = const Color(0xFF3B82F6);
+        colColor = AppColors.info;
       } else if (colKey.contains('review') || colKey.contains('test')) {
-        colColor = const Color(0xFFF59E0B);
+        colColor = AppColors.warning;
       } else if (colKey.contains('complete') || colKey.contains('done')) {
-        colColor = const Color(0xFF10B981);
+        colColor = AppColors.success;
       }
     }
 
@@ -132,10 +133,10 @@ class TaskStatusColumn {
 
   static List<TaskStatusColumn> fallbackColumns() {
     return const [
-      TaskStatusColumn(key: 'todo', title: 'To Do', color: Color(0xFF6B7280), statusCategory: 'todo', isDefault: true, orderIndex: 0),
-      TaskStatusColumn(key: 'in_progress', title: 'In Progress', color: Color(0xFF3B82F6), statusCategory: 'in_progress', orderIndex: 1),
-      TaskStatusColumn(key: 'testing', title: 'Review', color: Color(0xFFF59E0B), statusCategory: 'in_progress', orderIndex: 2),
-      TaskStatusColumn(key: 'completed', title: 'Completed', color: Color(0xFF10B981), statusCategory: 'done', orderIndex: 3),
+      TaskStatusColumn(key: 'todo', title: 'To Do', color: AppColors.textSecondary, statusCategory: 'todo', isDefault: true, orderIndex: 0),
+      TaskStatusColumn(key: 'in_progress', title: 'In Progress', color: AppColors.info, statusCategory: 'in_progress', orderIndex: 1),
+      TaskStatusColumn(key: 'testing', title: 'Review', color: AppColors.warning, statusCategory: 'in_progress', orderIndex: 2),
+      TaskStatusColumn(key: 'completed', title: 'Completed', color: AppColors.success, statusCategory: 'done', orderIndex: 3),
     ];
   }
 }

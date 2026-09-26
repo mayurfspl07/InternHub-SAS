@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/api/api_client.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/page_header.dart';
+import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/custom_text_field.dart';
@@ -49,7 +50,6 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
-          final isDark = Theme.of(context).brightness == Brightness.dark;
           return Container(
             padding: EdgeInsets.only(
               left: 20,
@@ -58,7 +58,7 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
               bottom: MediaQuery.of(context).viewInsets.bottom + 24,
             ),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.surfaceDark : Colors.white,
+              color: Colors.white,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             ),
             child: Column(
@@ -67,7 +67,7 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
               children: [
                 Text(
                   'Generate New Invite Link',
-                  style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 CustomTextField(
@@ -124,33 +124,34 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final inviteLinks = state.inviteLinks;
     final signups = state.signupRequests;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: AppBar(
-        title: Text(
-          'Invite & Signups',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
-        ),
-        elevation: 0,
+      backgroundColor: AppColors.canvas,
+      appBar: pageAppBar(
+        context,
+        title: 'Invite & Signups',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_link_rounded, color: AppColors.primary),
-            onPressed: _showCreateInviteDialog,
-          ),
+          HeaderAction(icon: Icons.add_link_rounded, tooltip: 'New invite link', onTap: _showCreateInviteDialog),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: isDark ? Colors.white60 : Colors.grey.shade600,
-          indicatorColor: AppColors.primary,
-          tabs: [
-            Tab(text: 'Invite Links (${inviteLinks.length})'),
-            Tab(text: 'Signup Requests (${signups.length})'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppSpacing.rPill),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              tabs: [
+                Tab(height: 36, text: 'Invite Links (${inviteLinks.length})'),
+                Tab(height: 36, text: 'Signups (${signups.length})'),
+              ],
+            ),
+          ),
         ),
       ),
       body: _isLoading
@@ -166,26 +167,23 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.link_off_rounded, size: 48, color: Colors.grey),
+                              const Icon(Icons.link_off_rounded, size: 48, color: AppColors.textTertiary),
                               const SizedBox(height: 12),
                               const Text('No invite links active', style: TextStyle(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 4),
-                              Text('Tap + to create a shareable invite link.', style: TextStyle(color: Colors.grey.shade600)),
+                              Text('Tap + to create a shareable invite link.', style: TextStyle(color: AppColors.textSecondary)),
                             ],
                           ),
                         )
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: inviteLinks.length,
-                          itemBuilder: (context, i) {
-                            final link = inviteLinks[i];
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(16),
+                      : ListView(
+                          padding: const EdgeInsets.all(18),
+                          children: [
+                            // Hero Share Card (Screen 8 & 17)
+                            Container(
+                              padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: isDark ? AppColors.surfaceDark : Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(AppSpacing.r24),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,63 +191,149 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Expanded(
-                                        child: Text(
-                                          link.label,
-                                          style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
+                                      Text(
+                                        'Share Invite Link',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.ink,
                                         ),
                                       ),
-                                      StatusChip(
-                                        label: link.isActive ? 'ACTIVE' : 'INACTIVE',
-                                        statusType: link.isActive ? StatusType.success : StatusType.neutral,
-                                      ),
+                                      const Icon(Icons.share_rounded, color: AppColors.ink, size: 20),
                                     ],
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Invite new interns to join your team directly.',
+                                    style: TextStyle(color: AppColors.ink.withValues(alpha: 0.70), fontSize: 12),
+                                  ),
+                                  const SizedBox(height: 14),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                     decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF1E143B) : const Color(0xFFF3F4F6),
-                                      borderRadius: BorderRadius.circular(8),
+                                      color: AppColors.surface,
+                                      borderRadius: BorderRadius.circular(AppSpacing.rPill),
                                     ),
                                     child: Row(
                                       children: [
                                         Expanded(
                                           child: Text(
-                                            link.token,
-                                            style: const TextStyle(fontFamily: 'monospace', fontSize: 13, fontWeight: FontWeight.w600),
+                                            inviteLinks.isNotEmpty ? 'https://internhub.app/join/${inviteLinks.first.token}' : 'https://internhub.app/join/...',
+                                            style: const TextStyle(color: AppColors.ink, fontSize: 12, overflow: TextOverflow.ellipsis),
                                           ),
                                         ),
-                                        IconButton(
-                                          icon: const Icon(Icons.copy_rounded, size: 18, color: AppColors.primary),
-                                          onPressed: () {
-                                            Clipboard.setData(ClipboardData(text: link.token));
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Invite token copied to clipboard!')),
-                                            );
+                                        GestureDetector(
+                                          onTap: () {
+                                            if (inviteLinks.isNotEmpty) {
+                                              Clipboard.setData(ClipboardData(text: 'https://internhub.app/join/${inviteLinks.first.token}'));
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(content: Text('Invite URL copied to clipboard!')),
+                                              );
+                                            }
                                           },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.ink,
+                                              borderRadius: BorderRadius.circular(AppSpacing.rPill),
+                                            ),
+                                            child: const Text(
+                                              'Copy',
+                                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Used: ${link.usageCount} times',
-                                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                                      ),
-                                      Text(
-                                        'Created: ${link.createdAt.toIso8601String().substring(0, 10)}',
-                                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                                      ),
-                                    ],
-                                  ),
                                 ],
                               ),
-                            );
-                          },
+                            ),
+                            const SizedBox(height: 20),
+
+                            Text(
+                              'Generated Links',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            ...inviteLinks.map((link) {
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(AppSpacing.r20),
+                                  boxShadow: AppShadows.soft,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            link.label,
+                                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                        StatusChip(
+                                          label: link.isActive ? 'ACTIVE' : 'INACTIVE',
+                                          statusType: link.isActive ? StatusType.success : StatusType.neutral,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surfaceMuted,
+                                        borderRadius: BorderRadius.circular(AppSpacing.r12),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              link.token,
+                                              style: const TextStyle(fontFamily: 'monospace', fontSize: 13, fontWeight: FontWeight.w600),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.copy_rounded, size: 18, color: AppColors.primaryInk),
+                                            onPressed: () {
+                                              Clipboard.setData(ClipboardData(text: link.token));
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(content: Text('Invite token copied to clipboard!')),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          'Used: ${link.usageCount} times',
+                                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                        ),
+                                        Text(
+                                          'Created: ${link.createdAt.toIso8601String().substring(0, 10)}',
+                                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
                         ),
                 ),
 
@@ -269,26 +353,27 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
                               margin: const EdgeInsets.only(bottom: 12),
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: isDark ? AppColors.surfaceDark : Colors.white,
+                                color: Colors.white,
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                              ),
+        boxShadow: AppShadows.soft,
+      ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(req.name, style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold)),
+                                      Text(req.name, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                       StatusChip(label: req.status.toUpperCase(), statusType: StatusType.warning),
                                     ],
                                   ),
                                   const SizedBox(height: 4),
-                                  Text(req.email, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                                  Text(req.email, style: const TextStyle(fontSize: 13, color: AppColors.textTertiary)),
                                   if (req.department != null) Text('Dept: ${req.department}', style: const TextStyle(fontSize: 12)),
                                   const SizedBox(height: 12),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.end,
+                                  Wrap(
+                                    alignment: WrapAlignment.end,
+                                    runSpacing: 8,
                                     children: [
                                       TextButton(
                                         onPressed: () => _reviewSignupRequest(req.id, 'rejected'),

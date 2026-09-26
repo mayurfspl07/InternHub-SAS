@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../api/api_client.dart';
@@ -19,7 +18,6 @@ import '../../shared/models/profile_overview_model.dart';
 
 class AppState {
   final UserModel currentUser;
-  final ThemeMode themeMode;
   final bool isAuthenticated;
   final bool isSessionLoading;
   final String? authError;
@@ -54,7 +52,6 @@ class AppState {
 
   const AppState({
     required this.currentUser,
-    this.themeMode = ThemeMode.light,
     this.isAuthenticated = false,
     this.isSessionLoading = true,
     this.authError,
@@ -94,7 +91,6 @@ class AppState {
 
   AppState copyWith({
     UserModel? currentUser,
-    ThemeMode? themeMode,
     bool? isAuthenticated,
     bool? isSessionLoading,
     String? authError,
@@ -126,7 +122,6 @@ class AppState {
   }) {
     return AppState(
       currentUser: currentUser ?? this.currentUser,
-      themeMode: themeMode ?? this.themeMode,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       isSessionLoading: isSessionLoading ?? this.isSessionLoading,
       authError: clearAuthError ? null : (authError ?? this.authError),
@@ -277,15 +272,9 @@ class AppStateNotifier extends StateNotifier<AppState> {
     await AuthStorage.clearSession();
     state = AppState(
       currentUser: AppState.defaultGuestUser(),
-      themeMode: state.themeMode,
       isAuthenticated: false,
       isSessionLoading: false,
     );
-  }
-
-  void toggleThemeMode() {
-    final next = state.themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-    state = state.copyWith(themeMode: next);
   }
 
   Future<void> refreshAllData() async {
@@ -761,7 +750,7 @@ class AppStateNotifier extends StateNotifier<AppState> {
     if (res is Map<String, dynamic>) {
       final c = CohortModel.fromJson(res);
       state = state.copyWith(
-        cohorts: state.cohorts.map((item) => item.id == id ? c : item).toList(),
+        cohorts: state.cohorts.map((item) => item.id.toString() == id ? c : item).toList(),
       );
     }
   }
@@ -769,7 +758,7 @@ class AppStateNotifier extends StateNotifier<AppState> {
   Future<void> deleteCohort(String id) async {
     await _api.delete('/api/cohorts/$id');
     state = state.copyWith(
-      cohorts: state.cohorts.where((item) => item.id != id).toList(),
+      cohorts: state.cohorts.where((item) => item.id.toString() != id).toList(),
     );
   }
 

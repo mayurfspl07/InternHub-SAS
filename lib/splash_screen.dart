@@ -1,9 +1,10 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'core/api/auth_storage.dart';
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/main_navigation_wrapper.dart';
+import 'core/constants/app_colors.dart';
+import 'core/constants/app_spacing.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -22,32 +23,32 @@ class _SplashScreenState extends State<SplashScreen>
     {
       'icon': Icons.people_alt_rounded,
       'label': 'People',
-      'color': Color(0xFF9333EA), // Purple
-      'glow': Color(0xFFA855F7),
+      'color': AppColors.lavenderInk,
+      'glow': AppColors.lavender,
     },
     {
       'icon': Icons.assignment_turned_in_rounded,
       'label': 'Tasks',
-      'color': Color(0xFFFFD600), // Yellow
-      'glow': Color(0xFFFDE047),
+      'color': AppColors.butterInk,
+      'glow': AppColors.butter,
     },
     {
       'icon': Icons.bar_chart_rounded,
       'label': 'Analytics',
-      'color': Color(0xFFF43F5E), // Pink
-      'glow': Color(0xFFFB7185),
+      'color': AppColors.peachInk,
+      'glow': AppColors.peach,
     },
     {
       'icon': Icons.calendar_month_rounded,
       'label': 'Calendar',
-      'color': Color(0xFF38BDF8), // Blue
-      'glow': Color(0xFF7DD3FC),
+      'color': AppColors.sageInk,
+      'glow': AppColors.sage,
     },
     {
       'icon': Icons.chat_bubble_rounded,
       'label': 'Messages',
-      'color': Color(0xFF34D399), // Mint Green
-      'glow': Color(0xFF6EE7B7),
+      'color': AppColors.cocoa,
+      'glow': AppColors.sand,
     },
   ];
 
@@ -113,11 +114,11 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     if (size.width <= 0 || size.height <= 0) {
-      return const Scaffold(backgroundColor: Color(0xFF07050E));
+      return const Scaffold(backgroundColor: AppColors.canvas);
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF07050E),
+      backgroundColor: AppColors.canvas,
       body: AnimatedBuilder(
         animation: Listenable.merge([_mainController, _particleController]),
         builder: (context, child) {
@@ -183,22 +184,11 @@ class _SplashScreenState extends State<SplashScreen>
           return Stack(
             alignment: Alignment.center,
             children: [
-              // 1. Background: Deep Purple to Obsidian Black Radial Gradient
+              // 1. Background: flat warm canvas
               Container(
                 width: double.infinity,
                 height: double.infinity,
-                decoration: const BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment(0, -0.15),
-                    radius: 1.35,
-                    colors: [
-                      Color(0xFF24104B), // Vibrant deep purple core
-                      Color(0xFF13092A), // Mid dark violet
-                      Color(0xFF070410), // Deep obsidian black edges
-                    ],
-                    stops: [0.0, 0.48, 1.0],
-                  ),
-                ),
+                color: AppColors.canvas,
               ),
 
               // 2. Subtle Background Glowing Floating Particles with Parallax
@@ -272,37 +262,21 @@ class _SplashScreenState extends State<SplashScreen>
                     // Brand Title: InternHub
                     Opacity(
                       opacity: math.min(1.0, progress / 0.14),
-                      child: RichText(
-                        text: TextSpan(
-                          style: GoogleFonts.outfit(
+                      child: Text.rich(
+                        TextSpan(
+                          style: TextStyle(
                             fontSize: 36,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w700,
                             letterSpacing: -0.5,
                           ),
                           children: const [
                             TextSpan(
                               text: 'Intern',
-                              style: TextStyle(
-                                color: Colors.white,
-                                shadows: [
-                                  Shadow(
-                                    color: Color(0xFF9333EA),
-                                    blurRadius: 20,
-                                  ),
-                                ],
-                              ),
+                              style: TextStyle(color: AppColors.ink),
                             ),
                             TextSpan(
                               text: 'Hub',
-                              style: TextStyle(
-                                color: Color(0xFFFFD600), // Sunshine Yellow
-                                shadows: [
-                                  Shadow(
-                                    color: Color(0xFFFFD600),
-                                    blurRadius: 20,
-                                  ),
-                                ],
-                              ),
+                              style: TextStyle(color: AppColors.primaryInk),
                             ),
                           ],
                         ),
@@ -321,10 +295,10 @@ class _SplashScreenState extends State<SplashScreen>
                             : 'Where Interns Grow,\nTeams Achieve.',
                         key: ValueKey<bool>(isStep3OrLater),
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.plusJakartaSans(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: Colors.white.withValues(alpha: 0.75),
+                          color: AppColors.textSecondary,
                           height: 1.35,
                           letterSpacing: 0.3,
                         ),
@@ -345,12 +319,12 @@ class _SplashScreenState extends State<SplashScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Gradient Progress Bar (0% -> 100%)
+                        // Progress Bar (0% -> 100%)
                         Container(
                           height: 4.5,
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.10),
+                            color: AppColors.border,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: FractionallySizedBox(
@@ -358,26 +332,8 @@ class _SplashScreenState extends State<SplashScreen>
                             widthFactor: progressBarProgress,
                             child: Container(
                               decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF8B5CF6),
-                                    Color(0xFFC084FC),
-                                    Color(0xFFFFD600),
-                                  ],
-                                ),
+                                color: AppColors.primary,
                                 borderRadius: BorderRadius.circular(10),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0xFFA855F7),
-                                    blurRadius: 10,
-                                    spreadRadius: 1,
-                                  ),
-                                  BoxShadow(
-                                    color: Color(0xFFFFD600),
-                                    blurRadius: 8,
-                                    spreadRadius: 0,
-                                  ),
-                                ],
                               ),
                             ),
                           ),
@@ -387,10 +343,10 @@ class _SplashScreenState extends State<SplashScreen>
                         // Loading text with cycling animated dots
                         Text(
                           'Getting things ready${'.' * (((progress * 14).toInt() % 3) + 1)}',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white.withValues(alpha: 0.65),
+                            color: AppColors.textSecondary,
                             letterSpacing: 0.6,
                           ),
                         ),
@@ -412,18 +368,7 @@ class _SplashScreenState extends State<SplashScreen>
       height: 136,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8B5CF6).withValues(alpha: 0.55),
-            blurRadius: 40,
-            spreadRadius: 10,
-          ),
-          BoxShadow(
-            color: const Color(0xFFFFD600).withValues(alpha: 0.35),
-            blurRadius: 24,
-            spreadRadius: -2,
-          ),
-        ],
+        boxShadow: AppShadows.raised,
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(38),
@@ -438,9 +383,8 @@ class _SplashScreenState extends State<SplashScreen>
               width: 136,
               height: 136,
               decoration: BoxDecoration(
-                color: const Color(0xFF140D2B),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(38),
-                border: Border.all(color: const Color(0xFFA855F7), width: 2.5),
               ),
               child: Stack(
                 alignment: Alignment.center,
@@ -453,14 +397,7 @@ class _SplashScreenState extends State<SplashScreen>
                       height: 24,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Color(0xFFFFD600),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0xFFFFD600),
-                            blurRadius: 14,
-                            spreadRadius: 3,
-                          ),
-                        ],
+                        color: AppColors.primary,
                       ),
                     ),
                   ),
@@ -470,7 +407,7 @@ class _SplashScreenState extends State<SplashScreen>
                     child: Icon(
                       Icons.hub_rounded,
                       size: 64,
-                      color: Color(0xFFC084FC),
+                      color: AppColors.primaryInk,
                     ),
                   ),
                 ],
@@ -557,19 +494,9 @@ class _SplashScreenState extends State<SplashScreen>
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF140A28),
+                    color: feat['glow'] as Color,
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: (feat['glow'] as Color).withValues(alpha: 0.85),
-                      width: 1.8,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (feat['glow'] as Color).withValues(alpha: 0.50),
-                        blurRadius: 14,
-                        spreadRadius: 2,
-                      ),
-                    ],
+                    boxShadow: AppShadows.soft,
                   ),
                   child: Icon(
                     feat['icon'] as IconData,
@@ -623,7 +550,7 @@ class RippleAndOrbitCustomPainter extends CustomPainter {
           final alpha = ((1.0 - currentT) * 0.55).clamp(0.0, 1.0);
 
           final ripplePaint = Paint()
-            ..color = const Color(0xFFA855F7).withValues(alpha: alpha)
+            ..color = AppColors.primary.withValues(alpha: alpha)
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2.2 - (0.6 * currentT);
 
@@ -643,7 +570,7 @@ class RippleAndOrbitCustomPainter extends CustomPainter {
               .clamp(0.0, 1.0);
 
       final haloPaint = Paint()
-        ..color = const Color(0xFF8B5CF6).withValues(alpha: haloOpacity)
+        ..color = AppColors.primary.withValues(alpha: haloOpacity)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.8
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
@@ -662,7 +589,7 @@ class RippleAndOrbitCustomPainter extends CustomPainter {
               .clamp(0.0, 1.0);
 
       final orbitPaint = Paint()
-        ..color = const Color(0xFFC084FC).withValues(alpha: ringOpacity)
+        ..color = AppColors.taupe.withValues(alpha: ringOpacity)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.6;
 
@@ -723,26 +650,12 @@ class RadiantFloorBeamPainter extends CustomPainter {
       ..lineTo(centerX + 95, floorY)
       ..close();
 
-    final beamShader =
-        LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [
-            const Color(0xFFC084FC).withValues(alpha: 0.55 * opacity),
-            const Color(0xFF8B5CF6).withValues(alpha: 0.25 * opacity),
-            Colors.transparent,
-          ],
-          stops: const [0.0, 0.55, 1.0],
-        ).createShader(
-          Rect.fromLTWH(0, floorY - currentHeight, size.width, currentHeight),
-        );
-
-    final beamPaint = Paint()..shader = beamShader;
+    final beamPaint = Paint()..color = AppColors.primary.withValues(alpha: 0.22 * opacity);
     canvas.drawPath(beamPath, beamPaint);
 
     // 2. Luminous Floor Portal Outer Glow
     final floorGlowPaint = Paint()
-      ..color = const Color(0xFF9333EA).withValues(alpha: 0.75 * opacity)
+      ..color = AppColors.primary.withValues(alpha: 0.6 * opacity)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18);
 
     canvas.drawOval(
@@ -752,7 +665,7 @@ class RadiantFloorBeamPainter extends CustomPainter {
 
     // 3. Bright White-Yellow Portal Core
     final corePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.85 * opacity)
+      ..color = AppColors.surface.withValues(alpha: 0.9 * opacity)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
 
     canvas.drawOval(
@@ -796,11 +709,7 @@ class StoryboardParticlePainter extends CustomPainter {
       final alpha = (0.2 + 0.6 * math.sin((particleProgress + i) * math.pi))
           .clamp(0.1, 0.8);
 
-      paint.color =
-          (i % 4 == 0
-                  ? const Color(0xFFFFD600) // Golden Stardust
-                  : const Color(0xFFC084FC)) // Purple Stardust
-              .withValues(alpha: alpha);
+      paint.color = (i % 4 == 0 ? AppColors.primary : AppColors.sand).withValues(alpha: alpha);
 
       canvas.drawCircle(Offset(x, y), radius, paint);
     }

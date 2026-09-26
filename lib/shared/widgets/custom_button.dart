@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_spacing.dart';
+import '../../core/constants/app_typography.dart';
 
+/// Pill button. Default is amber with a dark label; [CustomButton.outline]
+/// is white with a hairline border.
 class CustomButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;
@@ -11,6 +13,8 @@ class CustomButton extends StatelessWidget {
   final bool isLoading;
   final double? width;
   final double height;
+
+  final bool isOutlined;
 
   const CustomButton({
     super.key,
@@ -22,54 +26,65 @@ class CustomButton extends StatelessWidget {
     this.isLoading = false,
     this.width,
     this.height = 54.0,
+    this.isOutlined = false,
   });
+
+  const CustomButton.outline({
+    super.key,
+    required this.text,
+    this.onPressed,
+    this.backgroundColor = AppColors.surface,
+    this.textColor,
+    this.icon,
+    this.isLoading = false,
+    this.width,
+    this.height = 54.0,
+  }) : isOutlined = true;
 
   @override
   Widget build(BuildContext context) {
+    final bg = backgroundColor ?? AppColors.primary;
+    final fg = textColor ??
+        (isOutlined || bg.computeLuminance() > 0.45 ? AppColors.ink : Colors.white);
+
+    final child = isLoading
+        ? SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2.5, color: fg),
+          )
+        : Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 20),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: Text(
+                  text,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.button.copyWith(color: fg),
+                ),
+              ),
+            ],
+          );
+
     return SizedBox(
       width: width ?? double.infinity,
       height: height,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor ?? AppColors.primary,
-          foregroundColor: textColor ?? Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.rPill),
-          ),
-        ),
-        child: isLoading
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (icon != null) ...[
-                    Icon(icon, size: 20),
-                    const SizedBox(width: 8),
-                  ],
-                  Flexible(
-                    child: Text(
-                      text,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: textColor ?? Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-      ),
+      child: isOutlined
+          ? OutlinedButton(
+              onPressed: isLoading ? null : onPressed,
+              style: OutlinedButton.styleFrom(backgroundColor: bg, foregroundColor: fg),
+              child: child,
+            )
+          : ElevatedButton(
+              onPressed: isLoading ? null : onPressed,
+              style: ElevatedButton.styleFrom(backgroundColor: bg, foregroundColor: fg),
+              child: child,
+            ),
     );
   }
 }
