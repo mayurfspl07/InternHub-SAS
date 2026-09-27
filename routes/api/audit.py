@@ -2,6 +2,7 @@
 from datetime import date as date_cls, datetime, timedelta, timezone
 from typing import Annotated
 
+from sqlalchemy import or_
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
@@ -65,6 +66,17 @@ async def list_audit_logs(request: Request, db: DbSession):
     action_filter = request.query_params.get("action")
     if action_filter and action_filter not in ("undefined", "null", "all"):
         q = _apply_action_filter(q, action_filter)
+
+    search = (request.query_params.get("search") or "").strip()
+    if search:
+        pattern = f"%{search}%"
+        q = q.filter(
+            or_(
+                AuditLog.actor_name.ilike(pattern),
+                AuditLog.verb.ilike(pattern),
+                AuditLog.target.ilike(pattern),
+            )
+        )
 
     actor_id = request.query_params.get("actor_id")
     if actor_id:

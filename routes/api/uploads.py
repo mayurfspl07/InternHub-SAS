@@ -147,7 +147,9 @@ async def upload_user_avatar(
     if not url:
         url = _save_local_fallback(content, "avatars", file.filename or "avatar.jpg")
 
+    user.avatar_url = url
     record_audit(db, user, "user.avatar_upload", "uploaded new avatar image", user.name)
+    db.commit()
     return {
         "success": True,
         "message": "Avatar uploaded successfully.",

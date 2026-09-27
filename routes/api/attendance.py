@@ -911,7 +911,7 @@ async def delete_attendance(record_id: int, request: Request, db: DbSession):
         data = await request.json()
     except Exception:
         data = {}
-    reason = str(data.get("reason", "")).strip()
+    reason = str(data.get("reason") or "").strip()
     if not reason:
         raise HTTPException(status_code=422, detail="A reason is required to delete an attendance record.")
 

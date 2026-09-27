@@ -39,6 +39,7 @@ def _user_dict(u: User, db: Session | None = None, org_id: int | None = None) ->
         "skills": u.skills_list(),
         "phone": u.phone,
         "job_title": u.job_title,
+        "avatar_url": u.avatar_url,
         "joining_date": u.joining_date.isoformat() if u.joining_date else None,
         "internship_end_date": u.internship_end_date.isoformat() if u.internship_end_date else None,
         "internship_duration_months": u.internship_duration_months,
@@ -117,9 +118,9 @@ async def change_password(request: Request, response: Response, db: DbSession, d
         raise HTTPException(status_code=401)
 
     payload = await get_payload(request, data)
-    current_pw = str(payload.get("current_password", ""))
-    new_pw = str(payload.get("new_password", ""))
-    confirm_pw = str(payload.get("confirm_password", ""))
+    current_pw = str(payload.get("current_password") or "")
+    new_pw = str(payload.get("new_password") or "")
+    confirm_pw = str(payload.get("confirm_password") or "")
 
     if not current_pw or not new_pw:
         raise HTTPException(status_code=422, detail="Both current and new password are required.")

@@ -45,6 +45,7 @@ def _leave_dict(lr: LeaveRequest) -> dict:
         "reviewed_by": lr.reviewed_by,
         "reviewer_name": lr.reviewer.name if lr.reviewer else None,
         "reviewed_at": isoformat_utc(lr.reviewed_at),
+        "review_comment": lr.review_comment,
         "has_attachment": has_att,
         "attachment_name": lr.attachment_name if has_att else None,
         "attachment_url": f"/api/leave/{lr.id}/attachment" if has_att else None,
@@ -375,6 +376,8 @@ async def review(leave_id: int, request: Request, db: DbSession, data: LeaveRevi
         raise HTTPException(status_code=422, detail="Decision must be 'approved' or 'rejected'.")
 
     lr.status = str(decision)
+    comment = str(payload.get("comment") or "").strip()
+    lr.review_comment = comment[:1000] or None
     lr.reviewed_by = user.id
     lr.reviewed_at = datetime.now(timezone.utc).replace(tzinfo=None)
     if decision == LeaveStatus.APPROVED:

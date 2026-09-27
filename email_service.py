@@ -479,6 +479,28 @@ def send_task_assigned_email(db, org_id: int, task, assignee: User, creator: Use
     send_email_async(org_id, assignee.email, title, html_msg, plain_msg, "task_assigned", assignee.name, db=db)
 
 
+def send_password_reset_email(db, org_id: int, user: User, code: str, minutes_valid: int):
+    """E-mail a one-time password reset code (always sent: it is not an opt-out notification)."""
+    org_name = _get_org_name(db, org_id)
+    title = f"Your {org_name} password reset code"
+    preheader = f"Use code {code} to reset your password. It expires in {minutes_valid} minutes."
+    body_html = f"""
+    <p>Hello <strong>{html.escape(user.name)}</strong>,</p>
+    <p>We received a request to reset the password for your InternHub account. Enter this code in the app:</p>
+    <div style="background-color: #f1f5f9; padding: 16px 18px; margin: 20px 0; border-radius: 8px; text-align: center;">
+        <code style="font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #0f172a; font-family: monospace;">{html.escape(code)}</code>
+    </div>
+    <p style="font-size: 13px; color: #64748b;">The code expires in {minutes_valid} minutes and can be used once.
+    If you didn't ask for this, you can ignore this e-mail; your password stays the same.</p>
+    """
+    html_msg = _render_html_template(org_name, title, preheader, body_html)
+    plain_msg = (
+        f"Your InternHub password reset code is {code}. It expires in {minutes_valid} minutes.\n"
+        "If you didn't ask for this, ignore this e-mail."
+    )
+    send_email_async(org_id, user.email, title, html_msg, plain_msg, "password_reset", user.name, db=db)
+
+
 def send_test_email(db, org_id: int, target_email: str, smtp_override: dict | None = None) -> tuple[bool, str | None]:
     """Send a live test email to verify SMTP connection and credentials."""
     org_name = _get_org_name(db, org_id)

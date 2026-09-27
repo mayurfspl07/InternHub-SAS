@@ -8,7 +8,7 @@ from fastapi import HTTPException, Request
 async def get_payload(request: Request, data: Any = None) -> dict:
     """Safely extracts dictionary payload from either parsed Pydantic model or request.json()."""
     if isinstance(data, BaseModel):
-        return data.model_dump(exclude_unset=False)
+        return data.model_dump(exclude_unset=True)  # only the fields the client sent
     try:
         raw = await request.json()
         return raw if isinstance(raw, dict) else {}
@@ -51,6 +51,17 @@ class LoginRequest(BaseModel):
     email: str = Field(..., description="User account email address", json_schema_extra={"example": "intern@techcorp.com"})
     password: str = Field(..., min_length=1, description="Account password", json_schema_extra={"example": "InternPass123!"})
     remember: bool = Field(False, description="Whether to remember the login session", json_schema_extra={"example": False})
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(..., description="E-mail of the account to reset", json_schema_extra={"example": "aarav@example.com"})
+
+
+class ResetPasswordRequest(BaseModel):
+    email: str = Field(..., description="E-mail of the account", json_schema_extra={"example": "aarav@example.com"})
+    code: str = Field(..., description="6-digit code from the reset e-mail", json_schema_extra={"example": "482913"})
+    new_password: str = Field(..., description="New password (min 8 chars, at least 1 digit)", json_schema_extra={"example": "NewPass2026!"})
+    confirm_password: str = Field(..., description="Repeat the new password", json_schema_extra={"example": "NewPass2026!"})
 
 
 class RegisterRequest(BaseModel):

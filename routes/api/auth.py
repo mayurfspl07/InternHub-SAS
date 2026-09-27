@@ -1,4 +1,6 @@
 """JSON auth endpoints for the React frontend."""
+import logging
+import secrets
 from datetime import date
 from typing import Annotated
 
@@ -15,11 +17,13 @@ from dependencies import (
     login_user,
     logout_user,
 )
-from models import InternInviteLink, User, UserRole, _utcnow
+from models import InternInviteLink, PasswordResetCode, User, UserRole, _utcnow
 from utils import check_login_rate_limit, reset_login_attempts, record_audit, push_notification, isoformat_utc
 
 from routes.api.schemas import (
+    ForgotPasswordRequest,
     LoginRequest,
+    ResetPasswordRequest,
     RegisterRequest,
     InviteRegisterRequest,
     UserProfileResponse,
@@ -49,6 +53,7 @@ def _user_dict(user: User) -> dict:
         "joining_date": user.joining_date.isoformat() if user.joining_date else None,
         "created_at": isoformat_utc(user.created_at),
         "session_version": user.session_version,
+        "avatar_url": user.avatar_url,
     }
 
 
@@ -64,8 +69,8 @@ async def me(request: Request, db: DbSession):
 @router.post("/login")
 async def login(request: Request, response: Response, db: DbSession, data: LoginRequest | None = Body(None)):
     payload = await get_payload(request, data)
-    email = str(payload.get("email", "")).strip().lower()
-    password = str(payload.get("password", ""))
+    email = str(payload.get("email") or "").strip().lower()
+    password = str(payload.get("password") or "")
     remember = bool(payload.get("remember", False))
 
     client_ip = request.client.host if request.client else "unknown"
@@ -115,6 +120,106 @@ async def login(request: Request, response: Response, db: DbSession, data: Login
     return body
 
 
+_RESET_SENT = "If an account exists for that e-mail, a reset code has been sent. It expires in 15 minutes."
+_RESET_INVALID = "The code is invalid or has expired. Request a new one."
+
+
+def _password_problem(new_pw: str, confirm_pw: str) -> str | None:
+    """Same password rules as /api/profile/change-password."""
+    if new_pw != confirm_pw:
+        return "New passwords do not match."
+    if len(new_pw) < 8:
+        return "New password must be at least 8 characters."
+    if not any(c.isdigit() for c in new_pw):
+        return "New password must contain at least one number."
+    return None
+
+
+def _rate_limited(key: str) -> HTTPException:
+    return HTTPException(
+        status_code=429,
+        detail="Too many requests. Please wait 5 minutes.",
+        headers={"Retry-After": str(Config.LOGIN_WINDOW_SECONDS)},
+    )
+
+
+@router.post("/password/forgot")
+async def forgot_password(request: Request, db: DbSession, data: ForgotPasswordRequest | None = Body(None)):
+    """E-mail a 6-digit reset code. The answer is the same whether or not the account exists."""
+    payload = await get_payload(request, data)
+    email = str(payload.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=422, detail="Enter a valid e-mail address.")
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_login_rate_limit(f"reset-request:{client_ip}", Config.LOGIN_MAX_ATTEMPTS, Config.LOGIN_WINDOW_SECONDS):
+        raise _rate_limited(client_ip)
+
+    user = db.query(User).filter_by(email=email).first()
+    if user and user.is_active and not user.is_deleted:
+        now = _utcnow()
+        for old in db.query(PasswordResetCode).filter_by(user_id=user.id, used_at=None).all():
+            old.used_at = now  # only the newest code is valid
+        code = f"{secrets.randbelow(10**6):06d}"
+        reset = PasswordResetCode(user_id=user.id, expires_at=now + PasswordResetCode.LIFETIME)
+        reset.set_code(code)
+        db.add(reset)
+        from utils import owning_org_id
+        org_id = owning_org_id(db, user_ids=(user.id,)) or 1
+        record_audit(db, user, "user.password_reset_request", "requested a password reset code", user.name,
+                     organization_id=org_id)
+        db.commit()
+        try:
+            from email_service import send_password_reset_email
+            send_password_reset_email(db, org_id, user, code, int(PasswordResetCode.LIFETIME.total_seconds() // 60))
+        except Exception as exc:  # the e-mail log records delivery failures; never reveal them here
+            logging.getLogger("internhub").warning("password reset e-mail failed for user %s: %s", user.id, exc)
+    return {"ok": True, "message": _RESET_SENT}
+
+
+@router.post("/password/reset")
+async def reset_password(request: Request, db: DbSession, data: ResetPasswordRequest | None = Body(None)):
+    """Set a new password with the e-mailed code; signs out every existing session."""
+    payload = await get_payload(request, data)
+    email = str(payload.get("email") or "").strip().lower()
+    code = str(payload.get("code") or "").strip()
+    new_pw = str(payload.get("new_password") or "")
+    confirm_pw = str(payload.get("confirm_password") or "")
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_login_rate_limit(f"reset-verify:{client_ip}", Config.LOGIN_MAX_ATTEMPTS, Config.LOGIN_WINDOW_SECONDS):
+        raise _rate_limited(client_ip)
+    if not email or not code:
+        raise HTTPException(status_code=422, detail="E-mail and code are required.")
+    problem = _password_problem(new_pw, confirm_pw)
+    if problem:
+        raise HTTPException(status_code=422, detail=problem)
+
+    user = db.query(User).filter_by(email=email).first()
+    reset = None
+    if user and user.is_active and not user.is_deleted:
+        reset = (
+            db.query(PasswordResetCode)
+            .filter(PasswordResetCode.user_id == user.id, PasswordResetCode.used_at.is_(None))
+            .order_by(PasswordResetCode.id.desc())
+            .first()
+        )
+    if reset is None or reset.expires_at < _utcnow() or reset.attempts >= PasswordResetCode.MAX_ATTEMPTS:
+        raise HTTPException(status_code=422, detail=_RESET_INVALID)
+    reset.attempts += 1
+    if not reset.check_code(code):
+        db.commit()
+        raise HTTPException(status_code=422, detail=_RESET_INVALID)
+
+    reset.used_at = _utcnow()
+    user.set_password(new_pw)
+    user.session_version += 1  # sign out every existing session
+    from utils import owning_org_id
+    record_audit(db, user, "user.password_reset", "reset their password with an e-mailed code", user.name,
+                 organization_id=owning_org_id(db, user_ids=(user.id,)))
+    db.commit()
+    reset_login_attempts(client_ip)
+    return {"ok": True, "message": "Password updated. Sign in with your new password."}
+
+
 @router.post("/logout")
 async def logout(request: Request, response: Response):
     logout_user(request)
@@ -133,11 +238,11 @@ async def register(request: Request, db: DbSession, data: RegisterRequest | None
         )
 
     payload = await get_payload(request, data)
-    name = str(payload.get("name", "")).strip()
-    email = str(payload.get("email", "")).strip().lower()
-    password = str(payload.get("password", ""))
+    name = str(payload.get("name") or "").strip()
+    email = str(payload.get("email") or "").strip().lower()
+    password = str(payload.get("password") or "")
     confirm = str(payload.get("confirm_password", payload.get("confirm", "")))
-    role = str(payload.get("role", UserRole.INTERN)).strip().lower()
+    role = str(payload.get("role") or UserRole.INTERN).strip().lower()
 
     errors = []
     if not (name and email and password):
@@ -217,14 +322,14 @@ async def register_via_invite(token: str, request: Request, db: DbSession, data:
         raise HTTPException(status_code=404, detail="This invite link is invalid or has expired.")
 
     payload = await get_payload(request, data)
-    name = str(payload.get("name", "")).strip()
-    email = str(payload.get("email", "")).strip().lower()
-    password = str(payload.get("password", ""))
+    name = str(payload.get("name") or "").strip()
+    email = str(payload.get("email") or "").strip().lower()
+    password = str(payload.get("password") or "")
     confirm = str(payload.get("confirm_password", payload.get("confirm", "")))
-    phone = str(payload.get("phone", "")).strip()
-    department = str(payload.get("department", "")).strip()
-    job_title = str(payload.get("job_title", "")).strip()
-    joining_date_str = str(payload.get("joining_date", "")).strip().strip()
+    phone = str(payload.get("phone") or "").strip()
+    department = str(payload.get("department") or "").strip()
+    job_title = str(payload.get("job_title") or "").strip()
+    joining_date_str = str(payload.get("joining_date") or "").strip().strip()
 
     errors = []
     if not (name and email and password and phone and department and job_title and joining_date_str):

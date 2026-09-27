@@ -123,7 +123,7 @@ async def create_cohort(request: Request, db: DbSession, data: CohortCreatePaylo
     if not user or user.is_intern:
         raise HTTPException(status_code=403)
     payload = await get_payload(request, data)
-    name = str(payload.get("name", "")).strip()
+    name = str(payload.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=422, detail="Name is required.")
 

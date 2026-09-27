@@ -423,6 +423,7 @@ class User(Base):
     # Created through public self-registration: no organization access until an org
     # admin adds the account or it joins through an invite link.
     self_registered: Mapped[bool | None] = mapped_column(Boolean, default=False, nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     activated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -1078,6 +1079,7 @@ class LeaveRequest(Base):
         Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    review_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     attachment_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     attachment_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
@@ -1456,3 +1458,26 @@ class Lead(Base):
     status: Mapped[str] = mapped_column(String(20), default=LeadStatus.NEW, nullable=False, index=True)
     ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False, index=True)
+
+
+class PasswordResetCode(Base):
+    """One-time code e-mailed by POST /api/auth/password/forgot (stored hashed, 15-minute lifetime)."""
+
+    __tablename__ = "password_reset_codes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    code_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+
+    MAX_ATTEMPTS = 5
+    LIFETIME = timedelta(minutes=15)
+
+    def set_code(self, code: str) -> None:
+        self.code_hash = generate_password_hash(code)
+
+    def check_code(self, code: str) -> bool:
+        return check_password_hash(self.code_hash, code)

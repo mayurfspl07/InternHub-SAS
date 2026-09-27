@@ -5,22 +5,22 @@
   "ok": true
  },
  "DELETE /api/admin/bin/{bin_id}": {
-  "message": "Permanently deleted 'None'.",
+  "message": "Permanently deleted 'Mumbai Dabbawala Route Planner E2E-TMP-1790515118'.",
   "ok": true
  },
  "DELETE /api/admin/internship-durations/{duration_id}": {
-  "message": "Internship duration tier 'Winter sprint (E2E-TMP-1790466803)' deleted.",
+  "message": "Internship duration tier 'Winter sprint (E2E-TMP-1790515118)' deleted.",
   "success": true
  },
  "DELETE /api/admin/invite-link/{link_id}": {
   "ok": true
  },
  "DELETE /api/admin/project-statuses/{status_id}": {
-  "message": "Project status bucket 'QA Review (E2E-TMP-1790466803)' deleted.",
+  "message": "Project status bucket 'QA Review (E2E-TMP-1790515118)' deleted.",
   "success": true
  },
  "DELETE /api/admin/task-statuses/{status_id}": {
-  "message": "Status bucket 'QA Review (E2E-TMP-1790466803)' deleted.",
+  "message": "Status bucket 'QA Review (E2E-TMP-1790515118)' deleted.",
   "success": true
  },
  "DELETE /api/admin/users/{user_id}": {
@@ -30,7 +30,7 @@
   "ok": true
  },
  "DELETE /api/assignments/{assignment_id}": {
-  "message": "Assignment 'Quiz: Pune metro lines E2E-TMP-1790466803' deleted.",
+  "message": "Assignment 'Quiz: Pune metro lines E2E-TMP-1790515118' deleted.",
   "success": true
  },
  "DELETE /api/attendance/{record_id}": {
@@ -84,7 +84,7 @@
   "active_projects": [
    {
     "completed_tasks_count": 0,
-    "created_at": "2026-09-26T23:51:31.536212Z",
+    "created_at": "2026-09-27T13:18:26.649043Z",
     "description": "Soil moisture and weather sensors for grape growers around Niphad and Dindori.",
     "id": 4,
     "members_count": 2,
@@ -96,7 +96,7 @@
    },
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.392591Z",
+    "created_at": "2026-09-27T13:18:26.480106Z",
     "description": "Coordinates volunteers, water stations and medical camps along the Ashadhi Wari route.",
     "id": 2,
     "members_count": 2,
@@ -155,7 +155,7 @@
   },
   "pending_leave_requests": [
    {
-    "created_at": "2026-09-26T23:52:22.952250Z",
+    "created_at": "2026-09-27T13:19:22.742682Z",
     "days": 1,
     "days_count": 1,
     "department": "Product Design",
@@ -168,8 +168,31 @@
     "user_name": "Sakshi Patil"
    }
   ],
-  "present_today_list": [],
-  "present_today_total": 0,
+  "present_today_list": [
+   {
+    "check_in": "18:49",
+    "check_in_photo_url": "/api/attendance/75/photo/checkin",
+    "check_out": "18:49",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Aarav Deshmukh",
+    "status": "late",
+    "user_id": 6
+   },
+   {
+    "check_in": "18:49",
+    "check_in_photo_url": "/api/attendance/76/photo/checkin",
+    "check_out": null,
+    "department": "Product Design",
+    "email": "sakshi.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Sakshi Patil",
+    "status": "late",
+    "user_id": 7
+   }
+  ],
+  "present_today_total": 2,
   "project_status": {
    "active": 3,
    "planning": 1
@@ -180,8 +203,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.252880Z",
-    "id": 283,
+    "created_at": "2026-09-27T13:19:25.284267Z",
+    "id": 208,
     "project_id": 1,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -192,8 +215,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": null,
-    "created_at": "2026-09-26T23:54:05.236411Z",
-    "id": 282,
+    "created_at": "2026-09-27T13:19:25.266670Z",
+    "id": 207,
     "project_id": null,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -202,14 +225,14 @@
   ],
   "role": "admin",
   "stats": {
-   "absent_today": 10,
+   "absent_today": 8,
    "active_projects": 3,
-   "days_logged": 10,
+   "days_logged": 11,
    "on_leave_today": 0,
    "open_tasks": 9,
    "overdue_tasks": 0,
    "pending_leave": 1,
-   "present_today": 0,
+   "present_today": 2,
    "total_hours": 670.9,
    "total_interns": 10,
    "total_mentors": 3,
@@ -244,20 +267,21 @@
     "attendance_overview": {
      "absent": 0,
      "attendance_rate": 100.0,
-     "attended": 9,
+     "attended": 10,
      "end_date": "2026-09-27",
      "excused": 0,
      "half_day": 0,
-     "last_check_in": "2026-09-25T10:05:00",
-     "late": 0,
+     "last_check_in": "2026-09-27T18:49:19.908259",
+     "late": 1,
      "on_leave": 0,
      "present": 9,
      "start_date": "2026-08-29",
      "total_hours": 81.56,
-     "total_records": 9,
+     "total_records": 10,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:30.536786Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:25.560869Z",
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -287,7 +311,8 @@
      "total_records": 9,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:31.223337Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:26.275062Z",
     "department": "Data & Analytics",
     "email": "gauri.sahyadri-tech-labs@example.com",
     "id": 13,
@@ -314,10 +339,37 @@
   "page_size": 20,
   "students": [
    {
-    "attendance": null,
-    "is_checked_in": false,
-    "is_checked_out": false,
+    "attendance": {
+     "check_in": "18:49",
+     "check_in_dt": "2026-09-27T18:49:19.908259",
+     "check_in_location": {
+      "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+      "lat": 18.559,
+      "lng": 73.7868
+     },
+     "check_in_photo_url": "/api/attendance/75/photo/checkin",
+     "check_out": "18:49",
+     "check_out_dt": "2026-09-27T18:49:21.888196",
+     "check_out_location": {
+      "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+      "lat": 18.559,
+      "lng": 73.7868
+     },
+     "check_out_photo_url": "/api/attendance/75/photo/checkout",
+     "checkout_missed": false,
+     "checkout_source": "manual",
+     "date": "2026-09-27",
+     "hours_worked": 0.0,
+     "id": 75,
+     "notes": null,
+     "status": "late",
+     "user_id": 6,
+     "user_name": "Aarav Deshmukh"
+    },
+    "is_checked_in": true,
+    "is_checked_out": true,
     "student": {
+     "avatar_url": null,
      "department": "Engineering",
      "email": "aarav.sahyadri-tech-labs@example.com",
      "id": 6,
@@ -327,13 +379,14 @@
      "name": "Aarav Deshmukh",
      "phone": "+91 98503 11240"
     },
-    "today_status": "not_checked_in"
+    "today_status": "late"
    },
    {
     "attendance": null,
     "is_checked_in": false,
     "is_checked_out": false,
     "student": {
+     "avatar_url": null,
      "department": "Data & Analytics",
      "email": "gauri.sahyadri-tech-labs@example.com",
      "id": 13,
@@ -348,14 +401,14 @@
   ],
   "summary": {
    "absent": 0,
-   "attendance_rate": 0.0,
-   "attended": 0,
-   "checked_in": 0,
-   "checked_out": 0,
+   "attendance_rate": 25.0,
+   "attended": 2,
+   "checked_in": 2,
+   "checked_out": 1,
    "excused": 0,
    "half_day": 0,
-   "late": 0,
-   "not_checked_in": 8,
+   "late": 2,
+   "not_checked_in": 6,
    "on_leave": 0,
    "present": 0,
    "total_interns": 8
@@ -367,40 +420,40 @@
  "GET /api/admin/bin": {
   "items": [
    {
-    "deleted_at": "2026-09-26T23:53:55.865076Z",
+    "deleted_at": "2026-09-27T13:19:13.054661Z",
     "deleted_by_id": 2,
     "deleted_by_name": "Anand Apte",
     "entity_id": 5,
     "entity_type": "project",
-    "expires_at": "2026-10-11T23:53:55.865076Z",
-    "id": 12,
+    "expires_at": "2026-10-12T13:19:13.054661Z",
+    "id": 6,
     "metadata": {
      "description": "Updated",
      "entity_type": "project",
      "id": 5,
      "mentor_id": 4,
-     "name": "None",
+     "name": "Mumbai Dabbawala Route Planner E2E-TMP-1790515118",
      "status": "active"
     },
-    "title": "None"
+    "title": "Mumbai Dabbawala Route Planner E2E-TMP-1790515118"
    },
    {
-    "deleted_at": "2026-09-26T23:53:55.796660Z",
+    "deleted_at": "2026-09-27T13:19:12.976447Z",
     "deleted_by_id": 2,
     "deleted_by_name": "Anand Apte",
     "entity_id": 13,
     "entity_type": "task",
-    "expires_at": "2026-10-11T23:53:55.796660Z",
-    "id": 11,
+    "expires_at": "2026-10-12T13:19:12.976447Z",
+    "id": 5,
     "metadata": {
      "assigned_to": null,
      "entity_type": "task",
      "id": 13,
      "project_id": 5,
      "status": "todo",
-     "title": "Alias delete E2E-TMP-1790466803"
+     "title": "Alias delete E2E-TMP-1790515118"
     },
-    "title": "Alias delete E2E-TMP-1790466803"
+    "title": "Alias delete E2E-TMP-1790515118"
    }
   ],
   "page": 1,
@@ -411,7 +464,7 @@
   "active_projects": [
    {
     "completed_tasks_count": 0,
-    "created_at": "2026-09-26T23:51:31.536212Z",
+    "created_at": "2026-09-27T13:18:26.649043Z",
     "description": "Soil moisture and weather sensors for grape growers around Niphad and Dindori.",
     "id": 4,
     "members_count": 2,
@@ -423,7 +476,7 @@
    },
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.392591Z",
+    "created_at": "2026-09-27T13:18:26.480106Z",
     "description": "Coordinates volunteers, water stations and medical camps along the Ashadhi Wari route.",
     "id": 2,
     "members_count": 2,
@@ -482,7 +535,7 @@
   },
   "pending_leave_requests": [
    {
-    "created_at": "2026-09-26T23:52:22.952250Z",
+    "created_at": "2026-09-27T13:19:22.742682Z",
     "days": 1,
     "days_count": 1,
     "department": "Product Design",
@@ -495,8 +548,31 @@
     "user_name": "Sakshi Patil"
    }
   ],
-  "present_today_list": [],
-  "present_today_total": 0,
+  "present_today_list": [
+   {
+    "check_in": "18:49",
+    "check_in_photo_url": "/api/attendance/75/photo/checkin",
+    "check_out": "18:49",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Aarav Deshmukh",
+    "status": "late",
+    "user_id": 6
+   },
+   {
+    "check_in": "18:49",
+    "check_in_photo_url": "/api/attendance/76/photo/checkin",
+    "check_out": null,
+    "department": "Product Design",
+    "email": "sakshi.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Sakshi Patil",
+    "status": "late",
+    "user_id": 7
+   }
+  ],
+  "present_today_total": 2,
   "project_status": {
    "active": 3,
    "planning": 1
@@ -507,8 +583,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.252880Z",
-    "id": 283,
+    "created_at": "2026-09-27T13:19:25.284267Z",
+    "id": 208,
     "project_id": 1,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -519,8 +595,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": null,
-    "created_at": "2026-09-26T23:54:05.236411Z",
-    "id": 282,
+    "created_at": "2026-09-27T13:19:25.266670Z",
+    "id": 207,
     "project_id": null,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -529,14 +605,14 @@
   ],
   "role": "admin",
   "stats": {
-   "absent_today": 10,
+   "absent_today": 8,
    "active_projects": 3,
-   "days_logged": 10,
+   "days_logged": 11,
    "on_leave_today": 0,
    "open_tasks": 9,
    "overdue_tasks": 0,
    "pending_leave": 1,
-   "present_today": 0,
+   "present_today": 2,
    "total_hours": 670.9,
    "total_interns": 10,
    "total_mentors": 3,
@@ -576,8 +652,9 @@
      }
     ],
     "mentor": {
+     "avatar_url": null,
      "bio": null,
-     "created_at": "2026-09-26T23:51:30.337153Z",
+     "created_at": "2026-09-27T13:18:25.356080Z",
      "department": "Product Design",
      "email": "madhuri.sahyadri-tech-labs@example.com",
      "id": 4,
@@ -619,8 +696,9 @@
      }
     ],
     "mentor": {
+     "avatar_url": null,
      "bio": null,
-     "created_at": "2026-09-26T23:51:30.237359Z",
+     "created_at": "2026-09-27T13:18:25.253353Z",
      "department": "Engineering",
      "email": "prashant.sahyadri-tech-labs@example.com",
      "id": 3,
@@ -643,12 +721,12 @@
   "no_project": [
    {
     "department": null,
-    "email": "e2e-tmp-1790466803.member@example.com",
+    "email": "e2e-tmp-1790515118.member@example.com",
     "id": 14,
     "is_active": true,
     "mentor_id": null,
     "mentor_name": null,
-    "name": "Kunal Wagh E2E-TMP-1790466803"
+    "name": "Kunal Wagh E2E-TMP-1790515118"
    }
   ],
   "no_project_count": 1,
@@ -662,12 +740,12 @@
   "unassigned": [
    {
     "department": null,
-    "email": "e2e-tmp-1790466803.member@example.com",
+    "email": "e2e-tmp-1790515118.member@example.com",
     "id": 14,
     "is_active": true,
     "mentor_id": null,
     "mentor_name": null,
-    "name": "Kunal Wagh E2E-TMP-1790466803"
+    "name": "Kunal Wagh E2E-TMP-1790515118"
    }
   ],
   "unassigned_count": 1
@@ -683,7 +761,7 @@
  "GET /api/admin/internship-durations": {
   "durations": [
    {
-    "created_at": "2026-09-26T23:51:30.134527",
+    "created_at": "2026-09-27T13:18:25.146198",
     "duration_days": null,
     "duration_months": 1,
     "id": 4,
@@ -695,14 +773,14 @@
     "order_index": 0,
     "organization_id": 2,
     "title": "1 Month",
-    "updated_at": "2026-09-26T23:51:30.134529"
+    "updated_at": "2026-09-27T13:18:25.146201"
    },
    {
-    "created_at": "2026-09-26T23:51:30.134530",
+    "created_at": "2026-09-27T13:18:25.146202",
     "duration_days": null,
     "duration_months": 3,
     "id": 5,
-    "intern_count": 2,
+    "intern_count": 0,
     "internship_duration": 3,
     "is_active": true,
     "is_default": true,
@@ -710,12 +788,12 @@
     "order_index": 1,
     "organization_id": 2,
     "title": "3 Months",
-    "updated_at": "2026-09-26T23:51:30.134530"
+    "updated_at": "2026-09-27T13:18:25.146202"
    }
   ],
   "items": [
    {
-    "created_at": "2026-09-26T23:51:30.134527",
+    "created_at": "2026-09-27T13:18:25.146198",
     "duration_days": null,
     "duration_months": 1,
     "id": 4,
@@ -727,14 +805,14 @@
     "order_index": 0,
     "organization_id": 2,
     "title": "1 Month",
-    "updated_at": "2026-09-26T23:51:30.134529"
+    "updated_at": "2026-09-27T13:18:25.146201"
    },
    {
-    "created_at": "2026-09-26T23:51:30.134530",
+    "created_at": "2026-09-27T13:18:25.146202",
     "duration_days": null,
     "duration_months": 3,
     "id": 5,
-    "intern_count": 2,
+    "intern_count": 0,
     "internship_duration": 3,
     "is_active": true,
     "is_default": true,
@@ -742,18 +820,18 @@
     "order_index": 1,
     "organization_id": 2,
     "title": "3 Months",
-    "updated_at": "2026-09-26T23:51:30.134530"
+    "updated_at": "2026-09-27T13:18:25.146202"
    }
   ],
   "page": 1,
   "page_size": 100,
-  "total": 4,
+  "total": 3,
   "total_pages": 1
  },
  "GET /api/admin/internship-durations/dropdown": {
   "durations": [
    {
-    "created_at": "2026-09-26T23:51:30.134527",
+    "created_at": "2026-09-27T13:18:25.146198",
     "duration_days": null,
     "duration_months": 1,
     "id": 4,
@@ -765,10 +843,10 @@
     "order_index": 0,
     "organization_id": 2,
     "title": "1 Month",
-    "updated_at": "2026-09-26T23:51:30.134529"
+    "updated_at": "2026-09-27T13:18:25.146201"
    },
    {
-    "created_at": "2026-09-26T23:51:30.134530",
+    "created_at": "2026-09-27T13:18:25.146202",
     "duration_days": null,
     "duration_months": 3,
     "id": 5,
@@ -780,12 +858,12 @@
     "order_index": 1,
     "organization_id": 2,
     "title": "3 Months",
-    "updated_at": "2026-09-26T23:51:30.134530"
+    "updated_at": "2026-09-27T13:18:25.146202"
    }
   ],
   "items": [
    {
-    "created_at": "2026-09-26T23:51:30.134527",
+    "created_at": "2026-09-27T13:18:25.146198",
     "duration_days": null,
     "duration_months": 1,
     "id": 4,
@@ -797,10 +875,10 @@
     "order_index": 0,
     "organization_id": 2,
     "title": "1 Month",
-    "updated_at": "2026-09-26T23:51:30.134529"
+    "updated_at": "2026-09-27T13:18:25.146201"
    },
    {
-    "created_at": "2026-09-26T23:51:30.134530",
+    "created_at": "2026-09-27T13:18:25.146202",
     "duration_days": null,
     "duration_months": 3,
     "id": 5,
@@ -812,58 +890,20 @@
     "order_index": 1,
     "organization_id": 2,
     "title": "3 Months",
-    "updated_at": "2026-09-26T23:51:30.134530"
+    "updated_at": "2026-09-27T13:18:25.146202"
    }
   ],
   "total": 4
  },
  "GET /api/admin/invite-link": {
-  "link": {
-   "created_at": "2026-09-26T23:52:10.878964Z",
-   "created_by_id": 2,
-   "created_by_name": "Anand Apte",
-   "id": 3,
-   "is_active": true,
-   "label": "Sahyadri campus drive 2026",
-   "mentor_id": 3,
-   "mentor_name": "Prashant Kulkarni",
-   "token": "<redacted>",
-   "url": "https://internhub-sas-production-b44c.up.railway.app/join/srID36l8KPu0sEcnWm5gUYasrfhX-VJ-df8V9mKAyW0",
-   "usage_count": 0
-  },
-  "links": [
-   {
-    "created_at": "2026-09-26T23:52:10.878964Z",
-    "created_by_id": 2,
-    "created_by_name": "Anand Apte",
-    "id": 3,
-    "is_active": true,
-    "label": "Sahyadri campus drive 2026",
-    "mentor_id": 3,
-    "mentor_name": "Prashant Kulkarni",
-    "token": "<redacted>",
-    "url": "https://internhub-sas-production-b44c.up.railway.app/join/srID36l8KPu0sEcnWm5gUYasrfhX-VJ-df8V9mKAyW0",
-    "usage_count": 0
-   },
-   {
-    "created_at": "2026-09-26T23:52:10.854481Z",
-    "created_by_id": 2,
-    "created_by_name": "Anand Apte",
-    "id": 2,
-    "is_active": false,
-    "label": "Pune campus drive E2E-TMP-1790466703",
-    "mentor_id": 3,
-    "mentor_name": "Prashant Kulkarni",
-    "token": "<redacted>",
-    "url": "https://internhub-sas-production-b44c.up.railway.app/join/CoFaSAhXmW1wc2rbUoLOk0lQak7GXnr0nxs_HCluE_U",
-    "usage_count": 0
-   }
-  ]
+  "link": null,
+  "links": []
  },
  "GET /api/admin/mentors": [
   {
+   "avatar_url": null,
    "bio": null,
-   "created_at": "2026-09-26T23:51:30.337153Z",
+   "created_at": "2026-09-27T13:18:25.356080Z",
    "department": "Product Design",
    "email": "madhuri.sahyadri-tech-labs@example.com",
    "id": 4,
@@ -882,8 +922,9 @@
    "stipend_amount": null
   },
   {
+   "avatar_url": null,
    "bio": null,
-   "created_at": "2026-09-26T23:51:30.237359Z",
+   "created_at": "2026-09-27T13:18:25.253353Z",
    "department": "Engineering",
    "email": "prashant.sahyadri-tech-labs@example.com",
    "id": 3,
@@ -906,7 +947,7 @@
   "items": [
    {
     "color": "#94A3B8",
-    "created_at": "2026-09-26T23:51:31.252193",
+    "created_at": "2026-09-27T13:18:26.308414",
     "id": 5,
     "is_default": true,
     "is_system": true,
@@ -915,11 +956,11 @@
     "organization_id": 2,
     "project_count": 1,
     "slug": "planning",
-    "updated_at": "2026-09-26T23:52:13.040645"
+    "updated_at": "2026-09-27T13:18:26.308419"
    },
    {
     "color": "#3B82F6",
-    "created_at": "2026-09-26T23:51:31.252197",
+    "created_at": "2026-09-27T13:18:26.308420",
     "id": 6,
     "is_default": false,
     "is_system": true,
@@ -928,7 +969,7 @@
     "organization_id": 2,
     "project_count": 3,
     "slug": "active",
-    "updated_at": "2026-09-26T23:52:13.041236"
+    "updated_at": "2026-09-27T13:18:26.308420"
    }
   ],
   "page": 1,
@@ -936,7 +977,7 @@
   "statuses": [
    {
     "color": "#94A3B8",
-    "created_at": "2026-09-26T23:51:31.252193",
+    "created_at": "2026-09-27T13:18:26.308414",
     "id": 5,
     "is_default": true,
     "is_system": true,
@@ -945,11 +986,11 @@
     "organization_id": 2,
     "project_count": 1,
     "slug": "planning",
-    "updated_at": "2026-09-26T23:52:13.040645"
+    "updated_at": "2026-09-27T13:18:26.308419"
    },
    {
     "color": "#3B82F6",
-    "created_at": "2026-09-26T23:51:31.252197",
+    "created_at": "2026-09-27T13:18:26.308420",
     "id": 6,
     "is_default": false,
     "is_system": true,
@@ -958,7 +999,7 @@
     "organization_id": 2,
     "project_count": 3,
     "slug": "active",
-    "updated_at": "2026-09-26T23:52:13.041236"
+    "updated_at": "2026-09-27T13:18:26.308420"
    }
   ],
   "total": 4,
@@ -980,20 +1021,21 @@
     "attendance_overview": {
      "absent": 0,
      "attendance_rate": 100.0,
-     "attended": 9,
+     "attended": 10,
      "end_date": null,
      "excused": 0,
      "half_day": 0,
-     "last_check_in": "2026-09-25T10:05:00",
-     "late": 0,
+     "last_check_in": "2026-09-27T18:49:19.908259",
+     "late": 1,
      "on_leave": 0,
      "present": 9,
      "start_date": null,
      "total_hours": 81.56,
-     "total_records": 9,
+     "total_records": 10,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:30.536786Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:25.560869Z",
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -1023,7 +1065,8 @@
      "total_records": 9,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:31.223337Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:26.275062Z",
     "department": "Data & Analytics",
     "email": "gauri.sahyadri-tech-labs@example.com",
     "id": 13,
@@ -1060,20 +1103,21 @@
     "attendance_overview": {
      "absent": 0,
      "attendance_rate": 100.0,
-     "attended": 9,
+     "attended": 10,
      "end_date": "2026-09-27",
      "excused": 0,
      "half_day": 0,
-     "last_check_in": "2026-09-25T10:05:00",
-     "late": 0,
+     "last_check_in": "2026-09-27T18:49:19.908259",
+     "late": 1,
      "on_leave": 0,
      "present": 9,
      "start_date": "2026-08-29",
      "total_hours": 81.56,
-     "total_records": 9,
+     "total_records": 10,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:30.536786Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:25.560869Z",
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -1103,7 +1147,8 @@
      "total_records": 9,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:31.223337Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:26.275062Z",
     "department": "Data & Analytics",
     "email": "gauri.sahyadri-tech-labs@example.com",
     "id": 13,
@@ -1140,20 +1185,21 @@
     "attendance_overview": {
      "absent": 0,
      "attendance_rate": 100.0,
-     "attended": 9,
+     "attended": 10,
      "end_date": "2026-09-27",
      "excused": 0,
      "half_day": 0,
-     "last_check_in": "2026-09-25T10:05:00",
-     "late": 0,
+     "last_check_in": "2026-09-27T18:49:19.908259",
+     "late": 1,
      "on_leave": 0,
      "present": 9,
      "start_date": "2026-08-29",
      "total_hours": 81.56,
-     "total_records": 9,
+     "total_records": 10,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:30.536786Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:25.560869Z",
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -1183,7 +1229,8 @@
      "total_records": 9,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:31.223337Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:26.275062Z",
     "department": "Data & Analytics",
     "email": "gauri.sahyadri-tech-labs@example.com",
     "id": 13,
@@ -1210,10 +1257,37 @@
   "page_size": 20,
   "students": [
    {
-    "attendance": null,
-    "is_checked_in": false,
-    "is_checked_out": false,
+    "attendance": {
+     "check_in": "18:49",
+     "check_in_dt": "2026-09-27T18:49:19.908259",
+     "check_in_location": {
+      "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+      "lat": 18.559,
+      "lng": 73.7868
+     },
+     "check_in_photo_url": "/api/attendance/75/photo/checkin",
+     "check_out": "18:49",
+     "check_out_dt": "2026-09-27T18:49:21.888196",
+     "check_out_location": {
+      "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+      "lat": 18.559,
+      "lng": 73.7868
+     },
+     "check_out_photo_url": "/api/attendance/75/photo/checkout",
+     "checkout_missed": false,
+     "checkout_source": "manual",
+     "date": "2026-09-27",
+     "hours_worked": 0.0,
+     "id": 75,
+     "notes": null,
+     "status": "late",
+     "user_id": 6,
+     "user_name": "Aarav Deshmukh"
+    },
+    "is_checked_in": true,
+    "is_checked_out": true,
     "student": {
+     "avatar_url": null,
      "department": "Engineering",
      "email": "aarav.sahyadri-tech-labs@example.com",
      "id": 6,
@@ -1223,13 +1297,14 @@
      "name": "Aarav Deshmukh",
      "phone": "+91 98503 11240"
     },
-    "today_status": "not_checked_in"
+    "today_status": "late"
    },
    {
     "attendance": null,
     "is_checked_in": false,
     "is_checked_out": false,
     "student": {
+     "avatar_url": null,
      "department": "Data & Analytics",
      "email": "gauri.sahyadri-tech-labs@example.com",
      "id": 13,
@@ -1244,14 +1319,14 @@
   ],
   "summary": {
    "absent": 0,
-   "attendance_rate": 0.0,
-   "attended": 0,
-   "checked_in": 0,
-   "checked_out": 0,
+   "attendance_rate": 25.0,
+   "attended": 2,
+   "checked_in": 2,
+   "checked_out": 1,
    "excused": 0,
    "half_day": 0,
-   "late": 0,
-   "not_checked_in": 8,
+   "late": 2,
+   "not_checked_in": 6,
    "on_leave": 0,
    "present": 0,
    "total_interns": 8
@@ -1271,12 +1346,12 @@
    {
     "absent": 0,
     "attendance_rate": 100.0,
-    "attended": 9,
+    "attended": 10,
     "half_day": 0,
-    "late": 0,
+    "late": 1,
     "on_leave": 0,
     "present": 9,
-    "total_days": 9,
+    "total_days": 10,
     "total_hours": 81.56,
     "year_month": "2026-09"
    }
@@ -1284,6 +1359,33 @@
   "page": 1,
   "page_size": 31,
   "records": [
+   {
+    "check_in": "18:49",
+    "check_in_dt": "2026-09-27T18:49:19.908259",
+    "check_in_location": {
+     "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+     "lat": 18.559,
+     "lng": 73.7868
+    },
+    "check_in_photo_url": "/api/attendance/75/photo/checkin",
+    "check_out": "18:49",
+    "check_out_dt": "2026-09-27T18:49:21.888196",
+    "check_out_location": {
+     "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+     "lat": 18.559,
+     "lng": 73.7868
+    },
+    "check_out_photo_url": "/api/attendance/75/photo/checkout",
+    "checkout_missed": false,
+    "checkout_source": "manual",
+    "date": "2026-09-27",
+    "hours_worked": 0.0,
+    "id": 75,
+    "notes": null,
+    "status": "late",
+    "user_id": 6,
+    "user_name": "Aarav Deshmukh"
+   },
    {
     "check_in": "10:05",
     "check_in_dt": "2026-09-25T10:05:00",
@@ -1302,28 +1404,10 @@
     "status": "present",
     "user_id": 6,
     "user_name": "Aarav Deshmukh"
-   },
-   {
-    "check_in": "09:28",
-    "check_in_dt": "2026-09-24T09:28:00",
-    "check_in_location": null,
-    "check_in_photo_url": null,
-    "check_out": "18:40",
-    "check_out_dt": "2026-09-24T18:40:00",
-    "check_out_location": null,
-    "check_out_photo_url": null,
-    "checkout_missed": false,
-    "checkout_source": "manual",
-    "date": "2026-09-24",
-    "hours_worked": 9.2,
-    "id": 9,
-    "notes": null,
-    "status": "present",
-    "user_id": 6,
-    "user_name": "Aarav Deshmukh"
    }
   ],
   "student": {
+   "avatar_url": null,
    "department": "Engineering",
    "email": "aarav.sahyadri-tech-labs@example.com",
    "id": 6,
@@ -1335,18 +1419,18 @@
    "name": "Aarav Deshmukh",
    "phone": "+91 98503 11240"
   },
-  "total": 9,
+  "total": 10,
   "total_pages": 1,
   "totals": {
    "absent": 0,
    "attendance_rate": 100.0,
-   "attended": 9,
+   "attended": 10,
    "excused": 0,
    "half_day": 0,
-   "late": 0,
+   "late": 1,
    "on_leave": 0,
    "present": 9,
-   "total_days": 9,
+   "total_days": 10,
    "total_hours": 81.56
   }
  },
@@ -1354,7 +1438,7 @@
   "items": [
    {
     "color": "#94A3B8",
-    "created_at": "2026-09-26T23:51:31.282507",
+    "created_at": "2026-09-27T13:18:26.342639",
     "id": 5,
     "is_default": true,
     "is_system": true,
@@ -1363,12 +1447,12 @@
     "organization_id": 2,
     "slug": "todo",
     "status_category": "todo",
-    "task_count": 3,
-    "updated_at": "2026-09-26T23:52:10.916614"
+    "task_count": 4,
+    "updated_at": "2026-09-27T13:18:26.342641"
    },
    {
     "color": "#3B82F6",
-    "created_at": "2026-09-26T23:51:31.282510",
+    "created_at": "2026-09-27T13:18:26.342642",
     "id": 6,
     "is_default": false,
     "is_system": true,
@@ -1377,8 +1461,8 @@
     "organization_id": 2,
     "slug": "in_progress",
     "status_category": "in_progress",
-    "task_count": 5,
-    "updated_at": "2026-09-26T23:52:10.917343"
+    "task_count": 4,
+    "updated_at": "2026-09-27T13:18:26.342642"
    }
   ],
   "page": 1,
@@ -1386,7 +1470,7 @@
   "statuses": [
    {
     "color": "#94A3B8",
-    "created_at": "2026-09-26T23:51:31.282507",
+    "created_at": "2026-09-27T13:18:26.342639",
     "id": 5,
     "is_default": true,
     "is_system": true,
@@ -1395,12 +1479,12 @@
     "organization_id": 2,
     "slug": "todo",
     "status_category": "todo",
-    "task_count": 3,
-    "updated_at": "2026-09-26T23:52:10.916614"
+    "task_count": 4,
+    "updated_at": "2026-09-27T13:18:26.342641"
    },
    {
     "color": "#3B82F6",
-    "created_at": "2026-09-26T23:51:31.282510",
+    "created_at": "2026-09-27T13:18:26.342642",
     "id": 6,
     "is_default": false,
     "is_system": true,
@@ -1409,8 +1493,8 @@
     "organization_id": 2,
     "slug": "in_progress",
     "status_category": "in_progress",
-    "task_count": 5,
-    "updated_at": "2026-09-26T23:52:10.917343"
+    "task_count": 4,
+    "updated_at": "2026-09-27T13:18:26.342642"
    }
   ],
   "total": 4,
@@ -1424,10 +1508,11 @@
   },
   "items": [
    {
+    "avatar_url": null,
     "bio": null,
-    "created_at": "2026-09-26T23:53:44.443340Z",
+    "created_at": "2026-09-27T13:19:01.504129Z",
     "department": null,
-    "email": "e2e-tmp-1790466803.member@example.com",
+    "email": "e2e-tmp-1790515118.member@example.com",
     "id": 14,
     "internship_duration_months": 3,
     "internship_end_date": null,
@@ -1437,15 +1522,16 @@
     "joining_date": null,
     "mentor_id": null,
     "mentor_name": null,
-    "name": "Kunal Wagh E2E-TMP-1790466803",
+    "name": "Kunal Wagh E2E-TMP-1790515118",
     "phone": null,
     "role": "intern",
     "skills": [],
     "stipend_amount": null
    },
    {
+    "avatar_url": null,
     "bio": null,
-    "created_at": "2026-09-26T23:51:31.223337Z",
+    "created_at": "2026-09-27T13:18:26.275062Z",
     "department": "Data & Analytics",
     "email": "gauri.sahyadri-tech-labs@example.com",
     "id": 13,
@@ -1470,10 +1556,11 @@
   "total_pages": 1,
   "users": [
    {
+    "avatar_url": null,
     "bio": null,
-    "created_at": "2026-09-26T23:53:44.443340Z",
+    "created_at": "2026-09-27T13:19:01.504129Z",
     "department": null,
-    "email": "e2e-tmp-1790466803.member@example.com",
+    "email": "e2e-tmp-1790515118.member@example.com",
     "id": 14,
     "internship_duration_months": 3,
     "internship_end_date": null,
@@ -1483,15 +1570,16 @@
     "joining_date": null,
     "mentor_id": null,
     "mentor_name": null,
-    "name": "Kunal Wagh E2E-TMP-1790466803",
+    "name": "Kunal Wagh E2E-TMP-1790515118",
     "phone": null,
     "role": "intern",
     "skills": [],
     "stipend_amount": null
    },
    {
+    "avatar_url": null,
     "bio": null,
-    "created_at": "2026-09-26T23:51:31.223337Z",
+    "created_at": "2026-09-27T13:18:26.275062Z",
     "department": "Data & Analytics",
     "email": "gauri.sahyadri-tech-labs@example.com",
     "id": 13,
@@ -1518,7 +1606,7 @@
     "author_name": "Anand Apte",
     "author_role": "admin",
     "body": "Office closes at 4 PM during Ganeshotsav. Ganpati Bappa Morya! Please update your standups before leaving.",
-    "created_at": "2026-09-26T23:51:31.731152Z",
+    "created_at": "2026-09-27T13:18:26.895513Z",
     "id": 1,
     "is_pinned": true,
     "project_id": null,
@@ -1530,7 +1618,7 @@
     "author_name": "Anand Apte",
     "author_role": "admin",
     "body": "1 May is a holiday for Maharashtra Din. Attendance is not required.",
-    "created_at": "2026-09-26T23:51:31.752396Z",
+    "created_at": "2026-09-27T13:18:26.918484Z",
     "id": 3,
     "is_pinned": false,
     "project_id": null,
@@ -1552,7 +1640,7 @@
     "attachment_url": null,
     "cohort_id": 3,
     "cohort_name": "Data Guild — Nagpur/Nashik",
-    "created_at": "2026-09-26T23:51:31.906544",
+    "created_at": "2026-09-27T13:18:27.087587",
     "created_by_id": 2,
     "creator_name": "Anand Apte",
     "description": "Aggregate payouts per village per fortnight.",
@@ -1570,7 +1658,7 @@
     "submission_count": 0,
     "submissions_count": 0,
     "title": "SQL exercise: payout aggregation",
-    "updated_at": "2026-09-26T23:51:31.906546"
+    "updated_at": "2026-09-27T13:18:27.087591"
    },
    {
     "assigned_to_user_id": null,
@@ -1579,7 +1667,7 @@
     "attachment_url": null,
     "cohort_id": null,
     "cohort_name": null,
-    "created_at": "2026-09-26T23:51:31.859734",
+    "created_at": "2026-09-27T13:18:27.024330",
     "created_by_id": 2,
     "creator_name": "Anand Apte",
     "description": "Record findings and top 3 fixes.",
@@ -1597,7 +1685,7 @@
     "submission_count": 0,
     "submissions_count": 0,
     "title": "Usability test with 5 warkaris",
-    "updated_at": "2026-09-26T23:51:31.859737"
+    "updated_at": "2026-09-27T13:18:27.024334"
    }
   ],
   "counts": {
@@ -1616,7 +1704,7 @@
     "attachment_url": null,
     "cohort_id": 3,
     "cohort_name": "Data Guild — Nagpur/Nashik",
-    "created_at": "2026-09-26T23:51:31.906544",
+    "created_at": "2026-09-27T13:18:27.087587",
     "created_by_id": 2,
     "creator_name": "Anand Apte",
     "description": "Aggregate payouts per village per fortnight.",
@@ -1634,7 +1722,7 @@
     "submission_count": 0,
     "submissions_count": 0,
     "title": "SQL exercise: payout aggregation",
-    "updated_at": "2026-09-26T23:51:31.906546"
+    "updated_at": "2026-09-27T13:18:27.087591"
    },
    {
     "assigned_to_user_id": null,
@@ -1643,7 +1731,7 @@
     "attachment_url": null,
     "cohort_id": null,
     "cohort_name": null,
-    "created_at": "2026-09-26T23:51:31.859734",
+    "created_at": "2026-09-27T13:18:27.024330",
     "created_by_id": 2,
     "creator_name": "Anand Apte",
     "description": "Record findings and top 3 fixes.",
@@ -1661,7 +1749,7 @@
     "submission_count": 0,
     "submissions_count": 0,
     "title": "Usability test with 5 warkaris",
-    "updated_at": "2026-09-26T23:51:31.859737"
+    "updated_at": "2026-09-27T13:18:27.024334"
    }
   ],
   "page": 1,
@@ -1674,29 +1762,29 @@
    {
     "assigned_to_user_id": null,
     "assigned_user_name": null,
-    "attachment_name": "eta-template.pdf",
-    "attachment_url": "/api/assignments/1/attachment",
+    "attachment_name": null,
+    "attachment_url": null,
     "cohort_id": null,
     "cohort_name": null,
-    "created_at": "2026-09-26T23:51:31.774247",
+    "created_at": "2026-09-27T13:18:26.943546",
     "created_by_id": 2,
     "creator_name": "Anand Apte",
     "description": "Two pages: inputs, model choice, evaluation.",
     "due_date": "2026-10-04",
-    "graded_count": 1,
-    "has_attachment": true,
+    "graded_count": 0,
+    "has_attachment": false,
     "id": 1,
     "max_score": 100,
     "organization_id": 2,
     "pending_review_count": 0,
     "project_id": 1,
     "project_name": "PMPML Bus Tracker",
-    "reviewed_count": 1,
+    "reviewed_count": 0,
     "status": "active",
-    "submission_count": 1,
-    "submissions_count": 1,
+    "submission_count": 0,
+    "submissions_count": 0,
     "title": "Write a design doc for the ETA model",
-    "updated_at": "2026-09-26T23:52:17.878442"
+    "updated_at": "2026-09-27T13:18:26.943551"
    }
   ],
   "counts": {
@@ -1711,29 +1799,29 @@
    {
     "assigned_to_user_id": null,
     "assigned_user_name": null,
-    "attachment_name": "eta-template.pdf",
-    "attachment_url": "/api/assignments/1/attachment",
+    "attachment_name": null,
+    "attachment_url": null,
     "cohort_id": null,
     "cohort_name": null,
-    "created_at": "2026-09-26T23:51:31.774247",
+    "created_at": "2026-09-27T13:18:26.943546",
     "created_by_id": 2,
     "creator_name": "Anand Apte",
     "description": "Two pages: inputs, model choice, evaluation.",
     "due_date": "2026-10-04",
-    "graded_count": 1,
-    "has_attachment": true,
+    "graded_count": 0,
+    "has_attachment": false,
     "id": 1,
     "max_score": 100,
     "organization_id": 2,
     "pending_review_count": 0,
     "project_id": 1,
     "project_name": "PMPML Bus Tracker",
-    "reviewed_count": 1,
+    "reviewed_count": 0,
     "status": "active",
-    "submission_count": 1,
-    "submissions_count": 1,
+    "submission_count": 0,
+    "submissions_count": 0,
     "title": "Write a design doc for the ETA model",
-    "updated_at": "2026-09-26T23:52:17.878442"
+    "updated_at": "2026-09-27T13:18:26.943551"
    }
   ],
   "page": 1,
@@ -1744,29 +1832,29 @@
  "GET /api/assignments/{assignment_id}": {
   "assigned_to_user_id": null,
   "assigned_user_name": null,
-  "attachment_name": "eta-template.pdf",
-  "attachment_url": "/api/assignments/1/attachment",
+  "attachment_name": null,
+  "attachment_url": null,
   "cohort_id": null,
   "cohort_name": null,
-  "created_at": "2026-09-26T23:51:31.774247",
+  "created_at": "2026-09-27T13:18:26.943546",
   "created_by_id": 2,
   "creator_name": "Anand Apte",
   "description": "Two pages: inputs, model choice, evaluation.",
   "due_date": "2026-10-04",
-  "graded_count": 1,
-  "has_attachment": true,
+  "graded_count": 0,
+  "has_attachment": false,
   "id": 1,
   "max_score": 100,
   "organization_id": 2,
   "pending_review_count": 0,
   "project_id": 1,
   "project_name": "PMPML Bus Tracker",
-  "reviewed_count": 1,
+  "reviewed_count": 0,
   "status": "active",
-  "submission_count": 1,
-  "submissions_count": 1,
+  "submission_count": 0,
+  "submissions_count": 0,
   "title": "Write a design doc for the ETA model",
-  "updated_at": "2026-09-26T23:52:17.878442"
+  "updated_at": "2026-09-27T13:18:26.943551"
  },
  "GET /api/assignments/{assignment_id}/submissions": {
   "assignment": {
@@ -1776,7 +1864,7 @@
    "attachment_url": "/api/assignments/1/attachment",
    "cohort_id": null,
    "cohort_name": null,
-   "created_at": "2026-09-26T23:51:31.774247",
+   "created_at": "2026-09-27T13:18:26.943546",
    "created_by_id": 2,
    "creator_name": "Anand Apte",
    "description": "Two pages: inputs, model choice, evaluation.",
@@ -1789,27 +1877,27 @@
    "project_name": "PMPML Bus Tracker",
    "status": "active",
    "title": "Write a design doc for the ETA model",
-   "updated_at": "2026-09-26T23:53:58.156694"
+   "updated_at": "2026-09-27T13:19:15.393123"
   },
   "items": [
    {
     "assignment_id": 1,
     "assignment_title": "Write a design doc for the ETA model",
-    "feedback": "Uttam — revised.",
+    "feedback": null,
     "file_name": "eta-design.pdf",
     "file_size": 305,
     "file_url": "/api/assignments/submissions/1/file",
     "github_url": "https://github.com/example/pmpml-eta",
     "has_file": true,
     "id": 1,
-    "reviewed_at": "2026-09-26T23:52:17.945718",
-    "reviewed_by_id": 2,
-    "reviewer_name": "Anand Apte",
-    "score": 92.0,
-    "status": "approved",
+    "reviewed_at": null,
+    "reviewed_by_id": null,
+    "reviewer_name": null,
+    "score": null,
+    "status": "submitted",
     "submission_text": "Design doc attached. Uses Kalman filter over GPS pings.",
-    "submitted_at": "2026-09-26T23:52:17.906908",
-    "updated_at": "2026-09-26T23:52:17.946080",
+    "submitted_at": "2026-09-27T13:19:15.433536",
+    "updated_at": "2026-09-27T13:19:15.433962",
     "user_email": "aarav.sahyadri-tech-labs@example.com",
     "user_id": 6,
     "user_name": "Aarav Deshmukh"
@@ -1821,21 +1909,21 @@
    {
     "assignment_id": 1,
     "assignment_title": "Write a design doc for the ETA model",
-    "feedback": "Uttam — revised.",
+    "feedback": null,
     "file_name": "eta-design.pdf",
     "file_size": 305,
     "file_url": "/api/assignments/submissions/1/file",
     "github_url": "https://github.com/example/pmpml-eta",
     "has_file": true,
     "id": 1,
-    "reviewed_at": "2026-09-26T23:52:17.945718",
-    "reviewed_by_id": 2,
-    "reviewer_name": "Anand Apte",
-    "score": 92.0,
-    "status": "approved",
+    "reviewed_at": null,
+    "reviewed_by_id": null,
+    "reviewer_name": null,
+    "score": null,
+    "status": "submitted",
     "submission_text": "Design doc attached. Uses Kalman filter over GPS pings.",
-    "submitted_at": "2026-09-26T23:52:17.906908",
-    "updated_at": "2026-09-26T23:52:17.946080",
+    "submitted_at": "2026-09-27T13:19:15.433536",
+    "updated_at": "2026-09-27T13:19:15.433962",
     "user_email": "aarav.sahyadri-tech-labs@example.com",
     "user_id": 6,
     "user_name": "Aarav Deshmukh"
@@ -1920,20 +2008,20 @@
    {
     "absent": 0,
     "half_day": 0,
-    "late": 0,
+    "late": 1,
     "present": 9,
     "present_rate": 100.0,
-    "total_days": 9,
+    "total_days": 10,
     "user_id": 6,
     "year_month": "2026-09"
    },
    {
     "absent": 0,
     "half_day": 0,
-    "late": 0,
+    "late": 1,
     "present": 9,
     "present_rate": 100.0,
-    "total_days": 9,
+    "total_days": 10,
     "user_id": 7,
     "year_month": "2026-09"
    }
@@ -1942,11 +2030,44 @@
   "page_size": 30,
   "records": [
    {
-    "check_in": "10:00",
-    "check_in_dt": "2026-10-06T10:00:00+05:30",
-    "check_in_location": null,
-    "check_in_photo_url": null,
-    "check_in_time": "10:00 AM",
+    "check_in": "18:49",
+    "check_in_dt": "2026-09-27T18:49:19+05:30",
+    "check_in_location": {
+     "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+     "lat": 18.559,
+     "lng": 73.7868
+    },
+    "check_in_photo_url": "/api/attendance/75/photo/checkin",
+    "check_in_time": "6:49 PM",
+    "check_out": "18:49",
+    "check_out_dt": "2026-09-27T18:49:21+05:30",
+    "check_out_location": {
+     "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+     "lat": 18.559,
+     "lng": 73.7868
+    },
+    "check_out_photo_url": "/api/attendance/75/photo/checkout",
+    "check_out_time": "6:49 PM",
+    "checkout_missed": false,
+    "checkout_source": "manual",
+    "date": "2026-09-27",
+    "hours_worked": 0.0,
+    "id": 75,
+    "notes": null,
+    "status": "late",
+    "user_id": 6,
+    "user_name": "Aarav Deshmukh"
+   },
+   {
+    "check_in": "18:49",
+    "check_in_dt": "2026-09-27T18:49:21+05:30",
+    "check_in_location": {
+     "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+     "lat": 18.559,
+     "lng": 73.7868
+    },
+    "check_in_photo_url": "/api/attendance/76/photo/checkin",
+    "check_in_time": "6:49 PM",
     "check_out": null,
     "check_out_dt": null,
     "check_out_location": null,
@@ -1954,37 +2075,16 @@
     "check_out_time": null,
     "checkout_missed": false,
     "checkout_source": null,
-    "date": "2026-10-06",
-    "hours_worked": 0.0,
-    "id": 75,
+    "date": "2026-09-27",
+    "hours_worked": null,
+    "id": 76,
     "notes": null,
-    "status": "on_leave",
+    "status": "late",
     "user_id": 7,
     "user_name": "Sakshi Patil"
-   },
-   {
-    "check_in": "10:05",
-    "check_in_dt": "2026-09-25T10:05:00+05:30",
-    "check_in_location": null,
-    "check_in_photo_url": null,
-    "check_in_time": "10:05 AM",
-    "check_out": "18:40",
-    "check_out_dt": "2026-09-25T18:40:00+05:30",
-    "check_out_location": null,
-    "check_out_photo_url": null,
-    "check_out_time": "6:40 PM",
-    "checkout_missed": false,
-    "checkout_source": "manual",
-    "date": "2026-09-25",
-    "hours_worked": 8.58,
-    "id": 1,
-    "notes": null,
-    "status": "present",
-    "user_id": 6,
-    "user_name": "Aarav Deshmukh"
    }
   ],
-  "total": 75,
+  "total": 76,
   "total_pages": 3
  },
  "GET /api/attendance/today": {
@@ -1994,7 +2094,7 @@
  "GET /api/attendance/{record_id}/audit": {
   "logs": [
    {
-    "created_at": "2026-09-26T23:54:02.567349Z",
+    "created_at": "2026-09-27T13:19:22.051074Z",
     "editor_id": 2,
     "editor_name": "Anand Apte",
     "field_name": "check_out",
@@ -2004,14 +2104,14 @@
     "reason": "Corrected by admin"
    },
    {
-    "created_at": "2026-09-26T23:54:02.555655Z",
+    "created_at": "2026-09-27T13:19:22.029709Z",
     "editor_id": 2,
     "editor_name": "Anand Apte",
     "field_name": "status",
     "id": 225,
     "new_value": "present",
     "old_value": null,
-    "reason": "Forgot to punch E2E-TMP-1790466803"
+    "reason": "Forgot to punch E2E-TMP-1790515118"
    }
   ]
  },
@@ -2022,8 +2122,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.252Z",
-    "id": 283,
+    "created_at": "2026-09-27T13:19:25.284Z",
+    "id": 208,
     "project_id": 1,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -2034,8 +2134,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": null,
-    "created_at": "2026-09-26T23:54:05.236Z",
-    "id": 282,
+    "created_at": "2026-09-27T13:19:25.266Z",
+    "id": 207,
     "project_id": null,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -2044,17 +2144,18 @@
   ],
   "page": 1,
   "page_size": 30,
-  "total": 277,
-  "total_pages": 10
+  "total": 208,
+  "total_pages": 7
  },
  "GET /api/auth/invite/{token}": {
-  "label": "Pune campus drive E2E-TMP-1790466803",
+  "label": "Pune campus drive E2E-TMP-1790515118",
   "mentor_name": "Prashant Kulkarni",
   "valid": true
  },
  "GET /api/auth/me": {
+  "avatar_url": null,
   "bio": null,
-  "created_at": "2026-09-26T23:51:25.625705Z",
+  "created_at": "2026-09-27T13:18:20.650218Z",
   "department": null,
   "email": "anand.apte@example.com",
   "id": 2,
@@ -2075,10 +2176,10 @@
     "author_id": 2,
     "author_name": "Anand Apte",
     "cover_image_url": null,
-    "created_at": "2026-09-26T23:51:31.962449Z",
+    "created_at": "2026-09-27T13:18:27.144061Z",
     "excerpt": "PMPML data, Marathi UI and lots of chai.",
     "id": 1,
-    "published_at": "2026-09-26T23:51:31.962006Z",
+    "published_at": "2026-09-27T13:18:27.143540Z",
     "slug": "how-our-interns-built-a-bus-tracker-for-pune",
     "status": "published",
     "tags": [
@@ -2086,7 +2187,7 @@
      "transport"
     ],
     "title": "How our interns built a bus tracker for Pune",
-    "updated_at": "2026-09-26T23:51:31.962451Z"
+    "updated_at": "2026-09-27T13:18:27.144063Z"
    }
   ],
   "page": 1,
@@ -2100,7 +2201,7 @@
     "author_name": "Anand Apte",
     "content": "<p>Connectivity along the palkhi route is patchy, so…</p>",
     "cover_image_url": null,
-    "created_at": "2026-09-26T23:51:31.971812Z",
+    "created_at": "2026-09-27T13:18:27.155638Z",
     "excerpt": "Offline-first design for lakhs of pilgrims.",
     "id": 2,
     "published_at": null,
@@ -2111,17 +2212,17 @@
      "wari"
     ],
     "title": "Designing for the Wari: lessons from Pandharpur",
-    "updated_at": "2026-09-26T23:51:31.971814Z"
+    "updated_at": "2026-09-27T13:18:27.155641Z"
    },
    {
     "author_id": 2,
     "author_name": "Anand Apte",
     "content": "<p>This monsoon our Pune batch took on PMPML's open data…</p>",
     "cover_image_url": null,
-    "created_at": "2026-09-26T23:51:31.962449Z",
+    "created_at": "2026-09-27T13:18:27.144061Z",
     "excerpt": "PMPML data, Marathi UI and lots of chai.",
     "id": 1,
-    "published_at": "2026-09-26T23:51:31.962006Z",
+    "published_at": "2026-09-27T13:18:27.143540Z",
     "slug": "how-our-interns-built-a-bus-tracker-for-pune",
     "status": "published",
     "tags": [
@@ -2129,7 +2230,7 @@
      "transport"
     ],
     "title": "How our interns built a bus tracker for Pune",
-    "updated_at": "2026-09-26T23:51:31.962451Z"
+    "updated_at": "2026-09-27T13:18:27.144063Z"
    }
   ],
   "page": 1,
@@ -2141,20 +2242,22 @@
   "author_name": "Anand Apte",
   "content": "<p>temp</p>",
   "cover_image_url": null,
-  "created_at": "2026-09-26T23:53:58.348515Z",
+  "created_at": "2026-09-27T13:19:15.757172Z",
   "excerpt": null,
   "id": 3,
-  "published_at": "2026-09-26T23:53:58.359699Z",
-  "slug": "vada-pav-and-version-control-e2e-tmp-1790466803",
+  "published_at": "2026-09-27T13:19:15.768207Z",
+  "slug": "vada-pav-and-version-control-e2e-tmp-1790515118",
   "status": "published",
-  "tags": [],
-  "title": "Vada pav and version control E2E-TMP-1790466803",
-  "updated_at": "2026-09-26T23:53:58.360436Z"
+  "tags": [
+   "culture"
+  ],
+  "title": "Vada pav and version control E2E-TMP-1790515118",
+  "updated_at": "2026-09-27T13:19:15.769423Z"
  },
  "GET /api/cohorts": {
   "items": [
    {
-    "created_at": "2026-09-26T23:51:31.695419Z",
+    "created_at": "2026-09-27T13:18:26.851914Z",
     "created_by_id": 2,
     "description": "Analytics interns mentored from Nagpur.",
     "end_date": "2027-01-25",
@@ -2164,7 +2267,7 @@
     "start_date": "2026-08-13"
    },
    {
-    "created_at": "2026-09-26T23:51:31.673281Z",
+    "created_at": "2026-09-27T13:18:26.825120Z",
     "created_by_id": 2,
     "description": "Hybrid batch across Andheri and Kolhapur.",
     "end_date": "2027-01-25",
@@ -2180,7 +2283,7 @@
   "total_pages": 1
  },
  "GET /api/cohorts/{cohort_id}": {
-  "created_at": "2026-09-26T23:51:31.636460Z",
+  "created_at": "2026-09-27T13:18:26.784124Z",
   "created_by_id": 2,
   "description": "Interns working from the Baner, Pune office.",
   "end_date": "2027-01-25",
@@ -2190,14 +2293,14 @@
    {
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
-    "joined_at": "2026-09-26T23:51:31.650019Z",
+    "joined_at": "2026-09-27T13:18:26.799665Z",
     "name": "Aarav Deshmukh",
     "user_id": 6
    },
    {
     "department": "Engineering",
     "email": "omkar.sahyadri-tech-labs@example.com",
-    "joined_at": "2026-09-26T23:51:31.659565Z",
+    "joined_at": "2026-09-27T13:18:26.808782Z",
     "name": "Omkar Jadhav",
     "user_id": 8
    }
@@ -2209,7 +2312,7 @@
   "active_projects": [
    {
     "completed_tasks_count": 0,
-    "created_at": "2026-09-26T23:51:31.536212Z",
+    "created_at": "2026-09-27T13:18:26.649043Z",
     "description": "Soil moisture and weather sensors for grape growers around Niphad and Dindori.",
     "id": 4,
     "members_count": 2,
@@ -2221,7 +2324,7 @@
    },
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.392591Z",
+    "created_at": "2026-09-27T13:18:26.480106Z",
     "description": "Coordinates volunteers, water stations and medical camps along the Ashadhi Wari route.",
     "id": 2,
     "members_count": 2,
@@ -2280,7 +2383,7 @@
   },
   "pending_leave_requests": [
    {
-    "created_at": "2026-09-26T23:52:22.952250Z",
+    "created_at": "2026-09-27T13:19:22.742682Z",
     "days": 1,
     "days_count": 1,
     "department": "Product Design",
@@ -2293,8 +2396,31 @@
     "user_name": "Sakshi Patil"
    }
   ],
-  "present_today_list": [],
-  "present_today_total": 0,
+  "present_today_list": [
+   {
+    "check_in": "18:49",
+    "check_in_photo_url": "/api/attendance/75/photo/checkin",
+    "check_out": "18:49",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Aarav Deshmukh",
+    "status": "late",
+    "user_id": 6
+   },
+   {
+    "check_in": "18:49",
+    "check_in_photo_url": "/api/attendance/76/photo/checkin",
+    "check_out": null,
+    "department": "Product Design",
+    "email": "sakshi.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Sakshi Patil",
+    "status": "late",
+    "user_id": 7
+   }
+  ],
+  "present_today_total": 2,
   "project_status": {
    "active": 3,
    "planning": 1
@@ -2305,8 +2431,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.252880Z",
-    "id": 283,
+    "created_at": "2026-09-27T13:19:25.284267Z",
+    "id": 208,
     "project_id": 1,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -2317,8 +2443,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": null,
-    "created_at": "2026-09-26T23:54:05.236411Z",
-    "id": 282,
+    "created_at": "2026-09-27T13:19:25.266670Z",
+    "id": 207,
     "project_id": null,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -2327,14 +2453,14 @@
   ],
   "role": "admin",
   "stats": {
-   "absent_today": 10,
+   "absent_today": 8,
    "active_projects": 3,
-   "days_logged": 10,
+   "days_logged": 11,
    "on_leave_today": 0,
    "open_tasks": 9,
    "overdue_tasks": 0,
    "pending_leave": 1,
-   "present_today": 0,
+   "present_today": 2,
    "total_hours": 670.9,
    "total_interns": 10,
    "total_mentors": 3,
@@ -2352,7 +2478,7 @@
   "active_projects": [
    {
     "completed_tasks_count": 0,
-    "created_at": "2026-09-26T23:51:31.536212Z",
+    "created_at": "2026-09-27T13:18:26.649043Z",
     "description": "Soil moisture and weather sensors for grape growers around Niphad and Dindori.",
     "id": 4,
     "members_count": 2,
@@ -2364,7 +2490,7 @@
    },
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.392591Z",
+    "created_at": "2026-09-27T13:18:26.480106Z",
     "description": "Coordinates volunteers, water stations and medical camps along the Ashadhi Wari route.",
     "id": 2,
     "members_count": 2,
@@ -2423,7 +2549,7 @@
   },
   "pending_leave_requests": [
    {
-    "created_at": "2026-09-26T23:52:22.952250Z",
+    "created_at": "2026-09-27T13:19:22.742682Z",
     "days": 1,
     "days_count": 1,
     "department": "Product Design",
@@ -2436,8 +2562,31 @@
     "user_name": "Sakshi Patil"
    }
   ],
-  "present_today_list": [],
-  "present_today_total": 0,
+  "present_today_list": [
+   {
+    "check_in": "18:49",
+    "check_in_photo_url": "/api/attendance/75/photo/checkin",
+    "check_out": "18:49",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Aarav Deshmukh",
+    "status": "late",
+    "user_id": 6
+   },
+   {
+    "check_in": "18:49",
+    "check_in_photo_url": "/api/attendance/76/photo/checkin",
+    "check_out": null,
+    "department": "Product Design",
+    "email": "sakshi.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Sakshi Patil",
+    "status": "late",
+    "user_id": 7
+   }
+  ],
+  "present_today_total": 2,
   "project_status": {
    "active": 3,
    "planning": 1
@@ -2448,8 +2597,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.252880Z",
-    "id": 283,
+    "created_at": "2026-09-27T13:19:25.284267Z",
+    "id": 208,
     "project_id": 1,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -2460,8 +2609,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": null,
-    "created_at": "2026-09-26T23:54:05.236411Z",
-    "id": 282,
+    "created_at": "2026-09-27T13:19:25.266670Z",
+    "id": 207,
     "project_id": null,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -2470,14 +2619,14 @@
   ],
   "role": "admin",
   "stats": {
-   "absent_today": 10,
+   "absent_today": 8,
    "active_projects": 3,
-   "days_logged": 10,
+   "days_logged": 11,
    "on_leave_today": 0,
    "open_tasks": 9,
    "overdue_tasks": 0,
    "pending_leave": 1,
-   "present_today": 0,
+   "present_today": 2,
    "total_hours": 670.9,
    "total_interns": 10,
    "total_mentors": 3,
@@ -2513,7 +2662,7 @@
   "active_projects": [
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.257413Z",
+    "created_at": "2026-09-27T13:18:26.313463Z",
     "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
     "id": 1,
     "mentor_id": 3,
@@ -2526,14 +2675,14 @@
   "announcements": [
    {
     "body": "Office closes at 4 PM during Ganeshotsav. Ganpati Bappa Morya! Please update your standups before leaving.",
-    "created_at": "2026-09-26T23:51:31.731152Z",
+    "created_at": "2026-09-27T13:18:26.895513Z",
     "id": 1,
     "is_pinned": true,
     "title": "Ganeshotsav — office timings"
    },
    {
     "body": "1 May is a holiday for Maharashtra Din. Attendance is not required.",
-    "created_at": "2026-09-26T23:51:31.752396Z",
+    "created_at": "2026-09-27T13:18:26.918484Z",
     "id": 3,
     "is_pinned": false,
     "title": "Maharashtra Din holiday"
@@ -2542,7 +2691,7 @@
   "assigned_projects": [
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.257413Z",
+    "created_at": "2026-09-27T13:18:26.313463Z",
     "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
     "id": 1,
     "mentor_id": 3,
@@ -2554,7 +2703,7 @@
   ],
   "assigned_tasks": [
    {
-    "created_at": "2026-09-26T23:51:31.356932Z",
+    "created_at": "2026-09-27T13:18:26.433286Z",
     "deadline": "2026-10-11",
     "description": "Load test on 500 concurrent riders — PMPML Bus Tracker",
     "id": 4,
@@ -2566,7 +2715,7 @@
     "title": "Load test on 500 concurrent riders"
    },
    {
-    "created_at": "2026-09-26T23:51:31.295383Z",
+    "created_at": "2026-09-27T13:18:26.371001Z",
     "deadline": "2026-10-11",
     "description": "GTFS feed import for PMPML routes — PMPML Bus Tracker",
     "id": 1,
@@ -2616,7 +2765,7 @@
   },
   "open_tasks": [
    {
-    "created_at": "2026-09-26T23:51:31.356932Z",
+    "created_at": "2026-09-27T13:18:26.433286Z",
     "deadline": "2026-10-11",
     "description": "Load test on 500 concurrent riders — PMPML Bus Tracker",
     "id": 4,
@@ -2637,24 +2786,24 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.252880Z",
-    "id": 283,
+    "created_at": "2026-09-27T13:19:25.284267Z",
+    "id": 208,
     "project_id": 1,
     "target": "Omkar Jadhav",
     "target_id": null,
     "verb": "deleted performance review for"
    },
    {
-    "action": "announcement.delete",
-    "actor_id": 2,
-    "actor_name": "Anand Apte",
+    "action": "attendance.checkout",
+    "actor_id": 6,
+    "actor_name": "Aarav Deshmukh",
     "affected_user_id": null,
-    "created_at": "2026-09-26T23:53:58.331100Z",
-    "id": 264,
-    "project_id": 1,
-    "target": "Wi-Fi maintenance E2E-TMP-1790466803",
-    "target_id": 4,
-    "verb": "deleted announcement"
+    "created_at": "2026-09-27T13:19:21.888271Z",
+    "id": 184,
+    "project_id": null,
+    "target": "2026-09-27 18:49",
+    "target_id": null,
+    "verb": "checked out at"
    }
   ],
   "recent_leave_requests": [],
@@ -2663,12 +2812,12 @@
    "active_projects": 1,
    "assigned_tasks_count": 2,
    "completed_tasks_count": 1,
-   "days_logged": 9,
+   "days_logged": 10,
    "open_tasks": 1,
    "overdue_tasks": 0,
    "pending_leave": 0,
-   "present_today": 0,
-   "total_days_logged": 9,
+   "present_today": 1,
+   "total_days_logged": 10,
    "total_hours": 81.6,
    "total_interns": 0,
    "total_projects": 1
@@ -2679,22 +2828,22 @@
    "review": 1
   },
   "today_attendance": {
-   "check_in": null,
-   "check_in_address": null,
-   "check_in_photo_url": null,
-   "check_out": null,
-   "check_out_photo_url": null,
-   "has_checked_in": false,
-   "has_checked_out": false,
+   "check_in": "18:49",
+   "check_in_address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+   "check_in_photo_url": "/api/attendance/75/photo/checkin",
+   "check_out": "18:49",
+   "check_out_photo_url": "/api/attendance/75/photo/checkout",
+   "has_checked_in": true,
+   "has_checked_out": true,
    "hours_worked": 0.0,
-   "status": null
+   "status": "late"
   }
  },
  "GET /api/dashboard/mentor": {
   "active_projects": [
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.257413Z",
+    "created_at": "2026-09-27T13:18:26.313463Z",
     "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
     "id": 1,
     "members_count": 3,
@@ -2705,16 +2854,16 @@
   ],
   "assigned_interns": [
    {
-    "check_in": null,
-    "check_in_photo_url": null,
-    "check_out": null,
+    "check_in": "18:49",
+    "check_in_photo_url": "/api/attendance/75/photo/checkin",
+    "check_out": "18:49",
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "hours_worked": 0.0,
     "name": "Aarav Deshmukh",
     "open_tasks_count": 1,
     "streak": 3,
-    "today_status": "absent",
+    "today_status": "late",
     "user_id": 6
    },
    {
@@ -2774,15 +2923,29 @@
   ],
   "pending_leave_requests": [],
   "pending_leave_requests_total": 0,
-  "present_today_list": [],
-  "present_today_total": 0,
+  "present_today_list": [
+   {
+    "check_in": "18:49",
+    "check_in_photo_url": "/api/attendance/75/photo/checkin",
+    "check_out": "18:49",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Aarav Deshmukh",
+    "open_tasks_count": 1,
+    "streak": 3,
+    "today_status": "late",
+    "user_id": 6
+   }
+  ],
+  "present_today_total": 1,
   "project_status": {
    "active": 1
   },
   "projects": [
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.257413Z",
+    "created_at": "2026-09-27T13:18:26.313463Z",
     "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
     "id": 1,
     "members_count": 3,
@@ -2797,8 +2960,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.252880Z",
-    "id": 283,
+    "created_at": "2026-09-27T13:19:25.284267Z",
+    "id": 208,
     "project_id": 1,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -2809,8 +2972,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.212299Z",
-    "id": 281,
+    "created_at": "2026-09-27T13:19:25.246108Z",
+    "id": 206,
     "project_id": null,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -2819,14 +2982,14 @@
   ],
   "role": "mentor",
   "stats": {
-   "absent_today": 3,
+   "absent_today": 2,
    "active_projects": 1,
    "assigned_interns_count": 3,
-   "days_logged": 10,
+   "days_logged": 11,
    "open_tasks": 3,
    "overdue_tasks": 0,
    "pending_leave": 0,
-   "present_today": 0,
+   "present_today": 1,
    "total_hours": 253.9,
    "total_interns": 3,
    "total_projects": 1
@@ -2897,19 +3060,49 @@
   "total_pages": 1
  },
  "GET /api/dashboard/present-today": {
-  "interns": [],
-  "items": [],
+  "interns": [
+   {
+    "check_in": "18:49",
+    "department": "Engineering",
+    "id": 6,
+    "name": "Aarav Deshmukh",
+    "status": "late"
+   },
+   {
+    "check_in": "18:49",
+    "department": "Product Design",
+    "id": 7,
+    "name": "Sakshi Patil",
+    "status": "late"
+   }
+  ],
+  "items": [
+   {
+    "check_in": "18:49",
+    "department": "Engineering",
+    "id": 6,
+    "name": "Aarav Deshmukh",
+    "status": "late"
+   },
+   {
+    "check_in": "18:49",
+    "department": "Product Design",
+    "id": 7,
+    "name": "Sakshi Patil",
+    "status": "late"
+   }
+  ],
   "page": 1,
   "page_size": 20,
-  "total": 0,
+  "total": 2,
   "total_pages": 1
  },
  "GET /api/dashboard/superadmin": {
   "organizations": [
    {
-    "created_at": "2026-09-26T23:51:25.548111Z",
+    "created_at": "2026-09-27T13:18:20.568823Z",
     "id": 2,
-    "logo_url": "/uploads/logos/20260926_235405_sahyadri.png",
+    "logo_url": "/uploads/logos/20260927_131925_sahyadri.png",
     "name": "Sahyadri Tech Labs",
     "project_count": 4,
     "slug": "sahyadri-tech-labs",
@@ -2919,7 +3112,7 @@
     "user_count": 12
    },
    {
-    "created_at": "2026-09-26T23:51:20.919126Z",
+    "created_at": "2026-09-27T13:18:12.162706Z",
     "id": 1,
     "logo_url": null,
     "name": "Default Organization",
@@ -2938,24 +3131,24 @@
     "actor_id": 2,
     "actor_name": "Anand Apte",
     "affected_user_id": null,
-    "created_at": "2026-09-26T23:54:05.638877Z",
-    "id": 284,
+    "created_at": "2026-09-27T13:19:25.797956Z",
+    "id": 210,
     "project_id": null,
     "target": "Recycle Bin",
     "target_id": null,
     "verb": "permanently deleted all 10 bin item(s)"
    },
    {
-    "action": "review.delete",
-    "actor_id": 3,
-    "actor_name": "Prashant Kulkarni",
-    "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.252880Z",
-    "id": 283,
-    "project_id": 1,
-    "target": "Omkar Jadhav",
+    "action": "user.avatar_upload",
+    "actor_id": 6,
+    "actor_name": "Aarav Deshmukh",
+    "affected_user_id": null,
+    "created_at": "2026-09-27T13:19:25.732147Z",
+    "id": 209,
+    "project_id": null,
+    "target": "Aarav Deshmukh",
     "target_id": null,
-    "verb": "deleted performance review for"
+    "verb": "uploaded new avatar image"
    }
   ],
   "role": "superadmin",
@@ -2988,7 +3181,7 @@
   "active_projects": [
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.257413Z",
+    "created_at": "2026-09-27T13:18:26.313463Z",
     "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
     "id": 1,
     "mentor_id": 3,
@@ -3001,14 +3194,14 @@
   "announcements": [
    {
     "body": "Office closes at 4 PM during Ganeshotsav. Ganpati Bappa Morya! Please update your standups before leaving.",
-    "created_at": "2026-09-26T23:51:31.731152Z",
+    "created_at": "2026-09-27T13:18:26.895513Z",
     "id": 1,
     "is_pinned": true,
     "title": "Ganeshotsav — office timings"
    },
    {
     "body": "1 May is a holiday for Maharashtra Din. Attendance is not required.",
-    "created_at": "2026-09-26T23:51:31.752396Z",
+    "created_at": "2026-09-27T13:18:26.918484Z",
     "id": 3,
     "is_pinned": false,
     "title": "Maharashtra Din holiday"
@@ -3017,7 +3210,7 @@
   "assigned_projects": [
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.257413Z",
+    "created_at": "2026-09-27T13:18:26.313463Z",
     "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
     "id": 1,
     "mentor_id": 3,
@@ -3029,7 +3222,7 @@
   ],
   "assigned_tasks": [
    {
-    "created_at": "2026-09-26T23:51:31.356932Z",
+    "created_at": "2026-09-27T13:18:26.433286Z",
     "deadline": "2026-10-11",
     "description": "Load test on 500 concurrent riders — PMPML Bus Tracker",
     "id": 4,
@@ -3041,7 +3234,7 @@
     "title": "Load test on 500 concurrent riders"
    },
    {
-    "created_at": "2026-09-26T23:51:31.295383Z",
+    "created_at": "2026-09-27T13:18:26.371001Z",
     "deadline": "2026-10-11",
     "description": "GTFS feed import for PMPML routes — PMPML Bus Tracker",
     "id": 1,
@@ -3091,7 +3284,7 @@
   },
   "open_tasks": [
    {
-    "created_at": "2026-09-26T23:51:31.356932Z",
+    "created_at": "2026-09-27T13:18:26.433286Z",
     "deadline": "2026-10-11",
     "description": "Load test on 500 concurrent riders — PMPML Bus Tracker",
     "id": 4,
@@ -3112,24 +3305,24 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.252880Z",
-    "id": 283,
+    "created_at": "2026-09-27T13:19:25.284267Z",
+    "id": 208,
     "project_id": 1,
     "target": "Omkar Jadhav",
     "target_id": null,
     "verb": "deleted performance review for"
    },
    {
-    "action": "announcement.delete",
-    "actor_id": 2,
-    "actor_name": "Anand Apte",
+    "action": "attendance.checkout",
+    "actor_id": 6,
+    "actor_name": "Aarav Deshmukh",
     "affected_user_id": null,
-    "created_at": "2026-09-26T23:53:58.331100Z",
-    "id": 264,
-    "project_id": 1,
-    "target": "Wi-Fi maintenance E2E-TMP-1790466803",
-    "target_id": 4,
-    "verb": "deleted announcement"
+    "created_at": "2026-09-27T13:19:21.888271Z",
+    "id": 184,
+    "project_id": null,
+    "target": "2026-09-27 18:49",
+    "target_id": null,
+    "verb": "checked out at"
    }
   ],
   "recent_leave_requests": [],
@@ -3138,12 +3331,12 @@
    "active_projects": 1,
    "assigned_tasks_count": 2,
    "completed_tasks_count": 1,
-   "days_logged": 9,
+   "days_logged": 10,
    "open_tasks": 1,
    "overdue_tasks": 0,
    "pending_leave": 0,
-   "present_today": 0,
-   "total_days_logged": 9,
+   "present_today": 1,
+   "total_days_logged": 10,
    "total_hours": 81.6,
    "total_interns": 0,
    "total_projects": 1
@@ -3154,210 +3347,79 @@
    "review": 1
   },
   "today_attendance": {
-   "check_in": null,
-   "check_in_address": null,
-   "check_in_photo_url": null,
-   "check_out": null,
-   "check_out_photo_url": null,
-   "has_checked_in": false,
-   "has_checked_out": false,
+   "check_in": "18:49",
+   "check_in_address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+   "check_in_photo_url": "/api/attendance/75/photo/checkin",
+   "check_out": "18:49",
+   "check_out_photo_url": "/api/attendance/75/photo/checkout",
+   "has_checked_in": true,
+   "has_checked_out": true,
    "hours_worked": 0.0,
-   "status": null
+   "status": "late"
   }
  },
  "GET /api/leave/balance": {
   "attended_saved": 0,
-  "available_after_pending": 8,
+  "available_after_pending": 10,
   "deducted_used": 0,
-  "future_approved": 1,
-  "pending": 1,
+  "future_approved": 0,
+  "pending": 0,
   "quota": 10,
-  "remaining": 9,
-  "used": 1
+  "remaining": 10,
+  "used": 0
  },
  "GET /api/leave/manage": {
   "page": 1,
   "page_size": 10,
-  "requests": [
-   {
-    "attachment_name": "note.pdf",
-    "attachment_url": "/api/leave/3/attachment",
-    "created_at": "2026-09-26T23:52:22.952250Z",
-    "days": 1,
-    "end_date": "2026-10-20",
-    "has_attachment": true,
-    "id": 3,
-    "leave_type": "sick",
-    "reason": "Medical check-up at Sassoon hospital",
-    "reviewed_at": null,
-    "reviewed_by": null,
-    "reviewer_name": null,
-    "start_date": "2026-10-20",
-    "status": "pending",
-    "user_id": 7,
-    "user_name": "Sakshi Patil"
-   }
-  ],
-  "total": 1,
+  "requests": [],
+  "total": 0,
   "total_pages": 1
  },
  "GET /api/leave/mine": {
-  "approved_requests": [
-   {
-    "attachment_name": "note.pdf",
-    "attachment_url": "/api/leave/1/attachment",
-    "created_at": "2026-09-26T23:52:22.706304Z",
-    "days": 1,
-    "end_date": "2026-10-06",
-    "has_attachment": true,
-    "id": 1,
-    "leave_type": "casual",
-    "reason": "Ganeshotsav at home in Kolhapur",
-    "reviewed_at": "2026-09-26T23:52:22.842682Z",
-    "reviewed_by": 2,
-    "reviewer_name": "Anand Apte",
-    "start_date": "2026-10-06",
-    "status": "approved",
-    "user_id": 7,
-    "user_name": "Sakshi Patil"
-   }
-  ],
+  "approved_requests": [],
   "balance": {
    "attended_saved": 0,
-   "available_after_pending": 8,
+   "available_after_pending": 10,
    "deducted_used": 0,
-   "future_approved": 1,
-   "pending": 1,
+   "future_approved": 0,
+   "pending": 0,
    "quota": 10,
-   "remaining": 9,
-   "used": 1
+   "remaining": 10,
+   "used": 0
   },
   "internship_summary": {
-   "approved_leaves": 1,
+   "approved_leaves": 0,
    "days_remaining": 139,
    "duration_label": "6 Months",
    "duration_months": 6,
    "end_date": "2027-02-13",
    "leave_balance": {
     "attended_saved": 0,
-    "available_after_pending": 8,
+    "available_after_pending": 10,
     "deducted_used": 0,
-    "future_approved": 1,
-    "pending": 1,
+    "future_approved": 0,
+    "pending": 0,
     "quota": 10,
-    "remaining": 9,
-    "used": 1
+    "remaining": 10,
+    "used": 0
    },
-   "leaves_used": 1,
-   "pending_leaves": 1,
-   "remaining_leave_balance": 9,
+   "leaves_used": 0,
+   "pending_leaves": 0,
+   "remaining_leave_balance": 10,
    "start_date": "2026-08-13",
-   "summary_text": "Internship Period – 6 Months | Approved Leaves – 1 Days",
+   "summary_text": "Internship Period – 6 Months | Approved Leaves – 0 Days",
    "total_leave_quota": 10
   },
-  "pending_requests": [
-   {
-    "attachment_name": "note.pdf",
-    "attachment_url": "/api/leave/3/attachment",
-    "created_at": "2026-09-26T23:52:22.952250Z",
-    "days": 1,
-    "end_date": "2026-10-20",
-    "has_attachment": true,
-    "id": 3,
-    "leave_type": "sick",
-    "reason": "Medical check-up at Sassoon hospital",
-    "reviewed_at": null,
-    "reviewed_by": null,
-    "reviewer_name": null,
-    "start_date": "2026-10-20",
-    "status": "pending",
-    "user_id": 7,
-    "user_name": "Sakshi Patil"
-   }
-  ],
-  "rejected_requests": [
-   {
-    "attachment_name": "invite.pdf",
-    "attachment_url": "/api/leave/4/attachment",
-    "created_at": "2026-09-26T23:52:22.977506Z",
-    "days": 1,
-    "end_date": "2026-11-30",
-    "has_attachment": true,
-    "id": 4,
-    "leave_type": "casual",
-    "reason": "Family function in Pune E2E-TMP-1790466703",
-    "reviewed_at": "2026-09-26T23:52:23.068033Z",
-    "reviewed_by": 2,
-    "reviewer_name": "Anand Apte",
-    "start_date": "2026-11-30",
-    "status": "rejected",
-    "user_id": 7,
-    "user_name": "Sakshi Patil"
-   },
-   {
-    "attachment_name": null,
-    "attachment_url": null,
-    "created_at": "2026-09-26T23:52:22.858986Z",
-    "days": 1,
-    "end_date": "2026-10-13",
-    "has_attachment": false,
-    "id": 2,
-    "leave_type": "casual",
-    "reason": "Sister's wedding in Satara",
-    "reviewed_at": "2026-09-26T23:52:22.918358Z",
-    "reviewed_by": 2,
-    "reviewer_name": "Anand Apte",
-    "start_date": "2026-10-13",
-    "status": "rejected",
-    "user_id": 7,
-    "user_name": "Sakshi Patil"
-   }
-  ],
-  "requests": [
-   {
-    "attachment_name": "invite.pdf",
-    "attachment_url": "/api/leave/4/attachment",
-    "created_at": "2026-09-26T23:52:22.977506Z",
-    "days": 1,
-    "end_date": "2026-11-30",
-    "has_attachment": true,
-    "id": 4,
-    "leave_type": "casual",
-    "reason": "Family function in Pune E2E-TMP-1790466703",
-    "reviewed_at": "2026-09-26T23:52:23.068033Z",
-    "reviewed_by": 2,
-    "reviewer_name": "Anand Apte",
-    "start_date": "2026-11-30",
-    "status": "rejected",
-    "user_id": 7,
-    "user_name": "Sakshi Patil"
-   },
-   {
-    "attachment_name": "note.pdf",
-    "attachment_url": "/api/leave/3/attachment",
-    "created_at": "2026-09-26T23:52:22.952250Z",
-    "days": 1,
-    "end_date": "2026-10-20",
-    "has_attachment": true,
-    "id": 3,
-    "leave_type": "sick",
-    "reason": "Medical check-up at Sassoon hospital",
-    "reviewed_at": null,
-    "reviewed_by": null,
-    "reviewer_name": null,
-    "start_date": "2026-10-20",
-    "status": "pending",
-    "user_id": 7,
-    "user_name": "Sakshi Patil"
-   }
-  ],
+  "pending_requests": [],
+  "rejected_requests": [],
+  "requests": [],
   "summary": {
-   "approved": 1,
-   "days_pending": 1,
-   "days_taken": 1,
-   "pending": 1,
-   "rejected": 2,
-   "total": 4
+   "approved": 0,
+   "days_pending": 0,
+   "days_taken": 0,
+   "pending": 0,
+   "rejected": 0,
+   "total": 0
   }
  },
  "GET /api/mentor/attendance/search": {
@@ -3381,20 +3443,21 @@
     "attendance_overview": {
      "absent": 0,
      "attendance_rate": 100.0,
-     "attended": 9,
+     "attended": 10,
      "end_date": "2026-09-27",
      "excused": 0,
      "half_day": 0,
-     "last_check_in": "2026-09-25T10:05:00",
-     "late": 0,
+     "last_check_in": "2026-09-27T18:49:19.908259",
+     "late": 1,
      "on_leave": 0,
      "present": 9,
      "start_date": "2026-08-29",
      "total_hours": 81.56,
-     "total_records": 9,
+     "total_records": 10,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:30.536786Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:25.560869Z",
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -3424,7 +3487,8 @@
      "total_records": 10,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:30.732075Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:25.766198Z",
     "department": "Engineering",
     "email": "omkar.sahyadri-tech-labs@example.com",
     "id": 8,
@@ -3451,10 +3515,37 @@
   "page_size": 20,
   "students": [
    {
-    "attendance": null,
-    "is_checked_in": false,
-    "is_checked_out": false,
+    "attendance": {
+     "check_in": "18:49",
+     "check_in_dt": "2026-09-27T18:49:19.908259",
+     "check_in_location": {
+      "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+      "lat": 18.559,
+      "lng": 73.7868
+     },
+     "check_in_photo_url": "/api/attendance/75/photo/checkin",
+     "check_out": "18:49",
+     "check_out_dt": "2026-09-27T18:49:21.888196",
+     "check_out_location": {
+      "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+      "lat": 18.559,
+      "lng": 73.7868
+     },
+     "check_out_photo_url": "/api/attendance/75/photo/checkout",
+     "checkout_missed": false,
+     "checkout_source": "manual",
+     "date": "2026-09-27",
+     "hours_worked": 0.0,
+     "id": 75,
+     "notes": null,
+     "status": "late",
+     "user_id": 6,
+     "user_name": "Aarav Deshmukh"
+    },
+    "is_checked_in": true,
+    "is_checked_out": true,
     "student": {
+     "avatar_url": null,
      "department": "Engineering",
      "email": "aarav.sahyadri-tech-labs@example.com",
      "id": 6,
@@ -3464,13 +3555,14 @@
      "name": "Aarav Deshmukh",
      "phone": "+91 98503 11240"
     },
-    "today_status": "not_checked_in"
+    "today_status": "late"
    },
    {
     "attendance": null,
     "is_checked_in": false,
     "is_checked_out": false,
     "student": {
+     "avatar_url": null,
      "department": "Engineering",
      "email": "omkar.sahyadri-tech-labs@example.com",
      "id": 8,
@@ -3485,14 +3577,14 @@
   ],
   "summary": {
    "absent": 0,
-   "attendance_rate": 0.0,
-   "attended": 0,
-   "checked_in": 0,
-   "checked_out": 0,
+   "attendance_rate": 33.3,
+   "attended": 1,
+   "checked_in": 1,
+   "checked_out": 1,
    "excused": 0,
    "half_day": 0,
-   "late": 0,
-   "not_checked_in": 3,
+   "late": 1,
+   "not_checked_in": 2,
    "on_leave": 0,
    "present": 0,
    "total_interns": 3
@@ -3505,7 +3597,7 @@
   "active_projects": [
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.257413Z",
+    "created_at": "2026-09-27T13:18:26.313463Z",
     "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
     "id": 1,
     "members_count": 3,
@@ -3516,16 +3608,16 @@
   ],
   "assigned_interns": [
    {
-    "check_in": null,
-    "check_in_photo_url": null,
-    "check_out": null,
+    "check_in": "18:49",
+    "check_in_photo_url": "/api/attendance/75/photo/checkin",
+    "check_out": "18:49",
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "hours_worked": 0.0,
     "name": "Aarav Deshmukh",
     "open_tasks_count": 1,
     "streak": 3,
-    "today_status": "absent",
+    "today_status": "late",
     "user_id": 6
    },
    {
@@ -3585,15 +3677,29 @@
   ],
   "pending_leave_requests": [],
   "pending_leave_requests_total": 0,
-  "present_today_list": [],
-  "present_today_total": 0,
+  "present_today_list": [
+   {
+    "check_in": "18:49",
+    "check_in_photo_url": "/api/attendance/75/photo/checkin",
+    "check_out": "18:49",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Aarav Deshmukh",
+    "open_tasks_count": 1,
+    "streak": 3,
+    "today_status": "late",
+    "user_id": 6
+   }
+  ],
+  "present_today_total": 1,
   "project_status": {
    "active": 1
   },
   "projects": [
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.257413Z",
+    "created_at": "2026-09-27T13:18:26.313463Z",
     "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
     "id": 1,
     "members_count": 3,
@@ -3608,8 +3714,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.252880Z",
-    "id": 283,
+    "created_at": "2026-09-27T13:19:25.284267Z",
+    "id": 208,
     "project_id": 1,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -3620,8 +3726,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.212299Z",
-    "id": 281,
+    "created_at": "2026-09-27T13:19:25.246108Z",
+    "id": 206,
     "project_id": null,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -3630,14 +3736,14 @@
   ],
   "role": "mentor",
   "stats": {
-   "absent_today": 3,
+   "absent_today": 2,
    "active_projects": 1,
    "assigned_interns_count": 3,
-   "days_logged": 10,
+   "days_logged": 11,
    "open_tasks": 3,
    "overdue_tasks": 0,
    "pending_leave": 0,
-   "present_today": 0,
+   "present_today": 1,
    "total_hours": 253.9,
    "total_interns": 3,
    "total_projects": 1
@@ -3665,20 +3771,21 @@
     "attendance_overview": {
      "absent": 0,
      "attendance_rate": 100.0,
-     "attended": 9,
+     "attended": 10,
      "end_date": null,
      "excused": 0,
      "half_day": 0,
-     "last_check_in": "2026-09-25T10:05:00",
-     "late": 0,
+     "last_check_in": "2026-09-27T18:49:19.908259",
+     "late": 1,
      "on_leave": 0,
      "present": 9,
      "start_date": null,
      "total_hours": 81.56,
-     "total_records": 9,
+     "total_records": 10,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:30.536786Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:25.560869Z",
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -3708,7 +3815,8 @@
      "total_records": 10,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:30.732075Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:25.766198Z",
     "department": "Engineering",
     "email": "omkar.sahyadri-tech-labs@example.com",
     "id": 8,
@@ -3745,20 +3853,21 @@
     "attendance_overview": {
      "absent": 0,
      "attendance_rate": 100.0,
-     "attended": 9,
+     "attended": 10,
      "end_date": "2026-09-27",
      "excused": 0,
      "half_day": 0,
-     "last_check_in": "2026-09-25T10:05:00",
-     "late": 0,
+     "last_check_in": "2026-09-27T18:49:19.908259",
+     "late": 1,
      "on_leave": 0,
      "present": 9,
      "start_date": "2026-08-29",
      "total_hours": 81.56,
-     "total_records": 9,
+     "total_records": 10,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:30.536786Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:25.560869Z",
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -3788,7 +3897,8 @@
      "total_records": 10,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:30.732075Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:25.766198Z",
     "department": "Engineering",
     "email": "omkar.sahyadri-tech-labs@example.com",
     "id": 8,
@@ -3825,20 +3935,21 @@
     "attendance_overview": {
      "absent": 0,
      "attendance_rate": 100.0,
-     "attended": 9,
+     "attended": 10,
      "end_date": "2026-09-27",
      "excused": 0,
      "half_day": 0,
-     "last_check_in": "2026-09-25T10:05:00",
-     "late": 0,
+     "last_check_in": "2026-09-27T18:49:19.908259",
+     "late": 1,
      "on_leave": 0,
      "present": 9,
      "start_date": "2026-08-29",
      "total_hours": 81.56,
-     "total_records": 9,
+     "total_records": 10,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:30.536786Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:25.560869Z",
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -3868,7 +3979,8 @@
      "total_records": 10,
      "window_days": 30
     },
-    "created_at": "2026-09-26T23:51:30.732075Z",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:25.766198Z",
     "department": "Engineering",
     "email": "omkar.sahyadri-tech-labs@example.com",
     "id": 8,
@@ -3895,10 +4007,37 @@
   "page_size": 20,
   "students": [
    {
-    "attendance": null,
-    "is_checked_in": false,
-    "is_checked_out": false,
+    "attendance": {
+     "check_in": "18:49",
+     "check_in_dt": "2026-09-27T18:49:19.908259",
+     "check_in_location": {
+      "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+      "lat": 18.559,
+      "lng": 73.7868
+     },
+     "check_in_photo_url": "/api/attendance/75/photo/checkin",
+     "check_out": "18:49",
+     "check_out_dt": "2026-09-27T18:49:21.888196",
+     "check_out_location": {
+      "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+      "lat": 18.559,
+      "lng": 73.7868
+     },
+     "check_out_photo_url": "/api/attendance/75/photo/checkout",
+     "checkout_missed": false,
+     "checkout_source": "manual",
+     "date": "2026-09-27",
+     "hours_worked": 0.0,
+     "id": 75,
+     "notes": null,
+     "status": "late",
+     "user_id": 6,
+     "user_name": "Aarav Deshmukh"
+    },
+    "is_checked_in": true,
+    "is_checked_out": true,
     "student": {
+     "avatar_url": null,
      "department": "Engineering",
      "email": "aarav.sahyadri-tech-labs@example.com",
      "id": 6,
@@ -3908,13 +4047,14 @@
      "name": "Aarav Deshmukh",
      "phone": "+91 98503 11240"
     },
-    "today_status": "not_checked_in"
+    "today_status": "late"
    },
    {
     "attendance": null,
     "is_checked_in": false,
     "is_checked_out": false,
     "student": {
+     "avatar_url": null,
      "department": "Engineering",
      "email": "omkar.sahyadri-tech-labs@example.com",
      "id": 8,
@@ -3929,14 +4069,14 @@
   ],
   "summary": {
    "absent": 0,
-   "attendance_rate": 0.0,
-   "attended": 0,
-   "checked_in": 0,
-   "checked_out": 0,
+   "attendance_rate": 33.3,
+   "attended": 1,
+   "checked_in": 1,
+   "checked_out": 1,
    "excused": 0,
    "half_day": 0,
-   "late": 0,
-   "not_checked_in": 3,
+   "late": 1,
+   "not_checked_in": 2,
    "on_leave": 0,
    "present": 0,
    "total_interns": 3
@@ -3956,12 +4096,12 @@
    {
     "absent": 0,
     "attendance_rate": 100.0,
-    "attended": 9,
+    "attended": 10,
     "half_day": 0,
-    "late": 0,
+    "late": 1,
     "on_leave": 0,
     "present": 9,
-    "total_days": 9,
+    "total_days": 10,
     "total_hours": 81.56,
     "year_month": "2026-09"
    }
@@ -3969,6 +4109,33 @@
   "page": 1,
   "page_size": 31,
   "records": [
+   {
+    "check_in": "18:49",
+    "check_in_dt": "2026-09-27T18:49:19.908259",
+    "check_in_location": {
+     "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+     "lat": 18.559,
+     "lng": 73.7868
+    },
+    "check_in_photo_url": "/api/attendance/75/photo/checkin",
+    "check_out": "18:49",
+    "check_out_dt": "2026-09-27T18:49:21.888196",
+    "check_out_location": {
+     "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+     "lat": 18.559,
+     "lng": 73.7868
+    },
+    "check_out_photo_url": "/api/attendance/75/photo/checkout",
+    "checkout_missed": false,
+    "checkout_source": "manual",
+    "date": "2026-09-27",
+    "hours_worked": 0.0,
+    "id": 75,
+    "notes": null,
+    "status": "late",
+    "user_id": 6,
+    "user_name": "Aarav Deshmukh"
+   },
    {
     "check_in": "10:05",
     "check_in_dt": "2026-09-25T10:05:00",
@@ -3987,28 +4154,10 @@
     "status": "present",
     "user_id": 6,
     "user_name": "Aarav Deshmukh"
-   },
-   {
-    "check_in": "09:28",
-    "check_in_dt": "2026-09-24T09:28:00",
-    "check_in_location": null,
-    "check_in_photo_url": null,
-    "check_out": "18:40",
-    "check_out_dt": "2026-09-24T18:40:00",
-    "check_out_location": null,
-    "check_out_photo_url": null,
-    "checkout_missed": false,
-    "checkout_source": "manual",
-    "date": "2026-09-24",
-    "hours_worked": 9.2,
-    "id": 9,
-    "notes": null,
-    "status": "present",
-    "user_id": 6,
-    "user_name": "Aarav Deshmukh"
    }
   ],
   "student": {
+   "avatar_url": null,
    "department": "Engineering",
    "email": "aarav.sahyadri-tech-labs@example.com",
    "id": 6,
@@ -4020,49 +4169,49 @@
    "name": "Aarav Deshmukh",
    "phone": "+91 98503 11240"
   },
-  "total": 9,
+  "total": 10,
   "total_pages": 1,
   "totals": {
    "absent": 0,
    "attendance_rate": 100.0,
-   "attended": 9,
+   "attended": 10,
    "excused": 0,
    "half_day": 0,
-   "late": 0,
+   "late": 1,
    "on_leave": 0,
    "present": 9,
-   "total_days": 9,
+   "total_days": 10,
    "total_hours": 81.56
   }
  },
  "GET /api/notifications": {
   "notifications": [
    {
-    "created_at": "2026-09-26T23:54:02.994334Z",
-    "id": 79,
+    "created_at": "2026-09-27T13:19:22.880758Z",
+    "id": 61,
     "is_read": false,
     "link": "/leave",
     "message": "Your leave request (2026-11-30 → 2026-11-30) was rejected by Anand Apte."
    },
    {
-    "created_at": "2026-09-26T23:54:02.962803Z",
-    "id": 78,
+    "created_at": "2026-09-27T13:19:22.865351Z",
+    "id": 60,
     "is_read": false,
     "link": "/leave",
     "message": "Your leave request (2026-11-30 → 2026-11-30) was rejected by Anand Apte."
    }
   ],
   "page": 1,
-  "total": 17,
+  "total": 13,
   "total_pages": 1,
-  "unread_count": 5
+  "unread_count": 13
  },
  "GET /api/notifications/unread-count": {
-  "count": 5
+  "count": 13
  },
  "GET /api/org/current": {
   "membership": {
-   "created_at": "2026-09-26T23:51:25.626535",
+   "created_at": "2026-09-27T13:18:20.650906",
    "department": null,
    "id": 1,
    "internship_duration_months": 3,
@@ -4078,9 +4227,9 @@
    "user_id": 2
   },
   "organization": {
-   "created_at": "2026-09-26T23:51:25.548111",
+   "created_at": "2026-09-27T13:18:20.568823",
    "id": 2,
-   "logo_url": "/uploads/logos/20260926_235225_sahyadri.png",
+   "logo_url": null,
    "name": "Sahyadri Tech Labs",
    "slug": "sahyadri-tech-labs",
    "status": "active",
@@ -4095,19 +4244,20 @@
    "full_day_hours": 7.0,
    "half_day_hours": 5.0,
    "late_cutoff": "10:30:00",
-   "leave_quota_days": 12,
+   "leave_quota_days": 15,
    "noon_cutoff": "12:00:00",
    "organization_id": 2,
-   "require_attendance_gps": false,
-   "require_attendance_selfie": false,
-   "shift_end": "18:30:00",
-   "shift_start": "09:30:00"
+   "require_attendance_gps": true,
+   "require_attendance_selfie": true,
+   "shift_end": "19:00:00",
+   "shift_start": "10:00:00"
   }
  },
  "GET /api/org/members": {
   "members": [
    {
-    "created_at": "2026-09-26T23:51:31.226052",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:26.278968",
     "department": "Data & Analytics",
     "id": 12,
     "internship_duration_months": 6,
@@ -4126,7 +4276,8 @@
     "user_phone": "+91 70208 64419"
    },
    {
-    "created_at": "2026-09-26T23:51:31.125362",
+    "avatar_url": null,
+    "created_at": "2026-09-27T13:18:26.178765",
     "department": "Data & Analytics",
     "id": 11,
     "internship_duration_months": 6,
@@ -4150,11 +4301,10 @@
   "total": 12
  },
  "GET /api/org/smtp": {
-  "created_at": "2026-09-26T23:52:03.972023",
+  "created_at": null,
   "encryption": "tls",
   "has_password": false,
   "host": "",
-  "id": 1,
   "is_enabled": false,
   "notify_assignment_grade": true,
   "notify_assignment_new": true,
@@ -4167,66 +4317,52 @@
   "organization_id": 2,
   "password": "<redacted>",
   "port": 587,
-  "sender_email": "noreply@example.com",
-  "sender_name": "Sahyadri Tech Labs",
-  "updated_at": "2026-09-26T23:52:03.970857",
+  "sender_email": "",
+  "sender_name": "",
+  "updated_at": null,
   "username": ""
  },
  "GET /api/org/smtp/logs": {
   "logs": [
    {
-    "email_type": "test",
-    "error_message": "[Errno 11001] getaddrinfo failed",
-    "id": 54,
+    "email_type": "assignment_new",
+    "error_message": null,
+    "id": 30,
     "organization_id": 2,
-    "recipient_email": "e2e-1790466754@example.com",
-    "recipient_name": "Administrator",
-    "sent_at": "2026-09-26T23:52:38.966696",
-    "status": "failed",
-    "subject": "InternHub SMTP Test Email - Sahyadri Tech Labs"
+    "recipient_email": "gauri.sahyadri-tech-labs@example.com",
+    "recipient_name": "Gauri Bhosale",
+    "sent_at": "2026-09-27T13:18:27.100999",
+    "status": "simulated",
+    "subject": "New Assignment: SQL exercise: payout aggregation"
    },
    {
-    "email_type": "leave_decision",
+    "email_type": "assignment_new",
     "error_message": null,
-    "id": 53,
+    "id": 29,
     "organization_id": 2,
-    "recipient_email": "sakshi.sahyadri-tech-labs@example.com",
-    "recipient_name": "Sakshi Patil",
-    "sent_at": "2026-09-26T23:52:23.069556",
+    "recipient_email": "tejas.sahyadri-tech-labs@example.com",
+    "recipient_name": "Tejas More",
+    "sent_at": "2026-09-27T13:18:27.097751",
     "status": "simulated",
-    "subject": "Leave Request REJECTED: 2026-11-30 to 2026-11-30"
+    "subject": "New Assignment: SQL exercise: payout aggregation"
    }
   ],
   "page": 1,
   "page_size": 20,
-  "total": 54,
-  "total_pages": 3
+  "total": 30,
+  "total_pages": 2
  },
  "GET /api/platform/leads": {
   "items": [
    {
     "cohort_size": "25-50",
     "company": "Deccan Polytechnic, Pune",
-    "created_at": "2026-09-26T23:53:38.085909Z",
-    "email": "vaibhav.kale.e2e-tmp-1790466803@example.com",
-    "id": 2,
-    "ip_address": "127.0.0.1",
-    "message": "Want InternHub for our summer interns.",
-    "name": "Vaibhav Kale (E2E-TMP-1790466803)",
-    "phone": "+91 98230 11122",
-    "role": "Training & Placement Officer",
-    "source": "e2e",
-    "status": "new"
-   },
-   {
-    "cohort_size": "25-50",
-    "company": "Deccan Polytechnic, Pune",
-    "created_at": "2026-09-26T23:51:57.645245Z",
-    "email": "vaibhav.kale.e2e-tmp-1790466703@example.com",
+    "created_at": "2026-09-27T13:18:55.077666Z",
+    "email": "vaibhav.kale.e2e-tmp-1790515118@example.com",
     "id": 1,
     "ip_address": "127.0.0.1",
     "message": "Want InternHub for our summer interns.",
-    "name": "Vaibhav Kale (E2E-TMP-1790466703)",
+    "name": "Vaibhav Kale (E2E-TMP-1790515118)",
     "phone": "+91 98230 11122",
     "role": "Training & Placement Officer",
     "source": "e2e",
@@ -4235,7 +4371,7 @@
   ],
   "page": 1,
   "page_size": 20,
-  "total": 2
+  "total": 1
  },
  "GET /api/platform/metrics": {
   "active_organizations": 2,
@@ -4246,9 +4382,9 @@
  "GET /api/platform/organizations": {
   "organizations": [
    {
-    "created_at": "2026-09-26T23:51:25.548111",
+    "created_at": "2026-09-27T13:18:20.568823",
     "id": 2,
-    "logo_url": "/uploads/logos/20260926_235405_sahyadri.png",
+    "logo_url": "/uploads/logos/20260927_131925_sahyadri.png",
     "member_count": 12,
     "name": "Sahyadri Tech Labs",
     "project_count": 4,
@@ -4258,7 +4394,7 @@
     "type": "business"
    },
    {
-    "created_at": "2026-09-26T23:51:20.919126",
+    "created_at": "2026-09-27T13:18:12.162706",
     "id": 1,
     "logo_url": null,
     "member_count": 0,
@@ -4277,7 +4413,7 @@
  "GET /api/platform/organizations/{org_id}": {
   "members": [
    {
-    "created_at": "2026-09-26T23:51:25.626535",
+    "created_at": "2026-09-27T13:18:20.650906",
     "department": null,
     "id": 1,
     "internship_duration_months": 3,
@@ -4293,7 +4429,7 @@
     "user_id": 2
    },
    {
-    "created_at": "2026-09-26T23:51:30.241639",
+    "created_at": "2026-09-27T13:18:25.258076",
     "department": "Engineering",
     "id": 2,
     "internship_duration_months": 3,
@@ -4310,9 +4446,9 @@
    }
   ],
   "organization": {
-   "created_at": "2026-09-26T23:51:25.548111",
+   "created_at": "2026-09-27T13:18:20.568823",
    "id": 2,
-   "logo_url": "/uploads/logos/20260926_235405_sahyadri.png",
+   "logo_url": "/uploads/logos/20260927_131925_sahyadri.png",
    "name": "Sahyadri Tech Labs",
    "slug": "sahyadri-tech-labs",
    "status": "active",
@@ -4336,8 +4472,9 @@
   }
  },
  "GET /api/profile": {
+  "avatar_url": null,
   "bio": null,
-  "created_at": "2026-09-26T23:51:25.625705Z",
+  "created_at": "2026-09-27T13:18:20.650218Z",
   "department": null,
   "email": "anand.apte@example.com",
   "id": 2,
@@ -4386,7 +4523,7 @@
   "page_size": 12,
   "projects": [
    {
-    "created_at": "2026-09-26T23:51:31.536212Z",
+    "created_at": "2026-09-27T13:18:26.649043Z",
     "description": "Soil moisture and weather sensors for grape growers around Niphad and Dindori.",
     "end_date": "2026-12-16",
     "id": 4,
@@ -4430,7 +4567,7 @@
     "task_total": 2
    },
    {
-    "created_at": "2026-09-26T23:51:31.473025Z",
+    "created_at": "2026-09-27T13:18:26.570419Z",
     "description": "Cane intake, crushing and payout dashboard for a cooperative sugar factory.",
     "end_date": "2026-12-06",
     "id": 3,
@@ -4480,6 +4617,7 @@
  "GET /api/projects/interns": {
   "interns": [
    {
+    "avatar_url": null,
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -4490,6 +4628,7 @@
     "role": "intern"
    },
    {
+    "avatar_url": null,
     "department": "Data & Analytics",
     "email": "gauri.sahyadri-tech-labs@example.com",
     "id": 13,
@@ -4502,6 +4641,7 @@
   ],
   "items": [
    {
+    "avatar_url": null,
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -4512,6 +4652,7 @@
     "role": "intern"
    },
    {
+    "avatar_url": null,
     "department": "Data & Analytics",
     "email": "gauri.sahyadri-tech-labs@example.com",
     "id": 13,
@@ -4530,6 +4671,7 @@
  "GET /api/projects/interns/dropdown": {
   "interns": [
    {
+    "avatar_url": null,
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -4540,6 +4682,7 @@
     "role": "intern"
    },
    {
+    "avatar_url": null,
     "department": "Data & Analytics",
     "email": "gauri.sahyadri-tech-labs@example.com",
     "id": 13,
@@ -4552,6 +4695,7 @@
   ],
   "items": [
    {
+    "avatar_url": null,
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -4562,6 +4706,7 @@
     "role": "intern"
    },
    {
+    "avatar_url": null,
     "department": "Data & Analytics",
     "email": "gauri.sahyadri-tech-labs@example.com",
     "id": 13,
@@ -4580,6 +4725,7 @@
  "GET /api/projects/mentors": {
   "items": [
    {
+    "avatar_url": null,
     "department": "Product Design",
     "email": "madhuri.sahyadri-tech-labs@example.com",
     "id": 4,
@@ -4588,6 +4734,7 @@
     "role": "mentor"
    },
    {
+    "avatar_url": null,
     "department": "Engineering",
     "email": "prashant.sahyadri-tech-labs@example.com",
     "id": 3,
@@ -4598,6 +4745,7 @@
   ],
   "mentors": [
    {
+    "avatar_url": null,
     "department": "Product Design",
     "email": "madhuri.sahyadri-tech-labs@example.com",
     "id": 4,
@@ -4606,6 +4754,7 @@
     "role": "mentor"
    },
    {
+    "avatar_url": null,
     "department": "Engineering",
     "email": "prashant.sahyadri-tech-labs@example.com",
     "id": 3,
@@ -4622,6 +4771,7 @@
  "GET /api/projects/mentors/dropdown": {
   "items": [
    {
+    "avatar_url": null,
     "department": "Product Design",
     "email": "madhuri.sahyadri-tech-labs@example.com",
     "id": 4,
@@ -4630,6 +4780,7 @@
     "role": "mentor"
    },
    {
+    "avatar_url": null,
     "department": "Engineering",
     "email": "prashant.sahyadri-tech-labs@example.com",
     "id": 3,
@@ -4640,6 +4791,7 @@
   ],
   "mentors": [
    {
+    "avatar_url": null,
     "department": "Product Design",
     "email": "madhuri.sahyadri-tech-labs@example.com",
     "id": 4,
@@ -4648,6 +4800,7 @@
     "role": "mentor"
    },
    {
+    "avatar_url": null,
     "department": "Engineering",
     "email": "prashant.sahyadri-tech-labs@example.com",
     "id": 3,
@@ -4665,7 +4818,7 @@
   "statuses": [
    {
     "color": "#94A3B8",
-    "created_at": "2026-09-26T23:51:31.252193",
+    "created_at": "2026-09-27T13:18:26.308414",
     "id": 5,
     "is_default": true,
     "is_system": true,
@@ -4673,11 +4826,11 @@
     "order_index": 0,
     "organization_id": 2,
     "slug": "planning",
-    "updated_at": "2026-09-26T23:53:53.419845"
+    "updated_at": "2026-09-27T13:19:10.494824"
    },
    {
     "color": "#3B82F6",
-    "created_at": "2026-09-26T23:51:31.252197",
+    "created_at": "2026-09-27T13:18:26.308420",
     "id": 6,
     "is_default": false,
     "is_system": true,
@@ -4685,7 +4838,7 @@
     "order_index": 1,
     "organization_id": 2,
     "slug": "active",
-    "updated_at": "2026-09-26T23:53:53.421580"
+    "updated_at": "2026-09-27T13:19:10.495614"
    }
   ]
  },
@@ -4699,7 +4852,7 @@
   },
   "projects": [
    {
-    "created_at": "2026-09-26T23:51:31.257413Z",
+    "created_at": "2026-09-27T13:18:26.313463Z",
     "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
     "end_date": "2026-11-16",
     "id": 1,
@@ -4750,7 +4903,7 @@
   "statuses": [
    {
     "color": "#94A3B8",
-    "created_at": "2026-09-26T23:51:31.252193",
+    "created_at": "2026-09-27T13:18:26.308414",
     "id": 5,
     "is_default": true,
     "is_system": true,
@@ -4758,11 +4911,11 @@
     "order_index": 0,
     "organization_id": 2,
     "slug": "planning",
-    "updated_at": "2026-09-26T23:53:53.419845"
+    "updated_at": "2026-09-27T13:19:10.494824"
    },
    {
     "color": "#3B82F6",
-    "created_at": "2026-09-26T23:51:31.252197",
+    "created_at": "2026-09-27T13:18:26.308420",
     "id": 6,
     "is_default": false,
     "is_system": true,
@@ -4770,7 +4923,7 @@
     "order_index": 1,
     "organization_id": 2,
     "slug": "active",
-    "updated_at": "2026-09-26T23:53:53.421580"
+    "updated_at": "2026-09-27T13:19:10.495614"
    }
   ]
  },
@@ -4778,7 +4931,7 @@
   "statuses": [
    {
     "color": "#94A3B8",
-    "created_at": "2026-09-26T23:51:31.282507",
+    "created_at": "2026-09-27T13:18:26.342639",
     "id": 5,
     "is_default": true,
     "is_system": true,
@@ -4787,11 +4940,11 @@
     "organization_id": 2,
     "slug": "todo",
     "status_category": "todo",
-    "updated_at": "2026-09-26T23:53:51.298868"
+    "updated_at": "2026-09-27T13:19:08.385965"
    },
    {
     "color": "#3B82F6",
-    "created_at": "2026-09-26T23:51:31.282510",
+    "created_at": "2026-09-27T13:18:26.342642",
     "id": 6,
     "is_default": false,
     "is_system": true,
@@ -4800,7 +4953,7 @@
     "organization_id": 2,
     "slug": "in_progress",
     "status_category": "in_progress",
-    "updated_at": "2026-09-26T23:53:51.300316"
+    "updated_at": "2026-09-27T13:19:08.386700"
    }
   ]
  },
@@ -4808,7 +4961,7 @@
   "attachments": [
    {
     "comment_id": null,
-    "created_at": "2026-09-26T23:53:55.748044",
+    "created_at": "2026-09-27T13:19:12.907758",
     "description": "Route notes",
     "download_url": "/api/projects/tasks/attachments/1/download",
     "file_name": "route-notes.pdf",
@@ -4827,7 +4980,7 @@
   {
    "author_name": "Anand Apte",
    "body": "Kaam chalu aahe 👍",
-   "created_at": "2026-09-26T23:53:55.717931Z",
+   "created_at": "2026-09-27T13:19:12.863926Z",
    "deleted_at": null,
    "deleted_by_name": null,
    "id": 1,
@@ -4840,7 +4993,7 @@
  ],
  "GET /api/projects/{project_id}": {
   "can_edit": true,
-  "created_at": "2026-09-26T23:51:31.257413Z",
+  "created_at": "2026-09-27T13:18:26.313463Z",
   "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
   "end_date": "2026-11-16",
   "id": 1,
@@ -4890,7 +5043,7 @@
     "attachments": [],
     "can_delete": true,
     "comment_count": 0,
-    "created_at": "2026-09-26T23:51:31.295383Z",
+    "created_at": "2026-09-27T13:18:26.371001Z",
     "created_by_id": 2,
     "created_by_name": "Anand Apte",
     "deadline": "2026-10-11",
@@ -4910,7 +5063,7 @@
     "attachments": [],
     "can_delete": true,
     "comment_count": 0,
-    "created_at": "2026-09-26T23:51:31.327139Z",
+    "created_at": "2026-09-27T13:18:26.402052Z",
     "created_by_id": 2,
     "created_by_name": "Anand Apte",
     "deadline": "2026-10-11",
@@ -4928,7 +5081,7 @@
  "GET /api/projects/{project_id}/comments-board": [
   {
    "body": "Board note",
-   "created_at": "2026-09-26T23:53:55.834152Z",
+   "created_at": "2026-09-27T13:19:13.019649Z",
    "deleted_at": null,
    "deleted_by_name": null,
    "id": 5,
@@ -4940,7 +5093,7 @@
   }
  ],
  "GET /api/projects/{project_id}/export": {
-  "exported_at": "2026-09-26T23:53:53.552207Z",
+  "exported_at": "2026-09-27T13:19:10.674546Z",
   "members": [
    {
     "email": "prashant.sahyadri-tech-labs@example.com",
@@ -4956,7 +5109,7 @@
    }
   ],
   "project": {
-   "created_at": "2026-09-26T23:51:31.257413Z",
+   "created_at": "2026-09-27T13:18:26.313463Z",
    "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
    "end_date": "2026-11-16",
    "id": 1,
@@ -5008,7 +5161,7 @@
     "can_delete": true,
     "comment_count": 0,
     "comments": [],
-    "created_at": "2026-09-26T23:51:31.295383Z",
+    "created_at": "2026-09-27T13:18:26.371001Z",
     "created_by_id": 2,
     "created_by_name": "Anand Apte",
     "deadline": "2026-10-11",
@@ -5029,7 +5182,7 @@
     "can_delete": true,
     "comment_count": 0,
     "comments": [],
-    "created_at": "2026-09-26T23:51:31.327139Z",
+    "created_at": "2026-09-27T13:18:26.402052Z",
     "created_by_id": 2,
     "created_by_name": "Anand Apte",
     "deadline": "2026-10-11",
@@ -5046,7 +5199,7 @@
  },
  "GET /api/projects/{project_id}/links": [
   {
-   "created_at": "2026-09-26T23:53:55.806490Z",
+   "created_at": "2026-09-27T13:19:12.988390Z",
    "deleted_at": null,
    "deleted_by_name": null,
    "id": 5,
@@ -5063,7 +5216,7 @@
   "statuses": [
    {
     "color": "#94A3B8",
-    "created_at": "2026-09-26T23:51:31.282507",
+    "created_at": "2026-09-27T13:18:26.342639",
     "id": 5,
     "is_default": true,
     "is_system": true,
@@ -5072,11 +5225,11 @@
     "organization_id": 2,
     "slug": "todo",
     "status_category": "todo",
-    "updated_at": "2026-09-26T23:53:51.298868"
+    "updated_at": "2026-09-27T13:19:08.385965"
    },
    {
     "color": "#3B82F6",
-    "created_at": "2026-09-26T23:51:31.282510",
+    "created_at": "2026-09-27T13:18:26.342642",
     "id": 6,
     "is_default": false,
     "is_system": true,
@@ -5085,7 +5238,7 @@
     "organization_id": 2,
     "slug": "in_progress",
     "status_category": "in_progress",
-    "updated_at": "2026-09-26T23:53:51.300316"
+    "updated_at": "2026-09-27T13:19:08.386700"
    }
   ]
  },
@@ -5093,7 +5246,7 @@
   "items": [
    {
     "communication_rating": 5,
-    "created_at": "2026-09-26T23:51:41.155339Z",
+    "created_at": "2026-09-27T13:18:36.460654Z",
     "feedback": "Great field research with volunteers.",
     "id": 2,
     "improvements": "Prototype fidelity.",
@@ -5111,7 +5264,7 @@
    },
    {
     "communication_rating": 4,
-    "created_at": "2026-09-26T23:51:41.141451Z",
+    "created_at": "2026-09-27T13:18:36.444074Z",
     "feedback": "Excellent ownership of the data pipeline.",
     "id": 1,
     "improvements": "Share progress earlier in standups.",
@@ -5135,14 +5288,14 @@
  },
  "GET /api/reviews/{review_id}": {
   "communication_rating": 3,
-  "created_at": "2026-09-26T23:54:05.214247Z",
+  "created_at": "2026-09-27T13:19:25.248064Z",
   "feedback": "Solid progress on ETA.",
   "id": 3,
   "improvements": "Docs",
   "initiative_rating": 4,
   "intern_id": 8,
   "intern_name": "Omkar Jadhav",
-  "period": "E2E E2E-TMP-1790466803",
+  "period": "E2E E2E-TMP-1790515118",
   "project_id": 1,
   "project_name": "PMPML Bus Tracker",
   "rating": 4,
@@ -5171,7 +5324,7 @@
   "logs": [
    {
     "blockers": null,
-    "created_at": "2026-09-26T23:51:34.745943Z",
+    "created_at": "2026-09-27T13:18:30.071240Z",
     "date": "2026-09-27",
     "did": "GTFS import sampla. Stops table verified.",
     "id": 1,
@@ -5182,7 +5335,7 @@
    },
    {
     "blockers": "Need volunteer data sample.",
-    "created_at": "2026-09-26T23:51:36.890007Z",
+    "created_at": "2026-09-27T13:18:32.215941Z",
     "date": "2026-09-27",
     "did": "Roster screen wireframes done.",
     "id": 2,
@@ -5198,7 +5351,7 @@
  },
  "GET /api/standup/today": {
   "blockers": null,
-  "created_at": "2026-09-26T23:51:34.745943Z",
+  "created_at": "2026-09-27T13:18:30.071240Z",
   "date": "2026-09-27",
   "did": "GTFS import sampla. Stops table verified.",
   "id": 1,
@@ -5210,9 +5363,9 @@
  "GET /api/superadmin/dashboard": {
   "organizations": [
    {
-    "created_at": "2026-09-26T23:51:25.548111Z",
+    "created_at": "2026-09-27T13:18:20.568823Z",
     "id": 2,
-    "logo_url": "/uploads/logos/20260926_235405_sahyadri.png",
+    "logo_url": "/uploads/logos/20260927_131925_sahyadri.png",
     "name": "Sahyadri Tech Labs",
     "project_count": 4,
     "slug": "sahyadri-tech-labs",
@@ -5222,7 +5375,7 @@
     "user_count": 12
    },
    {
-    "created_at": "2026-09-26T23:51:20.919126Z",
+    "created_at": "2026-09-27T13:18:12.162706Z",
     "id": 1,
     "logo_url": null,
     "name": "Default Organization",
@@ -5241,24 +5394,24 @@
     "actor_id": 2,
     "actor_name": "Anand Apte",
     "affected_user_id": null,
-    "created_at": "2026-09-26T23:54:05.638877Z",
-    "id": 284,
+    "created_at": "2026-09-27T13:19:25.797956Z",
+    "id": 210,
     "project_id": null,
     "target": "Recycle Bin",
     "target_id": null,
     "verb": "permanently deleted all 10 bin item(s)"
    },
    {
-    "action": "review.delete",
-    "actor_id": 3,
-    "actor_name": "Prashant Kulkarni",
-    "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.252880Z",
-    "id": 283,
-    "project_id": 1,
-    "target": "Omkar Jadhav",
+    "action": "user.avatar_upload",
+    "actor_id": 6,
+    "actor_name": "Aarav Deshmukh",
+    "affected_user_id": null,
+    "created_at": "2026-09-27T13:19:25.732147Z",
+    "id": 209,
+    "project_id": null,
+    "target": "Aarav Deshmukh",
     "target_id": null,
-    "verb": "deleted performance review for"
+    "verb": "uploaded new avatar image"
    }
   ],
   "role": "superadmin",
@@ -5285,8 +5438,8 @@
  },
  "GET /api/upload/status": {
   "allowed_formats": [
-   ".jpg",
-   ".webp"
+   ".webp",
+   ".jpg"
   ],
   "cloud_name": null,
   "cloudinary_configured": false,
@@ -5297,6 +5450,7 @@
  "GET /api/users/dropdown": {
   "interns": [
    {
+    "avatar_url": null,
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -5310,6 +5464,7 @@
     "role": "intern"
    },
    {
+    "avatar_url": null,
     "department": "Data & Analytics",
     "email": "gauri.sahyadri-tech-labs@example.com",
     "id": 13,
@@ -5326,6 +5481,7 @@
   "total": 9,
   "users": [
    {
+    "avatar_url": null,
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -5339,6 +5495,7 @@
     "role": "intern"
    },
    {
+    "avatar_url": null,
     "department": "Data & Analytics",
     "email": "gauri.sahyadri-tech-labs@example.com",
     "id": 13,
@@ -5356,6 +5513,7 @@
  "GET /api/users/interns": {
   "interns": [
    {
+    "avatar_url": null,
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -5369,6 +5527,7 @@
     "role": "intern"
    },
    {
+    "avatar_url": null,
     "department": "Data & Analytics",
     "email": "gauri.sahyadri-tech-labs@example.com",
     "id": 13,
@@ -5385,6 +5544,7 @@
   "total": 9,
   "users": [
    {
+    "avatar_url": null,
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "id": 6,
@@ -5398,6 +5558,7 @@
     "role": "intern"
    },
    {
+    "avatar_url": null,
     "department": "Data & Analytics",
     "email": "gauri.sahyadri-tech-labs@example.com",
     "id": 13,
@@ -5415,6 +5576,7 @@
  "GET /api/users/mentors": {
   "mentors": [
    {
+    "avatar_url": null,
     "department": "Product Design",
     "email": "madhuri.sahyadri-tech-labs@example.com",
     "id": 4,
@@ -5423,6 +5585,7 @@
     "role": "mentor"
    },
    {
+    "avatar_url": null,
     "department": "Engineering",
     "email": "prashant.sahyadri-tech-labs@example.com",
     "id": 3,
@@ -5541,8 +5704,9 @@
    }
   ],
   "user": {
+   "avatar_url": null,
    "bio": "COEP '27 · Pune · loves trains",
-   "created_at": "2026-09-26T23:51:30.536786Z",
+   "created_at": "2026-09-27T13:18:25.560869Z",
    "department": "Engineering",
    "email": "aarav.sahyadri-tech-labs@example.com",
    "id": 6,
@@ -5562,7 +5726,7 @@
   "active_projects": [
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.257413Z",
+    "created_at": "2026-09-27T13:18:26.313463Z",
     "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
     "id": 1,
     "mentor_id": 3,
@@ -5575,14 +5739,14 @@
   "announcements": [
    {
     "body": "Office closes at 4 PM during Ganeshotsav. Ganpati Bappa Morya! Please update your standups before leaving.",
-    "created_at": "2026-09-26T23:51:31.731152Z",
+    "created_at": "2026-09-27T13:18:26.895513Z",
     "id": 1,
     "is_pinned": true,
     "title": "Ganeshotsav — office timings"
    },
    {
     "body": "1 May is a holiday for Maharashtra Din. Attendance is not required.",
-    "created_at": "2026-09-26T23:51:31.752396Z",
+    "created_at": "2026-09-27T13:18:26.918484Z",
     "id": 3,
     "is_pinned": false,
     "title": "Maharashtra Din holiday"
@@ -5591,7 +5755,7 @@
   "assigned_projects": [
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.257413Z",
+    "created_at": "2026-09-27T13:18:26.313463Z",
     "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
     "id": 1,
     "mentor_id": 3,
@@ -5603,7 +5767,7 @@
   ],
   "assigned_tasks": [
    {
-    "created_at": "2026-09-26T23:51:31.356932Z",
+    "created_at": "2026-09-27T13:18:26.433286Z",
     "deadline": "2026-10-11",
     "description": "Load test on 500 concurrent riders — PMPML Bus Tracker",
     "id": 4,
@@ -5615,7 +5779,7 @@
     "title": "Load test on 500 concurrent riders"
    },
    {
-    "created_at": "2026-09-26T23:51:31.295383Z",
+    "created_at": "2026-09-27T13:18:26.371001Z",
     "deadline": "2026-10-11",
     "description": "GTFS feed import for PMPML routes — PMPML Bus Tracker",
     "id": 1,
@@ -5665,7 +5829,7 @@
   },
   "open_tasks": [
    {
-    "created_at": "2026-09-26T23:51:31.356932Z",
+    "created_at": "2026-09-27T13:18:26.433286Z",
     "deadline": "2026-10-11",
     "description": "Load test on 500 concurrent riders — PMPML Bus Tracker",
     "id": 4,
@@ -5686,24 +5850,24 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.252880Z",
-    "id": 283,
+    "created_at": "2026-09-27T13:19:25.284267Z",
+    "id": 208,
     "project_id": 1,
     "target": "Omkar Jadhav",
     "target_id": null,
     "verb": "deleted performance review for"
    },
    {
-    "action": "announcement.delete",
-    "actor_id": 2,
-    "actor_name": "Anand Apte",
+    "action": "attendance.checkout",
+    "actor_id": 6,
+    "actor_name": "Aarav Deshmukh",
     "affected_user_id": null,
-    "created_at": "2026-09-26T23:53:58.331100Z",
-    "id": 264,
-    "project_id": 1,
-    "target": "Wi-Fi maintenance E2E-TMP-1790466803",
-    "target_id": 4,
-    "verb": "deleted announcement"
+    "created_at": "2026-09-27T13:19:21.888271Z",
+    "id": 184,
+    "project_id": null,
+    "target": "2026-09-27 18:49",
+    "target_id": null,
+    "verb": "checked out at"
    }
   ],
   "recent_leave_requests": [],
@@ -5712,12 +5876,12 @@
    "active_projects": 1,
    "assigned_tasks_count": 2,
    "completed_tasks_count": 1,
-   "days_logged": 9,
+   "days_logged": 10,
    "open_tasks": 1,
    "overdue_tasks": 0,
    "pending_leave": 0,
-   "present_today": 0,
-   "total_days_logged": 9,
+   "present_today": 1,
+   "total_days_logged": 10,
    "total_hours": 81.6,
    "total_interns": 0,
    "total_projects": 1
@@ -5728,22 +5892,22 @@
    "review": 1
   },
   "today_attendance": {
-   "check_in": null,
-   "check_in_address": null,
-   "check_in_photo_url": null,
-   "check_out": null,
-   "check_out_photo_url": null,
-   "has_checked_in": false,
-   "has_checked_out": false,
+   "check_in": "18:49",
+   "check_in_address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+   "check_in_photo_url": "/api/attendance/75/photo/checkin",
+   "check_out": "18:49",
+   "check_out_photo_url": "/api/attendance/75/photo/checkout",
+   "has_checked_in": true,
+   "has_checked_out": true,
    "hours_worked": 0.0,
-   "status": null
+   "status": "late"
   }
  },
  "GET /mentor/dashboard": {
   "active_projects": [
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.257413Z",
+    "created_at": "2026-09-27T13:18:26.313463Z",
     "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
     "id": 1,
     "members_count": 3,
@@ -5754,16 +5918,16 @@
   ],
   "assigned_interns": [
    {
-    "check_in": null,
-    "check_in_photo_url": null,
-    "check_out": null,
+    "check_in": "18:49",
+    "check_in_photo_url": "/api/attendance/75/photo/checkin",
+    "check_out": "18:49",
     "department": "Engineering",
     "email": "aarav.sahyadri-tech-labs@example.com",
     "hours_worked": 0.0,
     "name": "Aarav Deshmukh",
     "open_tasks_count": 1,
     "streak": 3,
-    "today_status": "absent",
+    "today_status": "late",
     "user_id": 6
    },
    {
@@ -5823,15 +5987,29 @@
   ],
   "pending_leave_requests": [],
   "pending_leave_requests_total": 0,
-  "present_today_list": [],
-  "present_today_total": 0,
+  "present_today_list": [
+   {
+    "check_in": "18:49",
+    "check_in_photo_url": "/api/attendance/75/photo/checkin",
+    "check_out": "18:49",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Aarav Deshmukh",
+    "open_tasks_count": 1,
+    "streak": 3,
+    "today_status": "late",
+    "user_id": 6
+   }
+  ],
+  "present_today_total": 1,
   "project_status": {
    "active": 1
   },
   "projects": [
    {
     "completed_tasks_count": 1,
-    "created_at": "2026-09-26T23:51:31.257413Z",
+    "created_at": "2026-09-27T13:18:26.313463Z",
     "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
     "id": 1,
     "members_count": 3,
@@ -5846,8 +6024,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.252880Z",
-    "id": 283,
+    "created_at": "2026-09-27T13:19:25.284267Z",
+    "id": 208,
     "project_id": 1,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -5858,8 +6036,8 @@
     "actor_id": 3,
     "actor_name": "Prashant Kulkarni",
     "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.212299Z",
-    "id": 281,
+    "created_at": "2026-09-27T13:19:25.246108Z",
+    "id": 206,
     "project_id": null,
     "target": "Omkar Jadhav",
     "target_id": null,
@@ -5868,14 +6046,14 @@
   ],
   "role": "mentor",
   "stats": {
-   "absent_today": 3,
+   "absent_today": 2,
    "active_projects": 1,
    "assigned_interns_count": 3,
-   "days_logged": 10,
+   "days_logged": 11,
    "open_tasks": 3,
    "overdue_tasks": 0,
    "pending_leave": 0,
-   "present_today": 0,
+   "present_today": 1,
    "total_hours": 253.9,
    "total_interns": 3,
    "total_projects": 1
@@ -5890,9 +6068,9 @@
  "GET /superadmin/dashboard": {
   "organizations": [
    {
-    "created_at": "2026-09-26T23:51:25.548111Z",
+    "created_at": "2026-09-27T13:18:20.568823Z",
     "id": 2,
-    "logo_url": "/uploads/logos/20260926_235405_sahyadri.png",
+    "logo_url": "/uploads/logos/20260927_131925_sahyadri.png",
     "name": "Sahyadri Tech Labs",
     "project_count": 4,
     "slug": "sahyadri-tech-labs",
@@ -5902,7 +6080,7 @@
     "user_count": 12
    },
    {
-    "created_at": "2026-09-26T23:51:20.919126Z",
+    "created_at": "2026-09-27T13:18:12.162706Z",
     "id": 1,
     "logo_url": null,
     "name": "Default Organization",
@@ -5921,24 +6099,24 @@
     "actor_id": 2,
     "actor_name": "Anand Apte",
     "affected_user_id": null,
-    "created_at": "2026-09-26T23:54:05.638877Z",
-    "id": 284,
+    "created_at": "2026-09-27T13:19:25.797956Z",
+    "id": 210,
     "project_id": null,
     "target": "Recycle Bin",
     "target_id": null,
     "verb": "permanently deleted all 10 bin item(s)"
    },
    {
-    "action": "review.delete",
-    "actor_id": 3,
-    "actor_name": "Prashant Kulkarni",
-    "affected_user_id": 8,
-    "created_at": "2026-09-26T23:54:05.252880Z",
-    "id": 283,
-    "project_id": 1,
-    "target": "Omkar Jadhav",
+    "action": "user.avatar_upload",
+    "actor_id": 6,
+    "actor_name": "Aarav Deshmukh",
+    "affected_user_id": null,
+    "created_at": "2026-09-27T13:19:25.732147Z",
+    "id": 209,
+    "project_id": null,
+    "target": "Aarav Deshmukh",
     "target_id": null,
-    "verb": "deleted performance review for"
+    "verb": "uploaded new avatar image"
    }
   ],
   "role": "superadmin",
@@ -5970,23 +6148,23 @@
   "attachments": [],
   "can_delete": true,
   "comment_count": 0,
-  "created_at": "2026-09-26T23:53:55.683913Z",
+  "created_at": "2026-09-27T13:19:12.822854Z",
   "created_by_id": 2,
   "created_by_name": "Anand Apte",
-  "deadline": null,
+  "deadline": "2026-10-02",
   "description": "",
-  "due_date": null,
+  "due_date": "2026-10-02",
   "id": 12,
   "is_overdue": false,
   "priority": "high",
   "project_id": 5,
   "status": "in_progress",
-  "title": "Map Dadar–Churchgate tiffin route E2E-TMP-1790466803"
+  "title": "Map Dadar–Churchgate tiffin route E2E-TMP-1790515118"
  },
  "POST /api/admin/bin/{bin_id}/restore": {
   "entity_id": 5,
   "entity_type": "project",
-  "message": "Restored project 'None'.",
+  "message": "Restored project 'Mumbai Dabbawala Route Planner E2E-TMP-1790515118'.",
   "ok": true
  },
  "POST /api/admin/clear-database": {
@@ -6006,32 +6184,32 @@
   "ok": true
  },
  "POST /api/admin/internship-durations": {
-  "created_at": "2026-09-26T23:53:53.448083",
+  "created_at": "2026-09-27T13:18:25.157545",
   "duration_days": null,
-  "duration_months": 2,
-  "id": 8,
+  "duration_months": 12,
+  "id": 7,
   "intern_count": 0,
-  "internship_duration": 2,
+  "internship_duration": 12,
   "is_active": true,
   "is_default": false,
-  "leaves": 2,
-  "order_index": 4,
+  "leaves": 15,
+  "order_index": 3,
   "organization_id": 2,
-  "title": "Winter sprint (E2E-TMP-1790466803)",
-  "updated_at": "2026-09-26T23:53:53.448085"
+  "title": "Year-long Apprenticeship (12 months)",
+  "updated_at": "2026-09-27T13:18:25.157548"
  },
  "POST /api/admin/invite-link": {
   "link": {
-   "created_at": "2026-09-26T23:53:47.009678Z",
+   "created_at": "2026-09-27T13:19:04.087229Z",
    "created_by_id": 2,
    "created_by_name": "Anand Apte",
-   "id": 4,
+   "id": 1,
    "is_active": true,
-   "label": "Pune campus drive E2E-TMP-1790466803",
+   "label": "Pune campus drive E2E-TMP-1790515118",
    "mentor_id": 3,
    "mentor_name": "Prashant Kulkarni",
    "token": "<redacted>",
-   "url": "https://internhub-sas-production-b44c.up.railway.app/join/VRU5BqzLg3YG6I4WAcCAxtwDBznnPbRtgvmx9igdm1M",
+   "url": "https://internhub-sas-production-b44c.up.railway.app/join/cbMrGbnHygVTPTLw6K-QAME1H759wV3WDDUwIALFAxY",
    "usage_count": 0
   }
  },
@@ -6040,107 +6218,105 @@
  },
  "POST /api/admin/invite-link/regenerate": {
   "link": {
-   "created_at": "2026-09-26T23:53:51.237969Z",
+   "created_at": "2026-09-27T13:19:08.309780Z",
    "created_by_id": 2,
    "created_by_name": "Anand Apte",
-   "id": 5,
+   "id": 2,
    "is_active": true,
-   "label": "Pune campus drive E2E-TMP-1790466803",
+   "label": "Pune campus drive E2E-TMP-1790515118",
    "mentor_id": 3,
    "mentor_name": "Prashant Kulkarni",
    "token": "<redacted>",
-   "url": "https://internhub-sas-production-b44c.up.railway.app/join/hkvdf3I_QUXFU_yTnNevq2lYtAbb7XKwtRw7p8zcG1g",
+   "url": "https://internhub-sas-production-b44c.up.railway.app/join/vS6TQpblwQK2eaQ-izbQXDNx_tgeA2g4y0m_QDpribI",
    "usage_count": 0
   }
  },
  "POST /api/admin/project-statuses": {
   "color": "#8C9A33",
-  "created_at": "2026-09-26T23:53:53.395756",
+  "created_at": "2026-09-27T13:19:10.459955",
   "id": 9,
   "is_default": false,
   "is_system": false,
-  "name": "Review (E2E-TMP-1790466803)",
+  "name": "Review (E2E-TMP-1790515118)",
   "order_index": 4,
   "organization_id": 2,
   "project_count": 0,
-  "slug": "review_e2e_tmp_1790466803",
-  "updated_at": "2026-09-26T23:53:53.395759"
+  "slug": "review_e2e_tmp_1790515118",
+  "updated_at": "2026-09-27T13:19:10.459959"
  },
  "POST /api/admin/task-statuses": {
   "color": "#8C9A33",
-  "created_at": "2026-09-26T23:53:51.276403",
+  "created_at": "2026-09-27T13:19:08.358306",
   "id": 9,
   "is_default": false,
   "is_system": false,
-  "name": "Review (E2E-TMP-1790466803)",
+  "name": "Review (E2E-TMP-1790515118)",
   "order_index": 4,
   "organization_id": 2,
-  "slug": "review_e2e_tmp_1790466803",
+  "slug": "review_e2e_tmp_1790515118",
   "status_category": "in_progress",
   "task_count": 0,
-  "updated_at": "2026-09-26T23:53:51.276406"
+  "updated_at": "2026-09-27T13:19:08.358310"
  },
  "POST /api/admin/users": {
+  "avatar_url": null,
   "bio": null,
-  "created_at": "2026-09-26T23:53:44.591994Z",
-  "department": "QA",
-  "email": "e2e-tmp-1790466803.user@example.com",
-  "id": 15,
-  "internship_duration": {
-   "duration_months": 3,
-   "leaves": 5,
-   "title": "3 Months"
-  },
+  "created_at": "2026-09-27T13:18:25.253353Z",
+  "department": "Engineering",
+  "email": "prashant.sahyadri-tech-labs@example.com",
+  "id": 3,
   "internship_duration_months": 3,
-  "internship_end_date": "2026-12-27",
+  "internship_end_date": null,
   "is_active": true,
   "is_paid": null,
-  "job_title": "None",
-  "joining_date": "2026-09-27",
-  "mentor_id": 4,
-  "mentor_name": "Madhuri Deshpande",
-  "name": "Ninad Sawant E2E-TMP-1790466803",
-  "phone": "+91 90040 55512",
-  "role": "intern",
+  "job_title": "Senior Engineer, Pune",
+  "joining_date": "2026-08-13",
+  "mentor_id": null,
+  "mentor_name": null,
+  "name": "Prashant Kulkarni",
+  "phone": "+91 98220 41532",
+  "role": "mentor",
   "skills": [],
   "stipend_amount": null
  },
  "POST /api/admin/users/{user_id}/role": {
+  "avatar_url": null,
   "bio": null,
-  "created_at": "2026-09-26T23:53:44.591994Z",
+  "created_at": "2026-09-27T13:19:01.684004Z",
   "department": "Quality",
-  "email": "e2e-tmp-1790466803.user@example.com",
+  "email": "e2e-tmp-1790515118.user@example.com",
   "id": 15,
-  "internship_duration_months": null,
-  "internship_end_date": null,
+  "internship_duration_months": 3,
+  "internship_end_date": "2026-12-27",
   "is_active": true,
   "is_paid": null,
   "job_title": null,
   "joining_date": "2026-09-27",
   "mentor_id": 4,
   "mentor_name": "Madhuri Deshpande",
-  "name": "Ninad Sawant E2E-TMP-1790466803",
-  "phone": null,
+  "name": "Ninad Sawant E2E-TMP-1790515118",
+  "phone": "+91 90040 55512",
   "role": "mentor",
   "skills": [],
   "stipend_amount": null
  },
  "POST /api/admin/users/{user_id}/toggle": {
+  "avatar_url": null,
   "bio": null,
-  "created_at": "2026-09-26T23:53:44.591994Z",
+  "created_at": "2026-09-27T13:19:01.684004Z",
   "department": "Quality",
-  "email": "e2e-tmp-1790466803.user@example.com",
+  "email": "e2e-tmp-1790515118.user@example.com",
   "id": 15,
-  "internship_duration_months": null,
-  "internship_end_date": null,
+  "internship_duration_months": 3,
+  "internship_end_date": "2026-12-27",
   "is_active": false,
   "is_paid": null,
   "job_title": null,
   "joining_date": "2026-09-27",
   "mentor_id": 4,
   "mentor_name": "Madhuri Deshpande",
-  "name": "Ninad Sawant E2E-TMP-1790466803",
-  "phone": null,
+  "name": "Ninad Sawant E2E-TMP-1790515118",
+  "phone": "+91 90040 55512",
   "role": "intern",
   "skills": [],
   "stipend_amount": null
@@ -6149,13 +6325,13 @@
   "author_id": 2,
   "author_name": "Anand Apte",
   "author_role": "admin",
-  "body": "Baner office Wi-Fi down 2–3 PM.",
-  "created_at": "2026-09-26T23:53:58.306358Z",
-  "id": 4,
-  "is_pinned": false,
-  "project_id": 1,
-  "project_name": "PMPML Bus Tracker",
-  "title": "Wi-Fi maintenance E2E-TMP-1790466803"
+  "body": "Office closes at 4 PM during Ganeshotsav. Ganpati Bappa Morya! Please update your standups before leaving.",
+  "created_at": "2026-09-27T13:18:26.895513Z",
+  "id": 1,
+  "is_pinned": true,
+  "project_id": null,
+  "project_name": null,
+  "title": "Ganeshotsav — office timings"
  },
  "POST /api/assignments": {
   "assigned_to_user_id": null,
@@ -6164,25 +6340,25 @@
   "attachment_url": null,
   "cohort_id": null,
   "cohort_name": null,
-  "created_at": "2026-09-26T23:55:48.672015",
+  "created_at": "2026-09-27T13:18:26.943546",
   "created_by_id": 2,
   "creator_name": "Anand Apte",
-  "description": "",
-  "due_date": "2026-10-01",
+  "description": "Two pages: inputs, model choice, evaluation.",
+  "due_date": "2026-10-04",
   "graded_count": 0,
   "has_attachment": false,
-  "id": 6,
-  "max_score": 5,
+  "id": 1,
+  "max_score": 100,
   "organization_id": 2,
   "pending_review_count": 0,
-  "project_id": null,
-  "project_name": null,
+  "project_id": 1,
+  "project_name": "PMPML Bus Tracker",
   "reviewed_count": 0,
   "status": "active",
   "submission_count": 0,
   "submissions_count": 0,
-  "title": "Reading: Pune Metro DPR E2E-TMP-1790466912",
-  "updated_at": "2026-09-26T23:55:48.672017"
+  "title": "Write a design doc for the ETA model",
+  "updated_at": "2026-09-27T13:18:26.943551"
  },
  "POST /api/assignments/": {
   "assigned_to_user_id": 6,
@@ -6191,7 +6367,7 @@
   "attachment_url": null,
   "cohort_id": null,
   "cohort_name": null,
-  "created_at": "2026-09-26T23:53:58.211060",
+  "created_at": "2026-09-27T13:19:15.574936",
   "created_by_id": 2,
   "creator_name": "Anand Apte",
   "description": "temp",
@@ -6208,8 +6384,8 @@
   "status": "active",
   "submission_count": 0,
   "submissions_count": 0,
-  "title": "Quiz: Pune metro lines E2E-TMP-1790466803",
-  "updated_at": "2026-09-26T23:53:58.211062"
+  "title": "Quiz: Pune metro lines E2E-TMP-1790515118",
+  "updated_at": "2026-09-27T13:19:15.574939"
  },
  "POST /api/assignments/submissions/{submission_id}/review": {
   "message": "Submission reviewed successfully.",
@@ -6223,14 +6399,14 @@
    "github_url": "https://github.com/example/pmpml-eta",
    "has_file": true,
    "id": 1,
-   "reviewed_at": "2026-09-26T23:53:58.185945",
+   "reviewed_at": "2026-09-27T13:19:15.462271",
    "reviewed_by_id": 2,
    "reviewer_name": "Anand Apte",
    "score": 88.0,
    "status": "approved",
    "submission_text": "Design doc attached. Uses Kalman filter over GPS pings.",
-   "submitted_at": "2026-09-26T23:52:17.906908",
-   "updated_at": "2026-09-26T23:53:58.186160",
+   "submitted_at": "2026-09-27T13:19:15.433536",
+   "updated_at": "2026-09-27T13:19:15.462705",
    "user_email": "aarav.sahyadri-tech-labs@example.com",
    "user_id": 6,
    "user_name": "Aarav Deshmukh"
@@ -6244,12 +6420,12 @@
   "attachment_url": "/api/assignments/1/attachment",
   "cohort_id": null,
   "cohort_name": null,
-  "created_at": "2026-09-26T23:51:31.774247",
+  "created_at": "2026-09-27T13:18:26.943546",
   "created_by_id": 2,
   "creator_name": "Anand Apte",
   "description": "Two pages: inputs, model choice, evaluation.",
   "due_date": "2026-10-04",
-  "graded_count": 1,
+  "graded_count": 0,
   "has_attachment": true,
   "id": 1,
   "max_score": 100,
@@ -6257,33 +6433,33 @@
   "pending_review_count": 0,
   "project_id": 1,
   "project_name": "PMPML Bus Tracker",
-  "reviewed_count": 1,
+  "reviewed_count": 0,
   "status": "active",
-  "submission_count": 1,
-  "submissions_count": 1,
+  "submission_count": 0,
+  "submissions_count": 0,
   "title": "Write a design doc for the ETA model",
-  "updated_at": "2026-09-26T23:53:58.156694"
+  "updated_at": "2026-09-27T13:19:15.393123"
  },
  "POST /api/assignments/{assignment_id}/submit": {
   "message": "Assignment submitted successfully.",
   "submission": {
-   "assignment_id": 5,
-   "assignment_title": "Quiz: Pune metro lines E2E-TMP-1790466803",
+   "assignment_id": 1,
+   "assignment_title": "Write a design doc for the ETA model",
    "feedback": null,
-   "file_name": "metro-quiz.pdf",
-   "file_size": 306,
-   "file_url": "/api/assignments/submissions/3/file",
-   "github_url": null,
+   "file_name": "eta-design.pdf",
+   "file_size": 305,
+   "file_url": "/api/assignments/submissions/1/file",
+   "github_url": "https://github.com/example/pmpml-eta",
    "has_file": true,
-   "id": 3,
+   "id": 1,
    "reviewed_at": null,
    "reviewed_by_id": null,
    "reviewer_name": null,
    "score": null,
    "status": "submitted",
-   "submission_text": "Aqua, Purple and Yellow lines.",
-   "submitted_at": "2026-09-26T23:53:58.238478",
-   "updated_at": "2026-09-26T23:53:58.238618",
+   "submission_text": "Design doc attached. Uses Kalman filter over GPS pings.",
+   "submitted_at": "2026-09-27T13:19:15.433536",
+   "updated_at": "2026-09-27T13:19:15.433962",
    "user_email": "aarav.sahyadri-tech-labs@example.com",
    "user_id": 6,
    "user_name": "Aarav Deshmukh"
@@ -6295,15 +6471,15 @@
   "message": "Auto check-out applied to 0 missed record(s)."
  },
  "POST /api/attendance/check-in": {
-  "check_in": "05:25",
-  "check_in_dt": "2026-09-27T05:25:53+05:30",
+  "check_in": "18:49",
+  "check_in_dt": "2026-09-27T18:49:19+05:30",
   "check_in_location": {
    "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
    "lat": 18.559,
    "lng": 73.7868
   },
-  "check_in_photo_url": "/api/attendance/76/photo/checkin",
-  "check_in_time": "5:25 AM",
+  "check_in_photo_url": "/api/attendance/75/photo/checkin",
+  "check_in_time": "6:49 PM",
   "check_out": null,
   "check_out_dt": null,
   "check_out_location": null,
@@ -6313,38 +6489,38 @@
   "checkout_source": null,
   "date": "2026-09-27",
   "hours_worked": null,
-  "id": 76,
+  "id": 75,
   "notes": null,
-  "status": "present",
+  "status": "late",
   "user_id": 6,
   "user_name": "Aarav Deshmukh"
  },
  "POST /api/attendance/check-out": {
-  "check_in": "05:25",
-  "check_in_dt": "2026-09-27T05:25:53+05:30",
+  "check_in": "18:49",
+  "check_in_dt": "2026-09-27T18:49:19+05:30",
   "check_in_location": {
    "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
    "lat": 18.559,
    "lng": 73.7868
   },
-  "check_in_photo_url": "/api/attendance/76/photo/checkin",
-  "check_in_time": "5:25 AM",
-  "check_out": "05:25",
-  "check_out_dt": "2026-09-27T05:25:54+05:30",
+  "check_in_photo_url": "/api/attendance/75/photo/checkin",
+  "check_in_time": "6:49 PM",
+  "check_out": "18:49",
+  "check_out_dt": "2026-09-27T18:49:21+05:30",
   "check_out_location": {
    "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
    "lat": 18.559,
    "lng": 73.7868
   },
-  "check_out_photo_url": "/api/attendance/76/photo/checkout",
-  "check_out_time": "5:25 AM",
+  "check_out_photo_url": "/api/attendance/75/photo/checkout",
+  "check_out_time": "6:49 PM",
   "checkout_missed": false,
   "checkout_source": "manual",
   "date": "2026-09-27",
   "hours_worked": 0.0,
-  "id": 76,
+  "id": 75,
   "notes": null,
-  "status": "present",
+  "status": "late",
   "user_id": 6,
   "user_name": "Aarav Deshmukh"
  },
@@ -6363,7 +6539,7 @@
   "checkout_source": "manual",
   "date": "2026-09-02",
   "hours_worked": 8.5,
-  "id": 76,
+  "id": 77,
   "notes": null,
   "status": "present",
   "user_id": 7,
@@ -6378,8 +6554,9 @@
   "ok": true,
   "token": "<redacted>",
   "user": {
+   "avatar_url": null,
    "bio": null,
-   "created_at": "2026-09-26T23:51:30.834352Z",
+   "created_at": "2026-09-27T13:18:25.870424Z",
    "department": "Data & Analytics",
    "email": "rutuja.sahyadri-tech-labs@example.com",
    "id": 9,
@@ -6398,14 +6575,23 @@
  "POST /api/auth/logout": {
   "ok": true
  },
+ "POST /api/auth/password/forgot": {
+  "message": "If an account exists for that e-mail, a reset code has been sent. It expires in 15 minutes.",
+  "ok": true
+ },
+ "POST /api/auth/password/reset": {
+  "message": "Password updated. Sign in with your new password.",
+  "ok": true
+ },
  "POST /api/auth/register": {
   "message": "Registration successful. Ask your organization's admin to add you, or join with an invite link.",
   "ok": true,
   "user": {
+   "avatar_url": null,
    "bio": null,
-   "created_at": "2026-09-26T23:54:27.092620Z",
+   "created_at": "2026-09-27T13:19:47.348439Z",
    "department": null,
-   "email": "e2e-1790466854.selfsignup@example.com",
+   "email": "e2e-1790515174.selfsignup@example.com",
    "id": 14,
    "is_active": true,
    "is_platform_admin": false,
@@ -6422,30 +6608,31 @@
  "POST /api/blogs": {
   "author_id": 2,
   "author_name": "Anand Apte",
-  "content": "<p>temp</p>",
+  "content": "<p>This monsoon our Pune batch took on PMPML's open data…</p>",
   "cover_image_url": null,
-  "created_at": "2026-09-26T23:53:58.348515Z",
-  "excerpt": null,
-  "id": 3,
-  "published_at": null,
-  "slug": "vada-pav-and-version-control-e2e-tmp-1790466803",
-  "status": "draft",
+  "created_at": "2026-09-27T13:18:27.144061Z",
+  "excerpt": "PMPML data, Marathi UI and lots of chai.",
+  "id": 1,
+  "published_at": "2026-09-27T13:18:27.143540Z",
+  "slug": "how-our-interns-built-a-bus-tracker-for-pune",
+  "status": "published",
   "tags": [
-   "culture"
+   "pune",
+   "transport"
   ],
-  "title": "Vada pav and version control E2E-TMP-1790466803",
-  "updated_at": "2026-09-26T23:53:58.348518Z"
+  "title": "How our interns built a bus tracker for Pune",
+  "updated_at": "2026-09-27T13:18:27.144063Z"
  },
  "POST /api/cohorts": {
-  "created_at": "2026-09-26T23:53:58.069354Z",
+  "created_at": "2026-09-27T13:18:26.784124Z",
   "created_by_id": 2,
-  "description": "temp",
+  "description": "Interns working from the Baner, Pune office.",
   "end_date": "2027-01-25",
-  "id": 4,
+  "id": 1,
   "member_count": 0,
   "members": [],
-  "name": "Nagpur Winter Batch E2E-TMP-1790466803",
-  "start_date": "2026-10-27"
+  "name": "Pune Batch — Monsoon 2026",
+  "start_date": "2026-08-13"
  },
  "POST /api/cohorts/{cohort_id}/members": {
   "ok": true
@@ -6454,56 +6641,59 @@
   "ok": true
  },
  "POST /api/leave": {
-  "attachment_name": "invite.pdf",
-  "attachment_url": "/api/leave/5/attachment",
-  "created_at": "2026-09-26T23:54:02.848441Z",
+  "attachment_name": "note.pdf",
+  "attachment_url": "/api/leave/1/attachment",
+  "created_at": "2026-09-27T13:19:22.473050Z",
   "days": 1,
-  "end_date": "2026-11-30",
+  "end_date": "2026-10-06",
   "has_attachment": true,
-  "id": 5,
+  "id": 1,
   "leave_type": "casual",
-  "reason": "Family function in Pune E2E-TMP-1790466803",
+  "reason": "Ganeshotsav at home in Kolhapur",
+  "review_comment": null,
   "reviewed_at": null,
   "reviewed_by": null,
   "reviewer_name": null,
-  "start_date": "2026-11-30",
+  "start_date": "2026-10-06",
   "status": "pending",
   "user_id": 7,
   "user_name": "Sakshi Patil"
  },
  "POST /api/leave/review/{leave_id}": {
-  "attachment_name": "invite.pdf",
-  "attachment_url": "/api/leave/5/attachment",
-  "created_at": "2026-09-26T23:54:02.848441Z",
+  "attachment_name": null,
+  "attachment_url": null,
+  "created_at": "2026-09-27T13:19:22.651729Z",
   "days": 1,
-  "end_date": "2026-11-30",
-  "has_attachment": true,
-  "id": 5,
+  "end_date": "2026-10-13",
+  "has_attachment": false,
+  "id": 2,
   "leave_type": "casual",
-  "reason": "Family function in Pune E2E-TMP-1790466803",
-  "reviewed_at": "2026-09-26T23:54:02.912002Z",
+  "reason": "Sister's wedding in Satara",
+  "review_comment": "Demo week — please reschedule.",
+  "reviewed_at": "2026-09-27T13:19:22.685478Z",
   "reviewed_by": 2,
   "reviewer_name": "Anand Apte",
-  "start_date": "2026-11-30",
+  "start_date": "2026-10-13",
   "status": "rejected",
   "user_id": 7,
   "user_name": "Sakshi Patil"
  },
  "POST /api/leave/{leave_id}/review": {
-  "attachment_name": "invite.pdf",
-  "attachment_url": "/api/leave/5/attachment",
-  "created_at": "2026-09-26T23:54:02.848441Z",
+  "attachment_name": "note.pdf",
+  "attachment_url": "/api/leave/1/attachment",
+  "created_at": "2026-09-27T13:19:22.473050Z",
   "days": 1,
-  "end_date": "2026-11-30",
+  "end_date": "2026-10-06",
   "has_attachment": true,
-  "id": 5,
+  "id": 1,
   "leave_type": "casual",
-  "reason": "Family function in Pune E2E-TMP-1790466803",
-  "reviewed_at": "2026-09-26T23:54:02.975161Z",
+  "reason": "Ganeshotsav at home in Kolhapur",
+  "review_comment": "Ok, enjoy!",
+  "reviewed_at": "2026-09-27T13:19:22.585926Z",
   "reviewed_by": 2,
   "reviewer_name": "Anand Apte",
-  "start_date": "2026-11-30",
-  "status": "rejected",
+  "start_date": "2026-10-06",
+  "status": "approved",
   "user_id": 7,
   "user_name": "Sakshi Patil"
  },
@@ -6512,7 +6702,7 @@
  },
  "POST /api/org/members": {
   "membership": {
-   "created_at": "2026-09-26T23:53:44.446777",
+   "created_at": "2026-09-27T13:19:01.508775",
    "department": "Engineering",
    "id": 13,
    "internship_duration_months": 3,
@@ -6538,9 +6728,9 @@
   "admin_user_id": 13,
   "ok": true,
   "organization": {
-   "created_at": "2026-09-26T23:51:25.548111",
+   "created_at": "2026-09-27T13:18:20.568823",
    "id": 2,
-   "logo_url": "/uploads/logos/20260926_235225_sahyadri.png",
+   "logo_url": null,
    "name": "Sahyadri Tech Labs",
    "slug": "sahyadri-tech-labs",
    "status": "active",
@@ -6550,39 +6740,56 @@
  },
  "POST /api/profile/change-password": {
   "message": "Password changed successfully.",
-  "ok": true
+  "ok": true,
+  "token": "<redacted>"
  },
  "POST /api/projects": {
-  "created_at": "2026-09-26T23:53:55.617379Z",
-  "description": "Temp project for CRUD test",
-  "end_date": "2026-10-27",
-  "id": 5,
-  "intern_ids": [],
-  "members": [],
-  "mentor_id": 4,
-  "mentor_ids": [
-   4
+  "created_at": "2026-09-27T13:18:26.313463Z",
+  "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+  "end_date": "2026-11-16",
+  "id": 1,
+  "intern_ids": [
+   6,
+   8
   ],
-  "mentor_name": "Madhuri Deshpande",
+  "members": [
+   {
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "name": "Aarav Deshmukh",
+    "role": "intern"
+   },
+   {
+    "email": "omkar.sahyadri-tech-labs@example.com",
+    "id": 8,
+    "name": "Omkar Jadhav",
+    "role": "intern"
+   }
+  ],
+  "mentor_id": 3,
+  "mentor_ids": [
+   3
+  ],
+  "mentor_name": "Prashant Kulkarni",
   "mentors": [
    {
-    "email": "madhuri.sahyadri-tech-labs@example.com",
-    "id": 4,
-    "name": "Madhuri Deshpande",
+    "email": "prashant.sahyadri-tech-labs@example.com",
+    "id": 3,
+    "name": "Prashant Kulkarni",
     "role": "mentor"
    }
   ],
-  "name": "Mumbai Dabbawala Route Planner E2E-TMP-1790466803",
+  "name": "PMPML Bus Tracker",
   "progress": 0,
-  "start_date": "2026-09-27",
-  "status": "planning",
+  "start_date": "2026-08-18",
+  "status": "active",
   "task_count": 0,
   "task_done": 0,
   "task_total": 0
  },
  "POST /api/projects/tasks/{task_id}/attachments": {
   "comment_id": null,
-  "created_at": "2026-09-26T23:53:55.748044",
+  "created_at": "2026-09-27T13:19:12.907758",
   "description": "Route notes",
   "download_url": "/api/projects/tasks/attachments/1/download",
   "file_name": "route-notes.pdf",
@@ -6596,7 +6803,7 @@
  "POST /api/projects/tasks/{task_id}/comments": {
   "author_name": "Anand Apte",
   "body": "Kaam chalu aahe 👍",
-  "created_at": "2026-09-26T23:53:55.717931Z",
+  "created_at": "2026-09-27T13:19:12.863926Z",
   "deleted_at": null,
   "deleted_by_name": null,
   "id": 1,
@@ -6610,20 +6817,20 @@
   "ok": true
  },
  "POST /api/projects/{project_id}/comments-board": {
-  "body": "Board note",
-  "created_at": "2026-09-26T23:53:55.834152Z",
-  "id": 5,
-  "project_id": 5,
+  "body": "Kick-off done for PMPML Bus Tracker. Chala, suru karuya!",
+  "created_at": "2026-09-27T13:18:26.466028Z",
+  "id": 1,
+  "project_id": 1,
   "user_id": 2,
   "user_name": "Anand Apte",
   "user_role": "admin"
  },
  "POST /api/projects/{project_id}/links": {
-  "created_at": "2026-09-26T23:53:55.806490Z",
-  "id": 5,
-  "link": "https://example.com/dabbawala",
-  "project_id": 5,
-  "remark": "Reference",
+  "created_at": "2026-09-27T13:18:26.446527Z",
+  "id": 1,
+  "link": "https://github.com/example/pmpml-tracker",
+  "project_id": 1,
+  "remark": "Repository",
   "user_id": 2,
   "user_name": "Anand Apte",
   "user_role": "admin"
@@ -6635,40 +6842,40 @@
   "attachments": [],
   "can_delete": true,
   "comment_count": 0,
-  "created_at": "2026-09-26T23:53:55.683913Z",
+  "created_at": "2026-09-27T13:18:26.371001Z",
   "created_by_id": 2,
   "created_by_name": "Anand Apte",
-  "deadline": "2026-10-02",
-  "description": "",
-  "due_date": "2026-10-02",
-  "id": 12,
+  "deadline": "2026-10-11",
+  "description": "GTFS feed import for PMPML routes — PMPML Bus Tracker",
+  "due_date": "2026-10-11",
+  "id": 1,
   "is_overdue": false,
-  "priority": "medium",
-  "project_id": 5,
-  "status": "todo",
-  "title": "Map Dadar–Churchgate tiffin route E2E-TMP-1790466803"
+  "priority": "high",
+  "project_id": 1,
+  "status": "done",
+  "title": "GTFS feed import for PMPML routes"
  },
  "POST /api/reviews": {
-  "communication_rating": 3,
-  "created_at": "2026-09-26T23:54:05.214247Z",
-  "feedback": "Solid progress on ETA.",
-  "id": 3,
-  "improvements": "Docs",
-  "initiative_rating": 4,
-  "intern_id": 8,
-  "intern_name": "Omkar Jadhav",
-  "period": "E2E E2E-TMP-1790466803",
+  "communication_rating": 4,
+  "created_at": "2026-09-27T13:18:36.444074Z",
+  "feedback": "Excellent ownership of the data pipeline.",
+  "id": 1,
+  "improvements": "Share progress earlier in standups.",
+  "initiative_rating": 5,
+  "intern_id": 6,
+  "intern_name": "Aarav Deshmukh",
+  "period": "2026-09",
   "project_id": 1,
   "project_name": "PMPML Bus Tracker",
-  "rating": 4,
-  "reviewer_id": 3,
-  "reviewer_name": "Prashant Kulkarni",
-  "strengths": "Math",
-  "technical_rating": 4
+  "rating": 5,
+  "reviewer_id": 2,
+  "reviewer_name": "Anand Apte",
+  "strengths": "Debugging, documentation",
+  "technical_rating": 5
  },
  "POST /api/standup": {
   "blockers": null,
-  "created_at": "2026-09-26T23:51:34.745943Z",
+  "created_at": "2026-09-27T13:18:30.071240Z",
   "date": "2026-09-27",
   "did": "GTFS import sampla. Stops table verified.",
   "id": 1,
@@ -6678,26 +6885,26 @@
   "user_name": "Aarav Deshmukh"
  },
  "POST /api/upload/avatar": {
-  "avatar_url": "/uploads/avatars/20260926_235405_aarav.png",
+  "avatar_url": "/uploads/avatars/20260927_131925_aarav.png",
   "message": "Avatar uploaded successfully.",
   "success": true,
-  "url": "/uploads/avatars/20260926_235405_aarav.png"
+  "url": "/uploads/avatars/20260927_131925_aarav.png"
  },
  "POST /api/upload/image": {
   "bytes": 70,
   "provider": "local_disk",
-  "secure_url": "/uploads/blogs/20260926_235405_wari.png",
+  "secure_url": "/uploads/blogs/20260927_131925_wari.png",
   "success": true,
-  "url": "/uploads/blogs/20260926_235405_wari.png"
+  "url": "/uploads/blogs/20260927_131925_wari.png"
  },
  "POST /api/upload/org-logo": {
-  "logo_url": "/uploads/logos/20260926_235405_sahyadri.png",
+  "logo_url": "/uploads/logos/20260927_131925_sahyadri.png",
   "message": "Organization logo uploaded successfully.",
   "success": true,
-  "url": "/uploads/logos/20260926_235405_sahyadri.png"
+  "url": "/uploads/logos/20260927_131925_sahyadri.png"
  },
  "PUT /api/admin/internship-durations/{duration_id}": {
-  "created_at": "2026-09-26T23:53:53.448083",
+  "created_at": "2026-09-27T13:19:10.529500",
   "duration_days": null,
   "duration_months": 2,
   "id": 8,
@@ -6707,14 +6914,14 @@
   "leaves": 3,
   "order_index": 4,
   "organization_id": 2,
-  "title": "Winter sprint (E2E-TMP-1790466803)",
-  "updated_at": "2026-09-26T23:53:53.458385"
+  "title": "Winter sprint (E2E-TMP-1790515118)",
+  "updated_at": "2026-09-27T13:19:10.540516"
  },
  "PUT /api/admin/project-statuses/reorder": {
   "statuses": [
    {
     "color": "#94A3B8",
-    "created_at": "2026-09-26T23:51:31.252193",
+    "created_at": "2026-09-27T13:18:26.308414",
     "id": 5,
     "is_default": true,
     "is_system": true,
@@ -6722,11 +6929,11 @@
     "order_index": 0,
     "organization_id": 2,
     "slug": "planning",
-    "updated_at": "2026-09-26T23:53:53.419845"
+    "updated_at": "2026-09-27T13:19:10.494824"
    },
    {
     "color": "#3B82F6",
-    "created_at": "2026-09-26T23:51:31.252197",
+    "created_at": "2026-09-27T13:18:26.308420",
     "id": 6,
     "is_default": false,
     "is_system": true,
@@ -6734,27 +6941,27 @@
     "order_index": 1,
     "organization_id": 2,
     "slug": "active",
-    "updated_at": "2026-09-26T23:53:53.421580"
+    "updated_at": "2026-09-27T13:19:10.495614"
    }
   ]
  },
  "PUT /api/admin/project-statuses/{status_id}": {
   "color": "#8C9A33",
-  "created_at": "2026-09-26T23:53:53.395756",
+  "created_at": "2026-09-27T13:19:10.459955",
   "id": 9,
   "is_default": false,
   "is_system": false,
-  "name": "QA Review (E2E-TMP-1790466803)",
+  "name": "QA Review (E2E-TMP-1790515118)",
   "order_index": 4,
   "organization_id": 2,
-  "slug": "review_e2e_tmp_1790466803",
-  "updated_at": "2026-09-26T23:53:53.410858"
+  "slug": "review_e2e_tmp_1790515118",
+  "updated_at": "2026-09-27T13:19:10.483191"
  },
  "PUT /api/admin/task-statuses/reorder": {
   "statuses": [
    {
     "color": "#94A3B8",
-    "created_at": "2026-09-26T23:51:31.282507",
+    "created_at": "2026-09-27T13:18:26.342639",
     "id": 5,
     "is_default": true,
     "is_system": true,
@@ -6763,11 +6970,11 @@
     "organization_id": 2,
     "slug": "todo",
     "status_category": "todo",
-    "updated_at": "2026-09-26T23:53:51.298868"
+    "updated_at": "2026-09-27T13:19:08.385965"
    },
    {
     "color": "#3B82F6",
-    "created_at": "2026-09-26T23:51:31.282510",
+    "created_at": "2026-09-27T13:18:26.342642",
     "id": 6,
     "is_default": false,
     "is_system": true,
@@ -6776,39 +6983,40 @@
     "organization_id": 2,
     "slug": "in_progress",
     "status_category": "in_progress",
-    "updated_at": "2026-09-26T23:53:51.300316"
+    "updated_at": "2026-09-27T13:19:08.386700"
    }
   ]
  },
  "PUT /api/admin/task-statuses/{status_id}": {
   "color": "#8C9A33",
-  "created_at": "2026-09-26T23:53:51.276403",
+  "created_at": "2026-09-27T13:19:08.358306",
   "id": 9,
   "is_default": false,
   "is_system": false,
-  "name": "QA Review (E2E-TMP-1790466803)",
+  "name": "QA Review (E2E-TMP-1790515118)",
   "order_index": 4,
   "organization_id": 2,
-  "slug": "review_e2e_tmp_1790466803",
+  "slug": "review_e2e_tmp_1790515118",
   "status_category": "in_progress",
-  "updated_at": "2026-09-26T23:53:51.290053"
+  "updated_at": "2026-09-27T13:19:08.374313"
  },
  "PUT /api/admin/users/{user_id}": {
+  "avatar_url": null,
   "bio": null,
-  "created_at": "2026-09-26T23:53:44.591994Z",
+  "created_at": "2026-09-27T13:19:01.684004Z",
   "department": "Quality",
-  "email": "e2e-tmp-1790466803.user@example.com",
+  "email": "e2e-tmp-1790515118.user@example.com",
   "id": 15,
-  "internship_duration_months": null,
-  "internship_end_date": null,
+  "internship_duration_months": 3,
+  "internship_end_date": "2026-12-27",
   "is_active": true,
   "is_paid": null,
   "job_title": null,
   "joining_date": "2026-09-27",
   "mentor_id": 4,
   "mentor_name": "Madhuri Deshpande",
-  "name": "Ninad Sawant E2E-TMP-1790466803",
-  "phone": null,
+  "name": "Ninad Sawant E2E-TMP-1790515118",
+  "phone": "+91 90040 55512",
   "role": "intern",
   "skills": [],
   "stipend_amount": null
@@ -6818,12 +7026,12 @@
   "author_name": "Anand Apte",
   "author_role": "admin",
   "body": "Baner office Wi-Fi down 2–3 PM.",
-  "created_at": "2026-09-26T23:53:58.306358Z",
+  "created_at": "2026-09-27T13:19:15.709528Z",
   "id": 4,
   "is_pinned": true,
   "project_id": 1,
   "project_name": "PMPML Bus Tracker",
-  "title": "Wi-Fi maintenance E2E-TMP-1790466803"
+  "title": "Wi-Fi maintenance E2E-TMP-1790515118"
  },
  "PUT /api/assignments/submissions/{submission_id}/review": {
   "message": "Submission reviewed successfully.",
@@ -6837,14 +7045,14 @@
    "github_url": "https://github.com/example/pmpml-eta",
    "has_file": true,
    "id": 1,
-   "reviewed_at": "2026-09-26T23:53:58.199172",
+   "reviewed_at": "2026-09-27T13:19:15.479775",
    "reviewed_by_id": 2,
    "reviewer_name": "Anand Apte",
    "score": 92.0,
    "status": "approved",
    "submission_text": "Design doc attached. Uses Kalman filter over GPS pings.",
-   "submitted_at": "2026-09-26T23:52:17.906908",
-   "updated_at": "2026-09-26T23:53:58.199377",
+   "submitted_at": "2026-09-27T13:19:15.433536",
+   "updated_at": "2026-09-27T13:19:15.480207",
    "user_email": "aarav.sahyadri-tech-labs@example.com",
    "user_id": 6,
    "user_name": "Aarav Deshmukh"
@@ -6852,17 +7060,17 @@
   "success": true
  },
  "PUT /api/assignments/{assignment_id}": {
-  "assigned_to_user_id": null,
-  "assigned_user_name": null,
+  "assigned_to_user_id": 6,
+  "assigned_user_name": "Aarav Deshmukh",
   "attachment_name": null,
   "attachment_url": null,
   "cohort_id": null,
   "cohort_name": null,
-  "created_at": "2026-09-26T23:53:58.211060",
+  "created_at": "2026-09-27T13:19:15.574936",
   "created_by_id": 2,
   "creator_name": "Anand Apte",
   "description": "temp",
-  "due_date": null,
+  "due_date": "2026-09-30",
   "graded_count": 0,
   "has_attachment": false,
   "id": 5,
@@ -6875,8 +7083,8 @@
   "status": "active",
   "submission_count": 0,
   "submissions_count": 0,
-  "title": "Quiz: Pune metro lines E2E-TMP-1790466803",
-  "updated_at": "2026-09-26T23:53:58.226785"
+  "title": "Quiz: Pune metro lines E2E-TMP-1790515118",
+  "updated_at": "2026-09-27T13:19:15.591960"
  },
  "PUT /api/attendance/{record_id}": {
   "check_in": "09:40",
@@ -6893,7 +7101,7 @@
   "checkout_source": "manual",
   "date": "2026-09-02",
   "hours_worked": 9.08,
-  "id": 76,
+  "id": 77,
   "notes": null,
   "status": "present",
   "user_id": 7,
@@ -6904,69 +7112,73 @@
   "author_name": "Anand Apte",
   "content": "<p>temp</p>",
   "cover_image_url": null,
-  "created_at": "2026-09-26T23:53:58.348515Z",
+  "created_at": "2026-09-27T13:19:15.757172Z",
   "excerpt": null,
   "id": 3,
-  "published_at": "2026-09-26T23:53:58.359699Z",
-  "slug": "vada-pav-and-version-control-e2e-tmp-1790466803",
+  "published_at": "2026-09-27T13:19:15.768207Z",
+  "slug": "vada-pav-and-version-control-e2e-tmp-1790515118",
   "status": "published",
-  "tags": [],
-  "title": "Vada pav and version control E2E-TMP-1790466803",
-  "updated_at": "2026-09-26T23:53:58.360436Z"
+  "tags": [
+   "culture"
+  ],
+  "title": "Vada pav and version control E2E-TMP-1790515118",
+  "updated_at": "2026-09-27T13:19:15.769423Z"
  },
  "PUT /api/cohorts/{cohort_id}": {
-  "created_at": "2026-09-26T23:53:58.069354Z",
+  "created_at": "2026-09-27T13:19:15.276125Z",
   "created_by_id": 2,
   "description": "Updated",
   "end_date": "2027-01-25",
   "id": 4,
   "member_count": 0,
   "members": [],
-  "name": "Nagpur Winter Batch E2E-TMP-1790466803",
+  "name": "Nagpur Winter Batch E2E-TMP-1790515118",
   "start_date": "2026-10-27"
  },
  "PUT /api/leave/review/{leave_id}": {
-  "attachment_name": "invite.pdf",
-  "attachment_url": "/api/leave/5/attachment",
-  "created_at": "2026-09-26T23:54:02.848441Z",
+  "attachment_name": null,
+  "attachment_url": null,
+  "created_at": "2026-09-27T13:19:22.651729Z",
   "days": 1,
-  "end_date": "2026-11-30",
-  "has_attachment": true,
-  "id": 5,
+  "end_date": "2026-10-13",
+  "has_attachment": false,
+  "id": 2,
   "leave_type": "casual",
-  "reason": "Family function in Pune E2E-TMP-1790466803",
-  "reviewed_at": "2026-09-26T23:54:02.943177Z",
+  "reason": "Sister's wedding in Satara",
+  "review_comment": "Confirmed.",
+  "reviewed_at": "2026-09-27T13:19:22.713371Z",
   "reviewed_by": 2,
   "reviewer_name": "Anand Apte",
-  "start_date": "2026-11-30",
+  "start_date": "2026-10-13",
   "status": "rejected",
   "user_id": 7,
   "user_name": "Sakshi Patil"
  },
  "PUT /api/leave/{leave_id}/review": {
-  "attachment_name": "invite.pdf",
-  "attachment_url": "/api/leave/5/attachment",
-  "created_at": "2026-09-26T23:54:02.848441Z",
+  "attachment_name": "note.pdf",
+  "attachment_url": "/api/leave/1/attachment",
+  "created_at": "2026-09-27T13:19:22.473050Z",
   "days": 1,
-  "end_date": "2026-11-30",
+  "end_date": "2026-10-06",
   "has_attachment": true,
-  "id": 5,
+  "id": 1,
   "leave_type": "casual",
-  "reason": "Family function in Pune E2E-TMP-1790466803",
-  "reviewed_at": "2026-09-26T23:54:02.889029Z",
+  "reason": "Ganeshotsav at home in Kolhapur",
+  "review_comment": "Confirmed.",
+  "reviewed_at": "2026-09-27T13:19:22.621496Z",
   "reviewed_by": 2,
   "reviewer_name": "Anand Apte",
-  "start_date": "2026-11-30",
-  "status": "rejected",
+  "start_date": "2026-10-06",
+  "status": "approved",
   "user_id": 7,
   "user_name": "Sakshi Patil"
  },
  "PUT /api/org/profile": {
   "ok": true,
   "organization": {
-   "created_at": "2026-09-26T23:51:25.548111",
+   "created_at": "2026-09-27T13:18:20.568823",
    "id": 2,
-   "logo_url": "/uploads/logos/20260926_235225_sahyadri.png",
+   "logo_url": null,
    "name": "Sahyadri Tech Labs",
    "slug": "sahyadri-tech-labs",
    "status": "active",
@@ -6994,7 +7206,7 @@
  },
  "PUT /api/org/smtp": {
   "config": {
-   "created_at": "2026-09-26T23:52:03.972023",
+   "created_at": "2026-09-27T13:19:01.413128",
    "encryption": "tls",
    "has_password": false,
    "host": "",
@@ -7013,7 +7225,7 @@
    "port": 587,
    "sender_email": "noreply@example.com",
    "sender_name": "Sahyadri Tech Labs",
-   "updated_at": "2026-09-26T23:53:44.360643",
+   "updated_at": "2026-09-27T13:19:01.411586",
    "username": ""
   },
   "message": "SMTP settings saved successfully.",
@@ -7022,9 +7234,9 @@
  "PUT /api/platform/organizations/{org_id}/status": {
   "ok": true,
   "organization": {
-   "created_at": "2026-09-26T23:51:25.548111",
+   "created_at": "2026-09-27T13:18:20.568823",
    "id": 2,
-   "logo_url": "/uploads/logos/20260926_235405_sahyadri.png",
+   "logo_url": "/uploads/logos/20260927_131925_sahyadri.png",
    "name": "Sahyadri Tech Labs",
    "slug": "sahyadri-tech-labs",
    "status": "suspended",
@@ -7033,8 +7245,9 @@
   }
  },
  "PUT /api/profile": {
+  "avatar_url": null,
   "bio": "COEP '27 · Pune · loves trains",
-  "created_at": "2026-09-26T23:51:30.536786Z",
+  "created_at": "2026-09-27T13:18:25.560869Z",
   "department": "Engineering",
   "email": "aarav.sahyadri-tech-labs@example.com",
   "id": 6,
@@ -7058,23 +7271,23 @@
   "attachments": [],
   "can_delete": true,
   "comment_count": 0,
-  "created_at": "2026-09-26T23:53:55.683913Z",
+  "created_at": "2026-09-27T13:19:12.822854Z",
   "created_by_id": 2,
   "created_by_name": "Anand Apte",
-  "deadline": null,
+  "deadline": "2026-10-02",
   "description": "",
-  "due_date": null,
+  "due_date": "2026-10-02",
   "id": 12,
   "is_overdue": false,
   "priority": "high",
   "project_id": 5,
   "status": "todo",
-  "title": "Map Dadar–Churchgate tiffin route E2E-TMP-1790466803"
+  "title": "Map Dadar–Churchgate tiffin route E2E-TMP-1790515118"
  },
  "PUT /api/projects/{project_id}": {
-  "created_at": "2026-09-26T23:53:55.617379Z",
+  "created_at": "2026-09-27T13:19:12.742031Z",
   "description": "Updated",
-  "end_date": null,
+  "end_date": "2026-10-27",
   "id": 5,
   "intern_ids": [],
   "members": [],
@@ -7091,7 +7304,7 @@
     "role": "mentor"
    }
   ],
-  "name": "None",
+  "name": "Mumbai Dabbawala Route Planner E2E-TMP-1790515118",
   "progress": 0,
   "start_date": "2026-09-27",
   "status": "active",
@@ -7101,25 +7314,25 @@
  },
  "PUT /api/reviews/{review_id}": {
   "communication_rating": 3,
-  "created_at": "2026-09-26T23:54:05.214247Z",
-  "feedback": null,
+  "created_at": "2026-09-27T13:19:25.248064Z",
+  "feedback": "Solid progress on ETA.",
   "id": 3,
-  "improvements": null,
+  "improvements": "Docs",
   "initiative_rating": 4,
   "intern_id": 8,
   "intern_name": "Omkar Jadhav",
-  "period": "E2E E2E-TMP-1790466803",
+  "period": "E2E E2E-TMP-1790515118",
   "project_id": 1,
   "project_name": "PMPML Bus Tracker",
   "rating": 5,
   "reviewer_id": 3,
   "reviewer_name": "Prashant Kulkarni",
-  "strengths": null,
+  "strengths": "Math",
   "technical_rating": 4
  },
  "PUT /api/standup/{log_id}": {
-  "blockers": null,
-  "created_at": "2026-09-26T23:54:05.149061Z",
+  "blockers": "None",
+  "created_at": "2026-09-27T13:19:25.174666Z",
   "date": "2026-09-27",
   "did": "ETA baseline",
   "id": 4,

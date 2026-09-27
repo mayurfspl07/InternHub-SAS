@@ -108,8 +108,8 @@ async def create_announcement(request: Request, db: DbSession, data: Announcemen
         raise HTTPException(status_code=403)
 
     payload = await get_payload(request, data)
-    title = str(payload.get("title", "")).strip()
-    body = str(payload.get("body", "")).strip()
+    title = str(payload.get("title") or "").strip()
+    body = str(payload.get("body") or "").strip()
     if not title or not body:
         raise HTTPException(status_code=422, detail="Title and body are required.")
 

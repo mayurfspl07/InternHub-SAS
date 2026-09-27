@@ -186,6 +186,10 @@ async def list_all_blogs(
                      else BlogPost.organization_id == org_id)
     if status and status in VALID_STATUSES:
         q = q.filter(BlogPost.status == status)
+    search = (request.query_params.get("search") or "").strip()
+    if search:
+        pattern = f"%{search}%"
+        q = q.filter(or_(BlogPost.title.ilike(pattern), BlogPost.excerpt.ilike(pattern), BlogPost.tags.ilike(pattern)))
     total = q.count()
     posts = (
         q.order_by(BlogPost.created_at.desc())
@@ -219,9 +223,9 @@ async def create_blog(request: Request, db: DbSession, data: BlogCreatePayload |
     user = _require_admin(request, db)
 
     payload = await get_payload(request, data)
-    title = str(payload.get("title", "")).strip()
+    title = str(payload.get("title") or "").strip()
     # Sanitize on write: stored HTML is always safe to render.
-    content = sanitize_html(str(payload.get("content", "")).strip())
+    content = sanitize_html(str(payload.get("content") or "").strip())
     if not title or not content:
         raise HTTPException(status_code=422, detail="Title and content are required.")
 

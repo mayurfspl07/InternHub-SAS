@@ -183,6 +183,7 @@ def list_organization_members(
         data = membership.to_dict()
         data["user_name"] = user.name
         data["user_email"] = user.email
+        data["avatar_url"] = user.avatar_url
         data["user_phone"] = user.phone
         members.append(data)
 

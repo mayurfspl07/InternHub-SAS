@@ -25,6 +25,7 @@ def _user_dict(u: User) -> dict:
         "department": u.department,
         "phone": u.phone,
         "job_title": u.job_title,
+        "avatar_url": u.avatar_url,
         "joining_date": u.joining_date.isoformat() if u.joining_date else None,
         "skills": u.skills_list(),
         "created_at": isoformat_utc(u.created_at),
@@ -257,6 +258,7 @@ async def get_interns_dropdown(request: Request, db: DbSession):
             "role": u.role,
             "department": u.department,
             "job_title": u.job_title,
+            "avatar_url": u.avatar_url,
             "phone": u.phone,
             "mentor_id": u.mentor_id,
             "mentor_name": mentor_map.get(u.mentor_id) if u.mentor_id else None,
@@ -300,6 +302,7 @@ async def get_mentors_dropdown(request: Request, db: DbSession):
             "role": m.role,
             "department": m.department,
             "job_title": m.job_title,
+            "avatar_url": m.avatar_url,
         }
         for m in mentors
     ]

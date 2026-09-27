@@ -30,6 +30,11 @@ Swagger UI and ReDoc are not served.
   the count. Beyond the limit the API returns `429` with `Retry-After`.
 - `POST /api/auth/logout` clears the session. `POST /api/profile/change-password` signs out every other session and
   returns a fresh token for the current one.
+- **Forgotten password:** `POST /api/auth/password/forgot {"email"}` always answers `200` with the same message, so it
+  cannot reveal which accounts exist. For an active account it e-mails a 6-digit code (through the organization's
+  SMTP settings) that is valid for 15 minutes. `POST /api/auth/password/reset {"email", "code", "new_password",
+  "confirm_password"}` sets the new password (same rules as change-password), signs out every session and uses up the
+  code. A code allows 5 wrong tries; requests share the sign-in rate limit.
 
 **Sign-up paths:**
 
@@ -100,6 +105,8 @@ All routes are under the organization rules in section 2.
 | POST | `/api/auth/login` | Public | body: `email`, `password`, `remember` |
 | POST | `/api/auth/logout` | Any (clears the session) | — |
 | GET | `/api/auth/me` | Any signed-in user | — |
+| POST | `/api/auth/password/forgot` | Public | body: `email` |
+| POST | `/api/auth/password/reset` | Public | body: `email`, `code`, `new_password`, `confirm_password` |
 | POST | `/api/auth/register` | Public | body: `name`, `email`, `password`, `confirm_password`, `role`, `phone`, `department`, `job_title`, `joining_date`, `organization_name`, `organization_slug` |
 | GET | `/api/profile` | Any signed-in user | — |
 | PUT | `/api/profile` | Any signed-in user | body: `bio`, `phone`, `skills` |
@@ -312,7 +319,7 @@ All routes are under the organization rules in section 2.
 
 | Method | Path | Who can call it | Request |
 |---|---|---|---|
-| GET | `/api/standup` | Any signed-in user (interns: own; mentors: their interns) | — |
+| GET | `/api/standup` | Any signed-in user (interns: own; mentors: their interns) | query: `from`, `to`, `user_id`, `mood`, `search`, `page`, `page_size` |
 | POST | `/api/standup` | Any signed-in user (interns: today only) | body: `date`, `did`, `plan`, `blockers`, `mood` |
 | GET | `/api/standup/today` | Any signed-in user | — |
 | PUT | `/api/standup/{log_id}` | Author, Admin | body: `did`, `plan`, `blockers`, `mood` |
@@ -360,7 +367,7 @@ All routes are under the organization rules in section 2.
 
 | Method | Path | Who can call it | Request |
 |---|---|---|---|
-| GET | `/api/audit` | Admin; Mentor/Intern (activity they can see) | — |
+| GET | `/api/audit` | Admin; Mentor/Intern (activity they can see) | query: `action`, `actor_id`, `project_id`, `date`, `search`, `page`, `page_size` |
 | GET | `/api/search` | Any signed-in user (scoped by role) | — |
 
 ### Recycle bin & maintenance
@@ -388,7 +395,7 @@ All routes are under the organization rules in section 2.
 |---|---|---|---|
 | GET | `/api/blogs` | Public | query: `page`, `per_page`, `tag`, `search` |
 | POST | `/api/blogs` | Admin | body: `title`, `content`, `excerpt`, `cover_image_url`, `tags`, `status`, `slug` |
-| GET | `/api/blogs/admin/all` | Admin | query: `status`, `page`, `per_page` |
+| GET | `/api/blogs/admin/all` | Admin | query: `status`, `search`, `page`, `per_page` |
 | PUT | `/api/blogs/{post_id}` | Admin | body: `title`, `content`, `excerpt`, `cover_image_url`, `tags`, `status`, `slug` |
 | DELETE | `/api/blogs/{post_id}` | Admin | — |
 | GET | `/api/blogs/{slug}` | Public (drafts: Admin) | — |
@@ -412,6 +419,7 @@ All routes are under the organization rules in section 2.
 | PUT | `/api/platform/organizations/{org_id}/status` | Platform admin | body: `status` |
 | GET | `/api/superadmin/dashboard` | Platform admin | — |
 | GET | `/superadmin/dashboard` | Platform admin | — |
+
 ---
 
 ## 5. Task statuses (workflow buckets)
@@ -595,7 +603,7 @@ The intern's mentor and the organization's admins are notified.
 ### 9.2 Review (Admin; Mentor for own interns)
 `POST /api/leave/{leave_id}/review` (also `PUT`, and `/api/leave/review/{leave_id}`) with
 `{"decision": "approve" | "reject", "comment": "..."}` (`approved`/`rejected` are accepted too). Approval marks the
-leave days as `on_leave` in attendance.
+leave days as `on_leave` in attendance. The comment is stored and returned as `review_comment` on the request.
 
 ### 9.3 Lists and documents
 - `GET /api/leave/mine` returns `requests`, `pending_requests`, `approved_requests`, `rejected_requests`,

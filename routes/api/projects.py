@@ -697,6 +697,7 @@ async def get_project_interns(request: Request, db: DbSession):
             "role": u.role,
             "department": u.department,
             "job_title": u.job_title,
+            "avatar_url": u.avatar_url,
             "mentor_id": u.mentor_id,
             "is_active": u.is_active,
         }
@@ -746,6 +747,7 @@ async def get_project_mentors(request: Request, db: DbSession):
             "role": m.role,
             "department": m.department,
             "job_title": m.job_title,
+            "avatar_url": m.avatar_url,
         }
         for m in mentors
     ]
@@ -761,7 +763,7 @@ async def create_project(request: Request, db: DbSession, data: ProjectCreatePay
     if not user or user.role not in ("admin", "mentor"):
         raise HTTPException(status_code=403)
     payload = await get_payload(request, data)
-    name = str(payload.get("name", "")).strip()
+    name = str(payload.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=422, detail="Project name is required.")
     start = None
@@ -784,7 +786,7 @@ async def create_project(request: Request, db: DbSession, data: ProjectCreatePay
     project = Project(
         organization_id=org_id,
         name=name,
-        description=str(payload.get("description", "")).strip(),
+        description=str(payload.get("description") or "").strip(),
         start_date=start,
         end_date=end,
         status=status,
@@ -937,11 +939,14 @@ async def update_project(project_id: int, request: Request, db: DbSession, data:
         raise HTTPException(status_code=403)
 
     payload = await get_payload(request, data)
-    name = str(payload.get("name", "")).strip()
-    if not name:
-        raise HTTPException(status_code=422, detail="Project name is required.")
-    project.name = name
-    project.description = str(payload.get("description", "")).strip()
+    # Unsent fields arrive as None (get_payload dumps the whole schema), so None keeps the current value.
+    if payload.get("name") is not None:
+        name = str(payload["name"]).strip()
+        if not name:
+            raise HTTPException(status_code=422, detail="Project name is required.")
+        project.name = name
+    if payload.get("description") is not None:
+        project.description = str(payload["description"]).strip()
     if payload.get("start_date"):
         try:
             project.start_date = date.fromisoformat(str(payload["start_date"]))
@@ -1106,7 +1111,7 @@ async def create_task(project_id: int, request: Request, db: DbSession, data: Ta
             raise HTTPException(status_code=403)
 
     payload = await get_payload(request, data)
-    title = str(payload.get("title", "")).strip()
+    title = str(payload.get("title") or "").strip()
     if not title:
         raise HTTPException(status_code=422, detail="Task title is required.")
     deadline = None
@@ -1129,7 +1134,7 @@ async def create_task(project_id: int, request: Request, db: DbSession, data: Ta
             raise HTTPException(status_code=422, detail="Assignee not found.")
         if (project.organization_id or 1) not in user_org_ids(db, assigned_to):
             raise HTTPException(status_code=422, detail="Assignee not found.")
-    priority = str(payload.get("priority", TaskPriority.MEDIUM))
+    priority = str(payload.get("priority") or TaskPriority.MEDIUM)
     if priority not in (TaskPriority.LOW, TaskPriority.MEDIUM, TaskPriority.HIGH):
         priority = TaskPriority.MEDIUM
     org_id = project.organization_id or _resolve_request_org_id(request, user, db) or 1
@@ -1146,7 +1151,7 @@ async def create_task(project_id: int, request: Request, db: DbSession, data: Ta
         organization_id=org_id,
         created_by_id=user.id,
         title=title,
-        description=str(payload.get("description", "")).strip(),
+        description=str(payload.get("description") or "").strip(),
         assigned_to=assigned_to,
         deadline=deadline,
         status=task_status,
@@ -1643,7 +1648,7 @@ async def create_project_comment(project_id: int, request: Request, db: DbSessio
         raise HTTPException(status_code=403, detail="Not authorized.")
 
     payload = await get_payload(request, data)
-    body = str(payload.get("body", "")).strip()
+    body = str(payload.get("body") or "").strip()
     if not body:
         raise HTTPException(status_code=422, detail="Comment body cannot be empty.")
     if len(body) > 100:
@@ -1786,8 +1791,8 @@ async def create_project_link(project_id: int, request: Request, db: DbSession, 
         raise HTTPException(status_code=403, detail="Not authorized.")
 
     payload = await get_payload(request, data)
-    link_str = str(payload.get("link", "")).strip()
-    remark_str = str(payload.get("remark", "")).strip()
+    link_str = str(payload.get("link") or "").strip()
+    remark_str = str(payload.get("remark") or "").strip()
 
     from urllib.parse import urlparse
     try:

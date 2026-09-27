@@ -3,6 +3,7 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
@@ -92,6 +93,23 @@ async def list_standups(request: Request, db: DbSession):
             pass
 
     params = request.query_params
+
+    # Optional mood and free-text filters (the app's feed filters)
+    mood_filter = str(params.get("mood") or "").strip().lower()
+    if mood_filter and mood_filter != "all":
+        q = q.filter(StandupLog.mood == mood_filter)
+    search = str(params.get("search") or "").strip()
+    if search:
+        pattern = f"%{search}%"
+        q = q.join(User, StandupLog.user_id == User.id).filter(
+            or_(
+                StandupLog.did.ilike(pattern),
+                StandupLog.plan.ilike(pattern),
+                StandupLog.blockers.ilike(pattern),
+                User.name.ilike(pattern),
+            )
+        )
+
     try:
         page = max(1, int(params.get("page", 1)))
         page_size = max(1, min(100, int(params.get("page_size", 20))))
@@ -125,8 +143,8 @@ async def submit_standup(request: Request, db: DbSession, data: StandupCreatePay
         raise HTTPException(status_code=401)
 
     payload = await get_payload(request, data)
-    did = str(payload.get("did", "")).strip()
-    plan = str(payload.get("plan", "")).strip()
+    did = str(payload.get("did") or "").strip()
+    plan = str(payload.get("plan") or "").strip()
     blockers = str(payload.get("blockers") or "").strip() or None
     mood = str(payload.get("mood") or "").strip()
     if mood not in MOOD_OPTIONS:

@@ -116,6 +116,7 @@ def _user_dict(u: User, mentor_names: dict[int, str] | None = None) -> dict:
         "department": u.department,
         "phone": u.phone,
         "job_title": u.job_title,
+        "avatar_url": u.avatar_url,
         "joining_date": u.joining_date.isoformat() if u.joining_date else None,
         "internship_duration_months": u.internship_duration_months,
         "internship_end_date": u.internship_end_date.isoformat() if u.internship_end_date else None,
@@ -395,13 +396,13 @@ async def create_user(request: Request, db: DbSession, data: AdminCreateUserRequ
     if not user or not (user.is_admin or user.is_mentor):
         raise HTTPException(status_code=403)
     payload = await get_payload(request, data)
-    name = str(payload.get("name", "")).strip()
-    email = str(payload.get("email", "")).strip().lower()
-    password = str(payload.get("password", ""))
-    role = str(payload.get("role", "intern"))
-    phone = str(payload.get("phone", "")).strip()
-    job_title = str(payload.get("job_title", "")).strip()
-    department = str(payload.get("department", "")).strip()
+    name = str(payload.get("name") or "").strip()
+    email = str(payload.get("email") or "").strip().lower()
+    password = str(payload.get("password") or "")
+    role = str(payload.get("role") or "intern")
+    phone = str(payload.get("phone") or "").strip()
+    job_title = str(payload.get("job_title") or "").strip()
+    department = str(payload.get("department") or "").strip()
 
     if not name or not email or not password:
         raise HTTPException(status_code=422, detail="Name, email, and password are required.")
@@ -661,7 +662,7 @@ async def change_role(user_id: int, request: Request, db: DbSession, data: Admin
     if target.id == user.id:
         raise HTTPException(status_code=400, detail="Cannot change your own role.")
     payload = await get_payload(request, data)
-    new_role = str(payload.get("role", ""))
+    new_role = str(payload.get("role") or "")
     # Superadmin is never assignable via this endpoint and superadmin accounts
     # cannot be retargeted by tenant admins.
     if new_role not in (UserRole.ADMIN, UserRole.MENTOR, UserRole.INTERN):
@@ -765,7 +766,7 @@ async def create_invite_link(request: Request, db: DbSession, data: AdminInviteL
         raise HTTPException(status_code=403)
 
     payload = await get_payload(request, data)
-    label = str(payload.get("label", "")).strip() or "Intern onboarding link"
+    label = str(payload.get("label") or "").strip() or "Intern onboarding link"
     mentor_id = payload.get("mentor_id")
     resolved_mentor_id: int | None = None
     if user.is_mentor:
@@ -892,6 +893,7 @@ def _intern_signup_request_dict(intern: User, db: Session) -> dict:
         "department": intern.department,
         "phone": intern.phone,
         "job_title": intern.job_title,
+        "avatar_url": intern.avatar_url,
         "mentor_id": intern.mentor_id,
         "mentor_name": mentor_name,
         "invite_link_id": intern.signup_invite_link_id,
@@ -981,7 +983,7 @@ async def review_intern_signup_request(user_id: int, request: Request, db: DbSes
         raise HTTPException(status_code=403, detail="You cannot review this signup request.")
 
     data = await request.json()
-    decision = str(data.get("decision", "")).strip().lower()
+    decision = str(data.get("decision") or "").strip().lower()
     if decision not in ("approved", "rejected"):
         raise HTTPException(status_code=422, detail="Decision must be approved or rejected.")
 
@@ -1218,7 +1220,7 @@ async def clear_database(request: Request, db: DbSession, data: ClearDataRequest
 
     if not Config.DB_CLEAR_PASSWORD:
         raise HTTPException(status_code=503, detail="Database clear is not configured on this server.")
-    password = str(payload.get("password", ""))
+    password = str(payload.get("password") or "")
     if not secrets.compare_digest(password, Config.DB_CLEAR_PASSWORD):
         raise HTTPException(status_code=403, detail="Incorrect database clear password.")
 
@@ -1337,7 +1339,7 @@ async def create_task_status(
     org_id = _resolve_admin_org_id(request, user, db)
     payload = await get_payload(request, data)
 
-    name = str(payload.get("name", "")).strip()
+    name = str(payload.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=422, detail="Status bucket name is required.")
 
@@ -1368,7 +1370,7 @@ async def create_task_status(
             detail=f"A status bucket named '{name}' already exists in this organization.",
         )
 
-    category = str(payload.get("status_category", TaskStatusCategory.IN_PROGRESS)).strip().lower()
+    category = str(payload.get("status_category") or TaskStatusCategory.IN_PROGRESS).strip().lower()
     if category not in TaskStatusCategory.ALL:
         category = TaskStatusCategory.IN_PROGRESS
 
@@ -1393,7 +1395,7 @@ async def create_task_status(
         except (TypeError, ValueError):
             order_index = 0
 
-    color = str(payload.get("color", "#6366F1")).strip() or "#6366F1"
+    color = str(payload.get("color") or "#6366F1").strip() or "#6366F1"
 
     bucket = TaskStatusBucket(
         organization_id=org_id,
@@ -1654,7 +1656,7 @@ async def create_project_status(
     org_id = _resolve_admin_org_id(request, user, db)
     payload = await get_payload(request, data)
 
-    name = str(payload.get("name", "")).strip()
+    name = str(payload.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=422, detail="Project status bucket name is required.")
 
@@ -1706,7 +1708,7 @@ async def create_project_status(
         except (TypeError, ValueError):
             order_index = 0
 
-    color = str(payload.get("color", "#3B82F6")).strip() or "#3B82F6"
+    color = str(payload.get("color") or "#3B82F6").strip() or "#3B82F6"
 
     bucket = ProjectStatusBucket(
         organization_id=org_id,
@@ -1977,7 +1979,7 @@ async def create_internship_duration(
     org_id = _resolve_admin_org_id(request, user, db)
     payload = await get_payload(request, data)
 
-    title = str(payload.get("title", "")).strip()
+    title = str(payload.get("title") or "").strip()
     if not title:
         raise HTTPException(status_code=422, detail="Duration title is required.")
 

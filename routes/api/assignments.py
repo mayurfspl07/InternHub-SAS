@@ -257,11 +257,11 @@ async def create_assignment(
     org_id = _resolve_org_id(request, user, db)
     payload = await get_payload(request, data)
 
-    title = str(payload.get("title", "")).strip()
+    title = str(payload.get("title") or "").strip()
     if not title:
         raise HTTPException(status_code=422, detail="Assignment title is required.")
 
-    description = str(payload.get("description", "")).strip()
+    description = str(payload.get("description") or "").strip()
     project_id = payload.get("project_id")
     cohort_id = payload.get("cohort_id")
     assigned_to_user_id = payload.get("assigned_to_user_id")
@@ -277,7 +277,7 @@ async def create_assignment(
             raise HTTPException(status_code=422, detail="Invalid due_date format. Use YYYY-MM-DD.")
 
     max_score = int(payload.get("max_score", 100))
-    status = str(payload.get("status", AssignmentStatus.ACTIVE)).strip()
+    status = str(payload.get("status") or AssignmentStatus.ACTIVE).strip()
     if status not in (
         AssignmentStatus.DRAFT,
         AssignmentStatus.ACTIVE,
