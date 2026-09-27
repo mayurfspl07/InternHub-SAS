@@ -1,58 +1,49 @@
+/// An intern invite link from `GET /api/admin/invite-link` (`links[]`).
 class InviteLinkModel {
   final String id;
   final String token;
+  final String url;
   final String label;
   final String? mentorId;
   final String? mentorName;
+  final String? createdById;
+  final String? createdByName;
   final int usageCount;
-  final int? maxUses;
   final bool isActive;
   final DateTime createdAt;
 
   const InviteLinkModel({
     required this.id,
     required this.token,
+    required this.url,
     required this.label,
     this.mentorId,
     this.mentorName,
+    this.createdById,
+    this.createdByName,
     this.usageCount = 0,
-    this.maxUses,
     this.isActive = true,
     required this.createdAt,
   });
 
-  String get inviteUrl => 'https://internhub.io/join/$token';
-
   factory InviteLinkModel.fromJson(Map<String, dynamic> json) {
-    DateTime parseDate(dynamic v) {
-      if (v == null) return DateTime.now();
-      if (v is DateTime) return v;
-      return DateTime.tryParse(v.toString()) ?? DateTime.now();
-    }
-
     return InviteLinkModel(
       id: json['id']?.toString() ?? '',
-      token: json['token']?.toString() ?? json['invite_code']?.toString() ?? '',
-      label: json['label']?.toString() ?? 'Intern Onboarding Link',
+      token: json['token']?.toString() ?? '',
+      url: json['url']?.toString() ?? '',
+      label: json['label']?.toString() ?? '',
       mentorId: json['mentor_id']?.toString(),
-      mentorName: json['mentor_name']?.toString() ?? json['mentor']?['name']?.toString(),
-      usageCount: (json['usage_count'] ?? json['uses'] as num?)?.toInt() ?? 0,
-      maxUses: (json['max_uses'] as num?)?.toInt(),
-      isActive: json['is_active'] is bool ? json['is_active'] as bool : true,
-      createdAt: parseDate(json['created_at']),
+      mentorName: json['mentor_name']?.toString(),
+      createdById: json['created_by_id']?.toString(),
+      createdByName: json['created_by_name']?.toString(),
+      usageCount: (json['usage_count'] as num?)?.toInt() ?? 0,
+      isActive: json['is_active'] == true,
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '')?.toLocal() ?? DateTime.now(),
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'token': token,
-      'label': label,
-      'mentor_id': mentorId,
-    };
   }
 }
 
+/// A pending intern sign-up from `GET /api/admin/intern-signup-requests` (`requests[]`).
 class SignupRequestModel {
   final String id;
   final String name;
@@ -60,8 +51,9 @@ class SignupRequestModel {
   final String? phone;
   final String? department;
   final String? jobTitle;
-  final String? joiningDate;
-  final String status; // 'pending', 'approved', 'rejected'
+  final String? inviteLabel;
+  final String? mentorName;
+  final String? linkCreatorName;
   final DateTime createdAt;
 
   const SignupRequestModel({
@@ -71,28 +63,29 @@ class SignupRequestModel {
     this.phone,
     this.department,
     this.jobTitle,
-    this.joiningDate,
-    this.status = 'pending',
+    this.inviteLabel,
+    this.mentorName,
+    this.linkCreatorName,
     required this.createdAt,
   });
 
   factory SignupRequestModel.fromJson(Map<String, dynamic> json) {
-    DateTime parseDate(dynamic v) {
-      if (v == null) return DateTime.now();
-      if (v is DateTime) return v;
-      return DateTime.tryParse(v.toString()) ?? DateTime.now();
+    String? str(String key) {
+      final v = json[key]?.toString();
+      return (v == null || v.isEmpty) ? null : v;
     }
 
     return SignupRequestModel(
       id: json['id']?.toString() ?? '',
-      name: json['name']?.toString() ?? 'Applicant',
+      name: json['name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
-      phone: json['phone']?.toString(),
-      department: json['department']?.toString(),
-      jobTitle: json['job_title']?.toString(),
-      joiningDate: json['joining_date']?.toString(),
-      status: json['status']?.toString() ?? 'pending',
-      createdAt: parseDate(json['created_at']),
+      phone: str('phone'),
+      department: str('department'),
+      jobTitle: str('job_title'),
+      inviteLabel: str('invite_label'),
+      mentorName: str('mentor_name'),
+      linkCreatorName: str('link_creator_name'),
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '')?.toLocal() ?? DateTime.now(),
     );
   }
 }

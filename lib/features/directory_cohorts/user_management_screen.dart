@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import 'widgets/intern_terms_section.dart';
+import '../../shared/widgets/load_error_view.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
@@ -34,7 +36,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUsers();
+    Future.microtask(_loadUsers); // fetchUsers updates app state, which can't change during the first build
   }
 
   @override
@@ -56,12 +58,19 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     final roleParam = isMentor ? 'intern' : (_selectedRoleFilter == 'all' ? null : _selectedRoleFilter);
     final searchParam = _searchController.text.trim().isEmpty ? null : _searchController.text.trim();
 
-    final result = await ref.read(appStateProvider.notifier).fetchUsers(
-      role: roleParam,
-      search: searchParam,
-      page: _currentPage,
-      pageSize: _pageSize,
-    );
+    final Map<String, dynamic> result;
+    try {
+      result = await ref.read(appStateProvider.notifier).fetchUsers(
+        role: roleParam,
+        search: searchParam,
+        page: _currentPage,
+        pageSize: _pageSize,
+      );
+    } catch (_) {
+      // The error is kept in appState.usersError and shown by the list.
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
     if (mounted) {
       setState(() {
         _currentPage = (result['page'] as num?)?.toInt() ?? _currentPage;
@@ -84,13 +93,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     DateTime initial = today;
-    if (controller.text.trim().isNotEmpty) {
-      try {
-        final parsed = DateTime.parse(controller.text.trim());
-        if (!parsed.isAfter(today)) {
-          initial = parsed;
-        }
-      } catch (_) {}
+    final parsed = DateTime.tryParse(controller.text.trim());
+    if (parsed != null && !parsed.isAfter(today)) {
+      initial = parsed;
     }
     final picked = await showDatePicker(
       context: context,
@@ -270,6 +275,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     bool obscurePassword = true;
     bool obscureConfirm = true;
     bool isCreating = false;
+    final terms = InternTerms();
 
     // Field-level error messages
     String? nameError;
@@ -575,6 +581,11 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     const SizedBox(height: 12),
                   ],
 
+                  if (selectedRole == UserRole.intern) ...[
+                    InternTermsSection(terms: terms),
+                    const SizedBox(height: 12),
+                  ],
+
                   // Phone (Required)
                   CustomTextField(
                     label: 'Phone *',
@@ -697,6 +708,11 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         return;
                       }
 
+                      if (selectedRole == UserRole.intern && terms.problem != null) {
+                        setModalState(() => apiError = terms.problem);
+                        return;
+                      }
+
                       final nationalPhoneDigits = _extractNationalPhoneDigits(phone)!;
 
                       setModalState(() {
@@ -717,6 +733,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           'job_title': title,
                           'department': dept,
                           'joining_date': joiningDate.isNotEmpty ? joiningDate : null,
+                          if (selectedRole == UserRole.intern) ...terms.toPayload(),
                         };
 
                         // Mentor: number or null; only for intern; omitted when mentor creates
@@ -744,7 +761,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       } catch (e) {
                         setModalState(() {
                           isCreating = false;
-                          apiError = e.toString().replaceAll('ApiException: ', '');
+                          apiError = apiErrorMessage(e);
                         });
                       }
                     },
@@ -754,6 +771,91 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  /// Add an account that already exists (e.g. a public sign-up) to this organization.
+  void _showAddExistingDialog() {
+    final emailController = TextEditingController();
+    final isMentorActor = ref.read(appStateProvider).currentUser.role == UserRole.mentor;
+    UserRole role = UserRole.intern;
+    String? error;
+    bool saving = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          title: const Text('Add existing account'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Adds someone who already has an InternHub account (for example a public sign-up) to your organization.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'E-mail'),
+              ),
+              if (!isMentorActor) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<UserRole>(
+                  initialValue: role,
+                  decoration: const InputDecoration(labelText: 'Role'),
+                  items: const [UserRole.intern, UserRole.mentor, UserRole.admin]
+                      .map((r) => DropdownMenuItem(value: r, child: Text(r.label)))
+                      .toList(),
+                  onChanged: (v) => setDlg(() => role = v ?? role),
+                ),
+              ],
+              if (error != null) ...[
+                const SizedBox(height: 12),
+                Text(error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final email = emailController.text.trim().toLowerCase();
+                      if (!email.contains('@')) {
+                        setDlg(() => error = 'Enter the account\'s e-mail address.');
+                        return;
+                      }
+                      setDlg(() {
+                        saving = true;
+                        error = null;
+                      });
+                      final nav = Navigator.of(ctx);
+                      final messenger = ScaffoldMessenger.of(context);
+                      try {
+                        await ref.read(appStateProvider.notifier).addOrganizationMember({
+                          'name': email,
+                          'email': email,
+                          'role': role.toApiValue(),
+                        });
+                        nav.pop();
+                        messenger.showSnackBar(SnackBar(content: Text('$email added to your organization')));
+                        _loadUsers(page: 1);
+                      } catch (e) {
+                        setDlg(() {
+                          saving = false;
+                          error = apiErrorMessage(e);
+                        });
+                      }
+                    },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -770,6 +872,12 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     List<UserModel> mentors = [];
     bool isLoadingMentors = false;
     bool isSaving = false;
+    UserRole selectedRole = user.role;
+    final terms = InternTerms(
+      durationMonths: user.internshipDurationMonths,
+      isPaid: user.isPaid,
+      stipendAmount: user.stipendAmount,
+    );
 
     // Field-level error messages
     String? nameError;
@@ -979,6 +1087,31 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     const SizedBox(height: 12),
                   ],
 
+                  // Role (admins only, never their own account)
+                  if (ref.read(appStateProvider).currentUser.isAdmin && ref.read(appStateProvider).currentUser.id != user.id) ...[
+                    const Text('Role', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.ink)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<UserRole>(
+                      initialValue: selectedRole == UserRole.superadmin ? UserRole.admin : selectedRole,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: AppColors.surfaceMuted,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                      ),
+                      items: const [UserRole.intern, UserRole.mentor, UserRole.admin]
+                          .map((r) => DropdownMenuItem(value: r, child: Text(r.label)))
+                          .toList(),
+                      onChanged: (val) => setModalState(() => selectedRole = val ?? selectedRole),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  if (user.role == UserRole.intern) ...[
+                    InternTermsSection(terms: terms),
+                    const SizedBox(height: 12),
+                  ],
+
                   // Phone (Required)
                   CustomTextField(
                     label: 'Phone *',
@@ -1093,6 +1226,11 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         return;
                       }
 
+                      if (user.role == UserRole.intern && terms.problem != null) {
+                        setModalState(() => apiError = terms.problem);
+                        return;
+                      }
+
                       final nationalPhoneDigits = _extractNationalPhoneDigits(phone)!;
 
                       setModalState(() {
@@ -1111,6 +1249,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           'job_title': title,
                           'department': dept,
                           'joining_date': joiningDate.isNotEmpty ? joiningDate : null,
+                          if (user.role == UserRole.intern) ...terms.toPayload(),
                         };
 
                         if (user.role == UserRole.intern) {
@@ -1120,6 +1259,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         }
 
                         await ref.read(appStateProvider.notifier).updateUser(user.id, payload);
+                        if (selectedRole != user.role && !(user.role == UserRole.superadmin && selectedRole == UserRole.admin)) {
+                          await ref.read(appStateProvider.notifier).changeUserRole(user.id, selectedRole);
+                        }
                         nav.pop();
                         scaffoldMessenger.showSnackBar(
                           SnackBar(
@@ -1133,7 +1275,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       } catch (e) {
                         setModalState(() {
                           isSaving = false;
-                          apiError = e.toString().replaceAll('ApiException: ', '');
+                          apiError = apiErrorMessage(e);
                         });
                       }
                     },
@@ -1314,6 +1456,12 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     onRefresh: _loadUsers,
                     child: _isLoading && filtered.isEmpty
                         ? const Center(child: CircularProgressIndicator())
+                        : state.usersError != null && filtered.isEmpty
+                        ? LoadErrorView(
+                            title: "Couldn't load users",
+                            message: state.usersError!,
+                            onRetry: () => _loadUsers(page: _currentPage),
+                          )
                         : filtered.isEmpty
                             ? Center(
                                 child: Column(
@@ -1348,10 +1496,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                 itemCount: filtered.length,
                                 itemBuilder: (context, i) {
                                   final u = filtered[i];
-                                  final isFeatured = (i % 3 == 2);
-                                  final metricVal = u.role == UserRole.mentor
-                                      ? '\$350,500'
-                                      : (i % 2 == 0 ? '\$120,100' : '\$80,320');
 
                                   return GestureDetector(
                                     onLongPress: () {
@@ -1408,14 +1552,15 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                     },
                                     child: GridFeatureCard(
                                       title: u.name,
-                                      subtitle: u.department != null && u.department!.isNotEmpty
-                                          ? u.department
-                                          : (u.role == UserRole.intern ? 'Chemical Machinery & Orbi' : 'Tech Solutions, Inc.'),
-                                      metricValue: metricVal,
-                                      metricLabel: 'Total in Pipeline',
+                                      subtitle: (u.department ?? '').isNotEmpty ? u.department : u.email,
+                                      metricValue: u.role.label,
+                                      metricLabel: [
+                                        u.isActive ? 'Active' : 'Inactive',
+                                        if ((u.mentorName ?? '').isNotEmpty) 'Mentor: ${u.mentorName}',
+                                      ].join(' · '),
                                       avatarUrl: u.avatarUrl,
-                                      initials: u.name.isNotEmpty ? u.name[0].toUpperCase() : 'U',
-                                      isFeaturedYellow: isFeatured,
+                                      initials: u.name.isNotEmpty ? u.name[0].toUpperCase() : '?',
+                                      isFeaturedYellow: false,
                                       onTap: () => User360ProfileDialog.show(context, userId: u.id, fallbackUser: u),
                                     ),
                                   );
@@ -1432,22 +1577,26 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               left: 0,
               right: 0,
               child: Center(
-                child: FloatingMiniActionCapsule(
-                  onSettingsTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Filter settings updated'),
-                        behavior: SnackBarBehavior.floating,
-                        duration: Duration(seconds: 1),
+                child: Wrap(
+                  spacing: 10,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _showAddExistingDialog,
+                      icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+                      label: const Text('Add existing'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.surface,
+                        foregroundColor: AppColors.ink,
+                        elevation: 2,
                       ),
-                    );
-                  },
-                  onAddTap: _showCreateUserDialog,
-                  onEditTap: () {
-                    if (filtered.isNotEmpty) {
-                      _showEditUserDialog(filtered.first);
-                    }
-                  },
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _showCreateUserDialog,
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('New user'),
+                      style: ElevatedButton.styleFrom(elevation: 2),
+                    ),
+                  ],
                 ),
               ),
             ),

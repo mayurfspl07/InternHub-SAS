@@ -60,10 +60,18 @@ class _LeaveDashboardScreenState extends ConsumerState<LeaveDashboardScreen> {
   }
 
   void _openApplyDialog() {
-    final balance = _mineResponse?.balance ?? const LeaveBalance(used: 0, quota: 15, remaining: 15);
+    final mine = _mineResponse;
+    if (mine == null) {
+      // Without the real balance the dialog can't check the request; load it first.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Your leave balance is still loading. Try again in a moment.')),
+      );
+      _loadData();
+      return;
+    }
     ApplyLeaveDialog.show(
       context,
-      balance: balance,
+      balance: mine.balance,
       onSuccess: _loadData,
     );
   }
@@ -134,7 +142,7 @@ class _LeaveDashboardScreenState extends ConsumerState<LeaveDashboardScreen> {
                       ),
                     )
                   else ...[
-                    // 1. Leave Balance Cards (3 Summary Boxes + 4 Category Squircles)
+                    // 1. Leave balance from the API
                     if (_mineResponse != null)
                       LeaveBalanceCards(
                         balance: _mineResponse!.balance,

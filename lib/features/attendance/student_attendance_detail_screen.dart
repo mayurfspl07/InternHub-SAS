@@ -183,8 +183,9 @@ class _StudentAttendanceDetailScreenState extends ConsumerState<StudentAttendanc
   // Admin mutation dialogs
   Future<void> _showManualRecordDialog() async {
     final dateController = TextEditingController(text: DateFormat('yyyy-MM-dd').format(DateTime.now()));
-    final checkInController = TextEditingController(text: '09:00');
-    final checkOutController = TextEditingController(text: '17:00');
+    // Times start empty: the admin enters what actually happened (HH:MM).
+    final checkInController = TextEditingController();
+    final checkOutController = TextEditingController();
     final reasonController = TextEditingController();
     String? statusOverride;
 

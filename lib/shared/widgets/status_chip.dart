@@ -157,8 +157,6 @@ class StatusChip extends StatelessWidget {
           backgroundColor: AppColors.peach,
           textColor: AppColors.peachInk,
         );
-      case TaskPriority.urgent:
-        return const StatusChip(label: 'Urgent', statusType: StatusType.danger);
     }
   }
 

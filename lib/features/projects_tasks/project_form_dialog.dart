@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/api/api_client.dart';
+import '../../shared/widgets/load_error_view.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/project_model.dart';
@@ -29,7 +30,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
   final TextEditingController _internSearchController = TextEditingController();
 
   String _selectedStatus = 'planning';
-  List<String> _projectStatuses = ['planning', 'active', 'on_hold', 'completed'];
+  List<String> _projectStatuses = [];
 
   DateTime? _startDate;
   DateTime? _endDate;
@@ -41,6 +42,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
   List<Map<String, dynamic>> _interns = [];
 
   bool _isLoading = true;
+  String? _loadError;
   bool _isSubmitting = false;
 
   String? _nameError;
@@ -116,140 +118,46 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
   }
 
   Future<void> _loadFormData() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
     try {
       final curUser = ref.read(appStateProvider).currentUser;
-
-      // Parallel loads
       final results = await Future.wait([
-        ApiClient()
-            .get('/api/users/dropdown', queryParameters: {'role': 'mentor'})
-            .catchError((_) => ApiClient().get('/api/projects/mentors', queryParameters: {'page': 1, 'page_size': 30}))
-            .catchError((_) => []),
-        ApiClient()
-            .get('/api/users/dropdown', queryParameters: {'role': 'intern'})
-            .catchError((_) => ApiClient().get('/api/projects/interns', queryParameters: {'page': 1, 'page_size': 30}))
-            .catchError((_) => []),
-        ApiClient().get('/api/projects/project-statuses').catchError((_) => []),
+        ApiClient().get('/api/users/mentors'),
+        ApiClient().get('/api/users/dropdown', queryParameters: {'role': 'intern'}),
+        ApiClient().get('/api/projects/project-statuses'),
       ]);
 
-      // Mentors
-      List<Map<String, dynamic>> mentorList = [];
-      final mRes = results[0];
-      if (mRes is List) {
-        mentorList = mRes.whereType<Map<String, dynamic>>().toList();
-      } else if (mRes is Map<String, dynamic>) {
-        final items = mRes['users'] ?? mRes['mentors'] ?? mRes['items'] ?? mRes['results'] ?? mRes['data'];
-        if (items is List) mentorList = items.whereType<Map<String, dynamic>>().toList();
-      }
+      List<Map<String, dynamic>> listAt(dynamic res, String key) =>
+          res is Map && res[key] is List ? (res[key] as List).whereType<Map<String, dynamic>>().toList() : [];
 
-      // Interns
-      List<Map<String, dynamic>> internList = [];
-      final iRes = results[1];
-      if (iRes is List) {
-        internList = iRes.whereType<Map<String, dynamic>>().toList();
-      } else if (iRes is Map<String, dynamic>) {
-        final items = iRes['users'] ?? iRes['interns'] ?? iRes['items'] ?? iRes['results'] ?? iRes['data'];
-        if (items is List) internList = items.whereType<Map<String, dynamic>>().toList();
-      }
+      final mentorList = listAt(results[0], 'mentors');
+      final internList = listAt(results[1], 'interns');
+      // Project statuses are defined per organization (Masters > Project statuses).
+      final statusRows = listAt(results[2], 'statuses')
+        ..sort((a, b) => ((a['order_index'] as num?) ?? 0).compareTo((b['order_index'] as num?) ?? 0));
+      final statuses = statusRows.map((s) => s['slug']?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+      final defaultStatus = statusRows
+          .firstWhere((s) => s['is_default'] == true, orElse: () => statusRows.isNotEmpty ? statusRows.first : const {})['slug']
+          ?.toString();
 
-      // Fallback to universal dropdown if either is empty
-      if (mentorList.isEmpty || internList.isEmpty) {
-        try {
-          final uRes = await ApiClient().get('/api/users/dropdown');
-          List<Map<String, dynamic>> uList = [];
-          if (uRes is List) {
-            uList = uRes.whereType<Map<String, dynamic>>().toList();
-          } else if (uRes is Map<String, dynamic>) {
-            final items = uRes['users'] ?? uRes['items'] ?? uRes['data'];
-            if (items is List) uList = items.whereType<Map<String, dynamic>>().toList();
-          }
-          if (mentorList.isEmpty) {
-            mentorList = uList.where((u) => u['role']?.toString().toLowerCase() == 'mentor').toList();
-          }
-          if (internList.isEmpty) {
-            internList = uList.where((u) => u['role']?.toString().toLowerCase() == 'intern').toList();
-          }
-        } catch (_) {}
-      }
-
-      // Final fallback to cached users in state
-      if (mentorList.isEmpty) {
-        final all = ref.read(appStateProvider).allUsers;
-        mentorList = all
-            .where((u) => u.role == UserRole.mentor)
-            .map((u) => {'id': u.id, 'name': u.name, 'email': u.email, 'role': 'mentor'})
-            .toList();
-      }
-
-      if (internList.isEmpty) {
-        final all = ref.read(appStateProvider).allUsers;
-        internList = all
-            .where((u) => u.role == UserRole.intern)
-            .map((u) => {'id': u.id, 'name': u.name, 'email': u.email, 'role': 'intern'})
-            .toList();
-      }
-
-      // Also ensure project's existing mentors and members are present in list if editing
+      // Keep the project's current mentors and members selectable when editing.
       if (isEdit) {
         final p = widget.projectToEdit!;
         for (final m in p.mentors) {
-          final mId = (m['id'] ?? m['user_id'])?.toString();
-          if (mId != null && !mentorList.any((item) => (item['id'] ?? item['user_id'])?.toString() == mId)) {
-            mentorList.add(m);
-          }
+          final id = m['id']?.toString();
+          if (id != null && !mentorList.any((x) => x['id']?.toString() == id)) mentorList.add(m);
         }
-        for (final mem in p.members) {
-          final memId = (mem['id'] ?? mem['user_id'])?.toString();
-          final role = mem['role']?.toString().toLowerCase();
-          if (role == 'mentor') {
-            if (memId != null && !mentorList.any((item) => (item['id'] ?? item['user_id'])?.toString() == memId)) {
-              mentorList.add(mem);
-            }
-          } else {
-            if (memId != null && !internList.any((item) => (item['id'] ?? item['user_id'])?.toString() == memId)) {
-              internList.add(mem);
-            }
-          }
+        for (final i in p.interns) {
+          final id = i['id']?.toString();
+          if (id != null && !internList.any((x) => x['id']?.toString() == id)) internList.add(i);
         }
-        for (final intern in p.interns) {
-          final iId = (intern['id'] ?? intern['user_id'])?.toString();
-          if (iId != null && !internList.any((item) => (item['id'] ?? item['user_id'])?.toString() == iId)) {
-            internList.add(intern);
-          }
-        }
-      }
-
-      // Statuses
-      List<String> statuses = [];
-      final sRes = results[2];
-      if (sRes is List) {
-        for (final item in sRes) {
-          if (item is Map) {
-            final key = item['slug'] ?? item['key'] ?? item['name'];
-            if (key != null) statuses.add(key.toString().toLowerCase());
-          } else if (item is String) {
-            statuses.add(item.toLowerCase());
-          }
-        }
-      }
-
-      if (statuses.isEmpty) {
-        statuses = ['planning', 'active', 'in_progress', 'review', 'on_hold', 'completed', 'archived'];
-      }
-
-      // Ensure current status is included
-      if (!statuses.contains(_selectedStatus)) {
-        statuses.insert(0, _selectedStatus);
-      }
-
-      // If actor is mentor and creating, lock as mentor on project
-      if (!isEdit) {
-        if (curUser.role == UserRole.mentor) {
-          _selectedMentorIds.add(curUser.id);
-        } else if (mentorList.isNotEmpty) {
-          final firstId = (mentorList.first['id'] ?? mentorList.first['user_id'])?.toString() ?? '';
-          if (firstId.isNotEmpty) _selectedMentorIds.add(firstId);
-        }
+        if (_selectedStatus.isNotEmpty && !statuses.contains(_selectedStatus)) statuses.insert(0, _selectedStatus);
+      } else if (curUser.role == UserRole.mentor) {
+        // A mentor creating a project is its mentor.
+        _selectedMentorIds.add(curUser.id);
       }
 
       if (mounted) {
@@ -257,14 +165,17 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
           _mentors = mentorList;
           _interns = internList;
           _projectStatuses = statuses;
-          if (!isEdit) {
-            _selectedStatus = statuses.first;
-          }
+          if (!isEdit && defaultStatus != null) _selectedStatus = defaultStatus;
           _isLoading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _loadError = apiErrorMessage(e);
+        });
+      }
     }
   }
 
@@ -406,6 +317,13 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
         padding: const EdgeInsets.all(22),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
+            : _loadError != null
+            ? LoadErrorView(
+                title: "Couldn't load the form",
+                message: _loadError!,
+                onRetry: _loadFormData,
+                compact: true,
+              )
             : Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -486,7 +404,9 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                             ),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(
-                                value: _projectStatuses.contains(_selectedStatus) ? _selectedStatus : _projectStatuses.first,
+                                value: _projectStatuses.contains(_selectedStatus)
+                                    ? _selectedStatus
+                                    : (_projectStatuses.isNotEmpty ? _projectStatuses.first : null),
                                 isExpanded: true,
                                 dropdownColor: Colors.white,
                                 items: _projectStatuses.map((s) {

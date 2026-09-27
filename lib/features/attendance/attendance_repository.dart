@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../../core/api/api_client.dart';
 import '../../shared/models/attendance_model.dart';
-import '../../shared/models/project_model.dart';
 
 class AttendanceRepository {
   final ApiClient _api = ApiClient();
@@ -124,38 +123,17 @@ class AttendanceRepository {
     required int actorId,
     required String date,
   }) async {
-    try {
-      final res = await _api.get('/api/audit', queryParameters: {
-        'actor_id': actorId.toString(),
-        'action': 'task.',
-        'date': date,
-      });
-      if (res is List) {
-        return res.cast<Map<String, dynamic>>();
-      } else if (res is Map<String, dynamic> && res['logs'] is List) {
-        return (res['logs'] as List).cast<Map<String, dynamic>>();
-      }
-    } catch (_) {}
+    final res = await _api.get('/api/audit', queryParameters: {
+      'actor_id': actorId.toString(),
+      'action': 'task.',
+      'date': date,
+    });
+    if (res is Map<String, dynamic> && res['logs'] is List) {
+      return (res['logs'] as List).whereType<Map<String, dynamic>>().toList();
+    }
     return [];
   }
 
-  /// GET /api/projects?page=1&page_size=20
-  Future<List<ProjectModel>> fetchProjects() async {
-    try {
-      final res = await _api.get('/api/projects', queryParameters: {
-        'page': '1',
-        'page_size': '20',
-      });
-      if (res is Map<String, dynamic> && res['projects'] is List) {
-        return (res['projects'] as List)
-            .map((e) => ProjectModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-      } else if (res is List) {
-        return res.map((e) => ProjectModel.fromJson(e as Map<String, dynamic>)).toList();
-      }
-    } catch (_) {}
-    return [];
-  }
 
   // -------------------------------------------------------------
   // STAFF (ADMIN / MENTOR) ENDPOINTS
@@ -381,20 +359,6 @@ class AttendanceRepository {
     });
   }
 
-  /// GET /api/attendance/{id}/audit -> { logs: AttendanceAuditEntry[] }
-  Future<List<AttendanceAuditEntry>> fetchRecordAuditLogs(int id) async {
-    try {
-      final res = await _api.get('/api/attendance/$id/audit');
-      if (res is Map<String, dynamic> && res['logs'] is List) {
-        return (res['logs'] as List)
-            .map((e) => AttendanceAuditEntry.fromJson(e as Map<String, dynamic>))
-            .toList();
-      } else if (res is List) {
-        return res.map((e) => AttendanceAuditEntry.fromJson(e as Map<String, dynamic>)).toList();
-      }
-    } catch (_) {}
-    return [];
-  }
 
   /// GET /api/attendance/{id}/photo/{type} bytes
   Future<Uint8List?> fetchAttendancePhotoBytes({

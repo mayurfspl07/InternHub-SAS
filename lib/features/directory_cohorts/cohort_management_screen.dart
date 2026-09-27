@@ -140,7 +140,6 @@ class _CohortManagementScreenState extends ConsumerState<CohortManagementScreen>
       context,
       onSuccess: () {
         _fetchCohorts();
-        ref.read(appStateProvider.notifier).fetchCohorts();
       },
     );
   }
@@ -151,7 +150,6 @@ class _CohortManagementScreenState extends ConsumerState<CohortManagementScreen>
       cohort: cohort,
       onSuccess: () {
         _fetchCohorts();
-        ref.read(appStateProvider.notifier).fetchCohorts();
       },
     );
   }
@@ -162,7 +160,6 @@ class _CohortManagementScreenState extends ConsumerState<CohortManagementScreen>
       cohort: cohort,
       onSuccess: () {
         _fetchCohorts();
-        ref.read(appStateProvider.notifier).fetchCohorts();
       },
     );
   }
@@ -174,7 +171,6 @@ class _CohortManagementScreenState extends ConsumerState<CohortManagementScreen>
       currentUser: currentUser,
       onDataChanged: () {
         _fetchCohorts();
-        ref.read(appStateProvider.notifier).fetchCohorts();
       },
     );
   }
@@ -208,7 +204,6 @@ class _CohortManagementScreenState extends ConsumerState<CohortManagementScreen>
         child: RefreshIndicator(
           onRefresh: () async {
             await _fetchCohorts();
-            await ref.read(appStateProvider.notifier).fetchCohorts();
           },
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),

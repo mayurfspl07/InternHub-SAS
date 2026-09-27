@@ -105,7 +105,6 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
     final result = await AnnouncementDialog.show(context);
     if (result == true && mounted) {
       _fetchAnnouncements();
-      ref.read(appStateProvider.notifier).fetchAnnouncements();
     }
   }
 
@@ -113,7 +112,6 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
     final result = await AnnouncementDialog.show(context, announcement: item);
     if (result == true && mounted) {
       _fetchAnnouncements();
-      ref.read(appStateProvider.notifier).fetchAnnouncements();
     }
   }
 
@@ -121,7 +119,6 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
     final result = await DeleteAnnouncementDialog.show(context, item);
     if (result == true && mounted) {
       _fetchAnnouncements();
-      ref.read(appStateProvider.notifier).fetchAnnouncements();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

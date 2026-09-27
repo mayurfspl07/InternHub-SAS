@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/api/api_client.dart';
+import '../../core/api/auth_storage.dart';
 import '../../core/api/api_config.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/constants/app_colors.dart';
@@ -48,11 +49,14 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
     });
 
     try {
-      await ApiClient().post('/api/profile/change-password', body: {
+      final res = await ApiClient().post('/api/profile/change-password', body: {
         'current_password': _currentPasswordController.text,
         'new_password': _newPasswordController.text,
         'confirm_password': _confirmPasswordController.text,
       });
+      // Changing the password signs out every old session; keep this one with the new token.
+      final token = res is Map ? res['token']?.toString() : null;
+      if (token != null && token.isNotEmpty) await AuthStorage.updateToken(token);
 
       if (mounted) {
         Navigator.pop(context);

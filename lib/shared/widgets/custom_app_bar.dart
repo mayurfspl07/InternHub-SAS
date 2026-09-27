@@ -155,7 +155,7 @@ class CustomAppBar extends ConsumerWidget implements PreferredSizeWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(appStateProvider);
     final user = state.currentUser;
-    final unreadCount = state.notifications.where((n) => !n.isRead).length;
+    final unreadCount = state.unreadCount; // from the API, not just the loaded page
 
     if (title != null) {
       final leading = (showBackButton || onBackTap != null)

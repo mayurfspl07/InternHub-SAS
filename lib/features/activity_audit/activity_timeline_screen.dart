@@ -296,16 +296,6 @@ class _ActivityTimelineScreenState extends ConsumerState<ActivityTimelineScreen>
                         title: 'Activity',
                         showBack: widget.showBackButton && Navigator.canPop(context),
                         padding: EdgeInsets.zero,
-                        actions: [
-                          HeaderAction(icon: Icons.open_in_new_rounded, onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Interaction history exported successfully'),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }),
-                        ],
                       ),
                       const SizedBox(height: 16),
 

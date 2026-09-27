@@ -220,28 +220,8 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
     }
   }
 
-  // Client-side fallback filter
-  List<StandupLog> get _filteredLogs {
-    return _logs.where((log) {
-      if (_selectedMood != 'all') {
-        if (log.mood.toLowerCase() != _selectedMood.toLowerCase()) {
-          return false;
-        }
-      }
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        final nameMatches = (log.userName ?? '').toLowerCase().contains(q);
-        final didMatches = log.did.toLowerCase().contains(q);
-        final planMatches = log.plan.toLowerCase().contains(q);
-        final blockersMatches = (log.blockers ?? '').toLowerCase().contains(q);
-        final dateMatches = log.date.toLowerCase().contains(q);
-        if (!nameMatches && !didMatches && !planMatches && !blockersMatches && !dateMatches) {
-          return false;
-        }
-      }
-      return true;
-    }).toList();
-  }
+  // Search and mood filters are applied by the API (GET /api/standup?search&mood).
+  List<StandupLog> get _filteredLogs => _logs;
 
   void _openCreateOrTodayDialog() {
     showDialog(
@@ -717,11 +697,11 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
     Color secondaryTextColor,
   ) {
     final moods = [
-      {'key': 'great', 'label': 'Great', 'emoji': '😄', 'color': AppColors.success},
-      {'key': 'good', 'label': 'Good', 'emoji': '🙂', 'color': AppColors.info},
+      {'key': 'great', 'label': 'Great', 'emoji': '🔥', 'color': AppColors.success},
+      {'key': 'good', 'label': 'Good', 'emoji': '😊', 'color': AppColors.info},
       {'key': 'okay', 'label': 'Okay', 'emoji': '😐', 'color': AppColors.primary},
-      {'key': 'bad', 'label': 'Bad', 'emoji': '🙁', 'color': AppColors.warning},
-      {'key': 'terrible', 'label': 'Terrible', 'emoji': '😣', 'color': AppColors.danger},
+      {'key': 'tired', 'label': 'Tired', 'emoji': '😴', 'color': AppColors.warning},
+      {'key': 'stressed', 'label': 'Stressed', 'emoji': '😫', 'color': AppColors.danger},
     ];
 
     final dateFormatted = DateFormat('MMM dd, yyyy').format(_selectedDate);
@@ -1108,7 +1088,11 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
         moodBg = AppColors.warningSoft;
         moodFg = AppColors.warningInk;
         break;
-      case 'bad':
+      case 'tired':
+        moodBg = AppColors.warningSoft;
+        moodFg = AppColors.warningInk;
+        break;
+      case 'stressed':
         moodBg = AppColors.dangerSoft;
         moodFg = AppColors.danger;
         break;
@@ -1164,7 +1148,8 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // Mood pill
+              // Mood pill (only when a mood was recorded)
+              if (getMoodLabel(log.mood).isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(

@@ -393,13 +393,17 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                _buildTypeBadge(log.typeDisplay),
-                                const SizedBox(width: 8),
-                                _buildStatusBadge(log.status),
-                              ],
+                            Expanded(
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: [
+                                  _buildTypeBadge(log.typeDisplay),
+                                  _buildStatusBadge(log.status),
+                                ],
+                              ),
                             ),
+                            const SizedBox(width: 8),
                             Text(
                               _formatDateTime(log.sentAt),
                               style: TextStyle(fontSize: 11, color: secondaryTextColor),

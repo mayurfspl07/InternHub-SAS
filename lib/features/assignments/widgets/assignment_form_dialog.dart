@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../shared/models/assignment_model.dart';
 import '../assignments_repository.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../shared/widgets/load_error_view.dart';
 
 class AssignmentFormDialog extends StatefulWidget {
   final AssignmentItem? assignment; // If null, create; else edit
@@ -99,7 +100,9 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
           _cohortOptions = cohorts;
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) showApiError(context, e, prefix: 'Could not load projects and cohorts');
+    }
   }
 
   // Strip forbidden characters: < > _ + - =

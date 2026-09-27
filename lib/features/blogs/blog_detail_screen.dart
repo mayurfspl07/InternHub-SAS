@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/api/api_config.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import 'blog_repository.dart';
@@ -117,8 +118,11 @@ class _BlogDetailScreenState extends ConsumerState<BlogDetailScreen> {
     }
   }
 
+  /// Public page of this article on the InternHub site (served from the API host).
+  String get _articleUrl => '${ApiConfig.baseUrl}/blogs/${widget.slug}';
+
   void _shareCopyUrl() {
-    final url = 'http://localhost:5173/blogs/${widget.slug}';
+    final url = _articleUrl;
     Clipboard.setData(ClipboardData(text: url));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -129,7 +133,7 @@ class _BlogDetailScreenState extends ConsumerState<BlogDetailScreen> {
   }
 
   Future<void> _shareTwitter() async {
-    final url = 'http://localhost:5173/blogs/${widget.slug}';
+    final url = _articleUrl;
     final text = Uri.encodeComponent('Check out "${_post?.title ?? 'this article'}" on InternHub:');
     final twitterUrl = Uri.parse('https://twitter.com/intent/tweet?text=$text&url=${Uri.encodeComponent(url)}');
     if (await canLaunchUrl(twitterUrl)) {
@@ -138,7 +142,7 @@ class _BlogDetailScreenState extends ConsumerState<BlogDetailScreen> {
   }
 
   Future<void> _shareLinkedIn() async {
-    final url = 'http://localhost:5173/blogs/${widget.slug}';
+    final url = _articleUrl;
     final linkedInUrl = Uri.parse('https://www.linkedin.com/sharing/share-offsite/?url=${Uri.encodeComponent(url)}');
     if (await canLaunchUrl(linkedInUrl)) {
       await launchUrl(linkedInUrl, mode: LaunchMode.externalApplication);

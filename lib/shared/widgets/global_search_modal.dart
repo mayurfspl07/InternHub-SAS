@@ -6,6 +6,7 @@ import '../../shared/models/user_model.dart';
 import '../../shared/models/project_model.dart';
 import 'user_360_profile_dialog.dart';
 import 'app_avatar.dart';
+import 'load_error_view.dart';
 
 class GlobalSearchModal extends StatefulWidget {
   const GlobalSearchModal({super.key});
@@ -27,6 +28,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
   final _searchController = TextEditingController();
   Timer? _debounce;
   bool _isLoading = false;
+  String? _error;
 
   List<UserModel> _users = [];
   List<ProjectModel> _projects = [];
@@ -57,43 +59,32 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
   }
 
   Future<void> _executeSearch(String query) async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
+      // GET /api/search -> {q, results: {users, projects, tasks}, total}
       final res = await ApiClient().get('/api/search', queryParameters: {'q': query});
-      if (res is Map<String, dynamic> && mounted) {
-        List<UserModel> users = [];
-        if (res['users'] is List) {
-          users = (res['users'] as List)
-              .whereType<Map<String, dynamic>>()
-              .map((u) => UserModel.fromJson(u))
-              .toList();
-        }
+      final results = res is Map && res['results'] is Map ? res['results'] as Map : const {};
+      List<Map<String, dynamic>> listOf(String key) =>
+          results[key] is List ? (results[key] as List).whereType<Map<String, dynamic>>().toList() : const [];
 
-        List<ProjectModel> projs = [];
-        if (res['projects'] is List) {
-          projs = (res['projects'] as List)
-              .whereType<Map<String, dynamic>>()
-              .map((p) => ProjectModel.fromJson(p))
-              .toList();
-        }
-
-        List<TaskModel> tasks = [];
-        if (res['tasks'] is List) {
-          tasks = (res['tasks'] as List)
-              .whereType<Map<String, dynamic>>()
-              .map((t) => TaskModel.fromJson(t))
-              .toList();
-        }
-
+      if (mounted) {
         setState(() {
-          _users = users;
-          _projects = projs;
-          _tasks = tasks;
+          _users = listOf('users').map(UserModel.fromJson).toList();
+          _projects = listOf('projects').map(ProjectModel.fromJson).toList();
+          _tasks = listOf('tasks').map(TaskModel.fromJson).toList();
           _isLoading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = apiErrorMessage(e);
+        });
+      }
     }
   }
 
@@ -160,9 +151,10 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
             child: (_users.isEmpty && _projects.isEmpty && _tasks.isEmpty)
                 ? Center(
                     child: Text(
-                      _searchController.text.isEmpty
-                          ? 'Type to search across InternHub'
-                          : 'No results found',
+                      _error ??
+                          (_searchController.text.isEmpty
+                              ? 'Type to search across InternHub'
+                              : (_isLoading ? 'Searching…' : 'No results found')),
                       style: TextStyle(
                         color: AppColors.textTertiary,
                       ),

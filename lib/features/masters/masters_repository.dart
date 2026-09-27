@@ -61,7 +61,6 @@ class MastersRepository {
   }) async {
     final payload = {
       'name': name.trim(),
-      'slug': (slug != null && slug.trim().isNotEmpty) ? slug.trim() : generateSlug(name),
       'color': color.trim(),
       'status_category': statusCategory.trim(),
       'is_default': isDefault,
@@ -142,7 +141,6 @@ class MastersRepository {
   }) async {
     final payload = {
       'name': name.trim(),
-      'slug': (slug != null && slug.trim().isNotEmpty) ? slug.trim() : generateSlug(name),
       'color': color.trim(),
       'order_index': orderIndex,
       'is_default': isDefault,

@@ -7,6 +7,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../dashboard/main_navigation_wrapper.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -99,115 +100,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  void _showForgotPasswordDialog() {
-    final resetEmailController = TextEditingController(text: _emailController.text.trim());
-    bool isSubmitting = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) {
-          return Container(
-            padding: EdgeInsets.only(
-              left: 24,
-              right: 24,
-              top: 24,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-            ),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.textTertiary.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  'Reset Password',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.ink,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Enter your email address and we will send you password reset instructions.',
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceMuted,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: TextField(
-                    controller: resetEmailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter your email',
-                      hintStyle: TextStyle(color: AppColors.textTertiary, fontSize: 14),
-                      prefixIcon: Icon(Icons.mail_outline_rounded, color: AppColors.primaryInk, size: 20),
-                      border: InputBorder.none,
-                      filled: false,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : () async {
-                          if (resetEmailController.text.trim().isEmpty) return;
-                          setModalState(() => isSubmitting = true);
-                          await Future.delayed(const Duration(milliseconds: 800));
-                          if (ctx.mounted) {
-                            Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('If that email is registered, instructions have been sent.'),
-                                backgroundColor: AppColors.ink,
-                              ),
-                            );
-                          }
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    elevation: 0,
-                  ),
-                  child: isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary),
-                        )
-                      : const Text('Send Instructions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+  Future<void> _showForgotPasswordDialog() async {
+    final email = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => ForgotPasswordScreen(initialEmail: _emailController.text.trim())),
     );
+    if (email != null && email.isNotEmpty && mounted) {
+      _emailController.text = email;
+      _passwordController.clear();
+    }
   }
 
   @override

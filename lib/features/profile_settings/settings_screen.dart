@@ -15,7 +15,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(appStateProvider).currentUser;
-    final isAdmin = user.role.name.toLowerCase().contains('admin');
+    final isAdmin = user.isAdmin;
 
     return Scaffold(
       body: SafeArea(
@@ -32,6 +32,15 @@ class SettingsScreen extends ConsumerWidget {
 
               if (isAdmin) ...[
                 _buildSettingsNavCard(
+                  icon: Icons.business_rounded,
+                  tint: AppColors.lavender,
+                  iconColor: AppColors.lavenderInk,
+                  title: 'Organization',
+                  subtitle: 'Name, logo, working hours, leave and attendance rules',
+                  onTap: () => Navigator.pushNamed(context, '/org-settings'),
+                ),
+                const SizedBox(height: 12),
+                _buildSettingsNavCard(
                   icon: Icons.mark_email_read_outlined,
                   tint: AppColors.butter,
                   iconColor: AppColors.butterInk,
@@ -47,31 +56,17 @@ class SettingsScreen extends ConsumerWidget {
                 tint: AppColors.peach,
                 iconColor: AppColors.peachInk,
                 title: 'Notifications',
-                subtitle: 'Manage notification preferences & alerts',
+                subtitle: 'See and clear your notifications',
                 onTap: () => Navigator.pushNamed(context, '/notifications'),
               ),
               const SizedBox(height: 12),
 
               _buildSettingsNavCard(
-                icon: Icons.storage_rounded,
-                tint: AppColors.lavender,
-                iconColor: AppColors.lavenderInk,
-                title: 'System & Sync',
-                subtitle: 'Offline queue, cache, and cloud data',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('System and offline queue are up to date.')),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-
-              _buildSettingsNavCard(
-                icon: Icons.security_rounded,
+                icon: Icons.lock_outline_rounded,
                 tint: AppColors.sage,
                 iconColor: AppColors.sageInk,
-                title: 'Security & Access',
-                subtitle: 'Change password, two-factor auth & permissions',
+                title: 'Change password',
+                subtitle: 'Signs you out on your other devices',
                 onTap: () => ChangePasswordDialog.show(context),
               ),
               const SizedBox(height: 32),

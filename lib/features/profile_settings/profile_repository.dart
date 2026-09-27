@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/api/api_client.dart';
+import '../../core/api/auth_storage.dart';
 import '../../shared/models/profile_overview_model.dart';
 import '../../shared/models/user_model.dart';
 
@@ -67,10 +68,10 @@ class ProfileRepository {
       'confirm_password': confirmPassword,
     };
     final res = await _client.post('/api/profile/change-password', body: payload);
-    if (res is Map<String, dynamic>) {
-      return res;
-    }
-    return {'ok': true};
+    // Changing the password signs out every old session; keep this one with the new token.
+    final token = res is Map ? res['token']?.toString() : null;
+    if (token != null && token.isNotEmpty) await AuthStorage.updateToken(token);
+    return res is Map<String, dynamic> ? res : const {'ok': true};
   }
 
   /// Export Profile 360° Data (all roles)

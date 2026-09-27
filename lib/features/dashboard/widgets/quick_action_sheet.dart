@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_typography.dart';
-import '../../../core/state/app_state_provider.dart';
 import '../../../shared/models/user_model.dart';
 import '../../announcements/widgets/announcement_dialog.dart';
 import '../../attendance/checkin_checkout_screen.dart';
@@ -128,8 +127,7 @@ class QuickActionSheet {
         tint: AppColors.butter,
         ink: AppColors.butterInk,
         onTap: (c) => closeThen(c, () async {
-          final created = await AnnouncementDialog.show(context);
-          if (created == true) ref.read(appStateProvider.notifier).fetchAnnouncements();
+          await AnnouncementDialog.show(context);
         }),
       ),
       _QuickAction(
@@ -139,8 +137,7 @@ class QuickActionSheet {
         tint: AppColors.peach,
         ink: AppColors.peachInk,
         onTap: (c) => closeThen(c, () async {
-          final created = await PerformanceReviewDialog.show(context);
-          if (created == true) ref.read(appStateProvider.notifier).fetchReviews();
+          await PerformanceReviewDialog.show(context);
         }),
       ),
       _QuickAction(

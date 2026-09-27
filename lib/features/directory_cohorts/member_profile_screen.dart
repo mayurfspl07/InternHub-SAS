@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../core/api/api_config.dart';
 import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
@@ -36,7 +38,7 @@ class MemberProfileScreen extends StatelessWidget {
                 radius: 46,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                 backgroundImage: (member.avatarUrl != null && member.avatarUrl!.isNotEmpty)
-                    ? NetworkImage(member.avatarUrl!)
+                    ? NetworkImage(ApiConfig.mediaUrl(member.avatarUrl!))
                     : null,
                 child: (member.avatarUrl == null || member.avatarUrl!.isEmpty)
                     ? Text(
@@ -69,28 +71,21 @@ class MemberProfileScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildCircleAction(Icons.email_outlined, () {}),
-                  const SizedBox(width: 12),
-                  _buildCircleAction(Icons.phone_outlined, () {}),
-                  const SizedBox(width: 12),
-                  _buildCircleAction(Icons.calendar_today_outlined, () {}),
-                  const SizedBox(width: 12),
+                  if (member.email.isNotEmpty) ...[
+                    _buildCircleAction(Icons.email_outlined, () => _open(context, Uri(scheme: 'mailto', path: member.email))),
+                    const SizedBox(width: 12),
+                  ],
+                  if ((member.phone ?? '').trim().isNotEmpty) ...[
+                    _buildCircleAction(
+                      Icons.phone_outlined,
+                      () => _open(context, Uri(scheme: 'tel', path: member.phone!.replaceAll(' ', ''))),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                   _buildCircleAction(Icons.badge_outlined, () => User360ProfileDialog.show(context, userId: member.id, fallbackUser: member)),
                 ],
               ),
               const SizedBox(height: 28),
-
-              // Stats Grid
-              Row(
-                children: [
-                  _buildStatBox('Rating', '⭐ ${member.performanceRating.toStringAsFixed(1)}', AppColors.successSoft),
-                  const SizedBox(width: 10),
-                  _buildStatBox('Streak', '🔥 ${member.attendanceStreak}d', AppColors.warningSoft),
-                  const SizedBox(width: 10),
-                  _buildStatBox('Coins', '🟡 ${member.streakCoins}', AppColors.peach),
-                ],
-              ),
-              const SizedBox(height: 24),
 
               // Detailed Info Box
               Container(
@@ -115,8 +110,24 @@ class MemberProfileScreen extends StatelessWidget {
                     const SizedBox(height: 14),
                     _buildInfoRow('Email', member.email, Icons.email_outlined),
                     _buildInfoRow('Phone', member.phone ?? 'Not provided', Icons.phone_outlined),
-                    _buildInfoRow('Location', member.location, Icons.location_on_outlined),
-                    _buildInfoRow('Cohort', member.cohortName ?? 'General Cohort', Icons.school_outlined),
+                    _buildInfoRow('Status', member.isActive ? 'Active' : 'Inactive', Icons.toggle_on_outlined),
+                    if ((member.joiningDate ?? '').isNotEmpty)
+                      _buildInfoRow('Joined', member.joiningDate!, Icons.event_outlined),
+                    if (member.internshipDurationMonths != null)
+                      _buildInfoRow(
+                        'Internship',
+                        '${member.internshipDurationMonths} months'
+                            '${(member.internshipEndDate ?? '').isNotEmpty ? ' (ends ${member.internshipEndDate})' : ''}',
+                        Icons.school_outlined,
+                      ),
+                    if (member.isPaid != null)
+                      _buildInfoRow(
+                        'Stipend',
+                        member.isPaid == true
+                            ? (member.stipendAmount != null ? '₹${member.stipendAmount!.toStringAsFixed(0)} / month' : 'Paid')
+                            : 'Unpaid',
+                        Icons.payments_outlined,
+                      ),
                     if (member.mentorName != null && member.mentorName!.isNotEmpty)
                       _buildInfoRow('Mentor', member.mentorName!, Icons.person_outline),
                   ],
@@ -195,25 +206,13 @@ class MemberProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatBox(String label, String value, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(20),
-          border: null,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
-            const SizedBox(height: 4),
-            Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black)),
-          ],
-        ),
-      ),
-    );
+  Future<void> _open(BuildContext context, Uri uri) async {
+    final opened = await canLaunchUrl(uri) && await launchUrl(uri);
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No app available to open ${uri.path}')),
+      );
+    }
   }
 
   Widget _buildInfoRow(String label, String value, IconData icon) {

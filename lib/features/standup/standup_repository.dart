@@ -8,7 +8,7 @@ class StandupRepository {
 
   final ApiClient _client = ApiClient();
 
-  /// GET /api/standup?page&page_size=12&search&mood
+  /// GET /api/standup?page&page_size=12&search&mood (filters run on the server)
   Future<StandupListResponse> getStandupFeed({
     int page = 1,
     int pageSize = 12,
@@ -32,21 +32,13 @@ class StandupRepository {
     return StandupListResponse.fromJson(res);
   }
 
-  /// GET /api/standup/today
+  /// GET /api/standup/today: today's log, or null when none was posted yet.
   Future<StandupLog?> getTodayStandup() async {
-    try {
-      final res = await _client.get('/api/standup/today');
-      if (res is Map<String, dynamic>) {
-        if (res.isEmpty) return null;
-        if (res['data'] is Map<String, dynamic>) {
-          return StandupLog.fromJson(res['data'] as Map<String, dynamic>);
-        }
-        return StandupLog.fromJson(res);
-      }
-      return null;
-    } catch (_) {
-      return null;
+    final res = await _client.get('/api/standup/today');
+    if (res is Map<String, dynamic> && res['id'] != null) {
+      return StandupLog.fromJson(res);
     }
+    return null;
   }
 
   /// POST /api/standup
@@ -57,12 +49,11 @@ class StandupRepository {
     String? blockers,
     String mood = 'good',
   }) async {
-    final b = blockers?.trim() ?? '';
     final payload = {
       'date': date.trim(),
       'did': did.trim(),
       'plan': plan.trim(),
-      'blockers': b.isNotEmpty ? b : 'None',
+      'blockers': blockers?.trim() ?? '',
       'mood': mood.trim().toLowerCase(),
     };
 
@@ -82,11 +73,10 @@ class StandupRepository {
     String? blockers,
     String mood = 'good',
   }) async {
-    final b = blockers?.trim() ?? '';
     final payload = {
       'did': did.trim(),
       'plan': plan.trim(),
-      'blockers': b.isNotEmpty ? b : 'None',
+      'blockers': blockers?.trim() ?? '',
       'mood': mood.trim().toLowerCase(),
     };
 

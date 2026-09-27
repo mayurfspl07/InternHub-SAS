@@ -5,11 +5,9 @@ import '../../core/api/api_config.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/page_header.dart';
-import '../../core/state/app_state_provider.dart';
 import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/app_logo.dart';
-import '../dashboard/main_navigation_wrapper.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -62,29 +60,35 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      // 1. Call real register API with role: "intern"
-      await ApiClient().post('/api/auth/register', body: {
+      final res = await ApiClient().post('/api/auth/register', body: {
         'name': name,
         'email': email,
         'password': password,
         'confirm_password': _confirmPasswordController.text,
         'role': 'intern',
       });
+      if (!mounted) return;
 
-      // 2. Auto sign in
-      if (mounted) {
-        await ref.read(appStateProvider.notifier).login(
-              email: email,
-              password: password,
-            );
-
-        if (mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const MainNavigationWrapper()),
-            (route) => false,
-          );
-        }
-      }
+      // A public sign-up belongs to no organization yet, so there is nothing to open:
+      // tell the person how to get access, then return to sign-in.
+      final message = (res is Map && res['message'] is String)
+          ? res['message'] as String
+          : "Account created. Ask your organization's admin to add you, or join with an invite link.";
+      setState(() => _isLoading = false);
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Account created'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Back to sign in'),
+            ),
+          ],
+        ),
+      );
+      if (mounted) Navigator.of(context).pop();
     } on ApiException catch (e) {
       if (mounted) {
         setState(() {

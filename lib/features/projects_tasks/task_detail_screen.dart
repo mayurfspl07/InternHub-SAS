@@ -14,6 +14,7 @@ import '../../shared/models/project_model.dart';
 import '../../shared/models/user_model.dart';
 import '../../shared/widgets/app_avatar.dart';
 import '../../shared/widgets/custom_text_field.dart';
+import '../../shared/widgets/load_error_view.dart';
 import '../../shared/widgets/status_chip.dart';
 
 class TaskDetailScreen extends ConsumerStatefulWidget {
@@ -30,7 +31,9 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   late TaskModel _task;
   List<TaskComment> _comments = [];
   List<TaskAttachment> _attachments = [];
+  List<TaskStatusColumn> _statuses = [];
   bool _isLoading = true;
+  String? _loadError;
 
   @override
   void initState() {
@@ -40,40 +43,50 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   }
 
   Future<void> _loadTaskDetails() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
     try {
       final results = await Future.wait([
-        ApiClient().get('/api/projects/tasks/${_task.id}/comments').catchError((_) => []),
-        ApiClient().get('/api/projects/tasks/${_task.id}/attachments').catchError((_) => []),
+        ApiClient().get('/api/projects/tasks/${_task.id}/comments'),
+        ApiClient().get('/api/projects/tasks/${_task.id}/attachments'),
+        if (_task.projectId.isNotEmpty) ApiClient().get('/api/projects/${_task.projectId}/task-statuses'),
       ]);
 
-      List<TaskComment> commentsList = [];
-      final commRes = results[0];
-      if (commRes is List) {
-        commentsList = commRes.whereType<Map<String, dynamic>>().map((c) => TaskComment.fromJson(c)).toList();
-      } else if (commRes is Map<String, dynamic>) {
-        final items = commRes['comments'] ?? commRes['data'];
-        if (items is List) commentsList = items.whereType<Map<String, dynamic>>().map((c) => TaskComment.fromJson(c)).toList();
-      }
+      // GET .../comments returns a list; GET .../attachments returns {task_id, attachments, total}.
+      final commentsJson = results[0] is List ? results[0] as List : const [];
+      final attachmentsJson = results[1] is Map ? ((results[1] as Map)['attachments'] as List? ?? const []) : const [];
+      final attachmentsList =
+          attachmentsJson.whereType<Map<String, dynamic>>().map(TaskAttachment.fromJson).toList();
+      final commentsList = commentsJson.whereType<Map<String, dynamic>>().map((c) {
+        final comment = TaskComment.fromJson(c);
+        return comment.withAttachments(attachmentsList.where((a) => a.commentId == comment.id).toList());
+      }).toList();
 
-      List<TaskAttachment> attachmentsList = [];
-      final attRes = results[1];
-      if (attRes is List) {
-        attachmentsList = attRes.whereType<Map<String, dynamic>>().map((a) => TaskAttachment.fromJson(a)).toList();
-      } else if (attRes is Map<String, dynamic>) {
-        final items = attRes['attachments'] ?? attRes['data'];
-        if (items is List) attachmentsList = items.whereType<Map<String, dynamic>>().map((a) => TaskAttachment.fromJson(a)).toList();
-      }
+      // The project's workflow columns, {statuses: [...]}, in board order.
+      final statusJson = results.length > 2 && results[2] is Map ? (results[2] as Map)['statuses'] : null;
+      final statuses = (statusJson is List ? statusJson : const [])
+          .whereType<Map<String, dynamic>>()
+          .map(TaskStatusColumn.fromJson)
+          .toList()
+        ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
 
       if (mounted) {
         setState(() {
+          _statuses = statuses;
           _comments = commentsList;
           _attachments = attachmentsList;
           _isLoading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _loadError = apiErrorMessage(e);
+        });
+      }
     }
   }
 
@@ -301,13 +314,8 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
         _task = _task.copyWith(rawStatus: newStatusKey, status: KanbanStatus.fromString(newStatusKey));
       });
       widget.onTaskUpdated?.call();
-      ref.read(appStateProvider.notifier).fetchProjects();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update status: $e')),
-        );
-      }
+      if (mounted) showApiError(context, e, prefix: 'Failed to update status');
     }
   }
 
@@ -330,6 +338,8 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _loadError != null
+          ? LoadErrorView(title: 'Couldn\'t load this task', message: _loadError!, onRetry: _loadTaskDetails)
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -361,7 +371,9 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                       ),
                       Chip(
                         avatar: const Icon(Icons.calendar_today_rounded, size: 14),
-                        label: Text('Due: ${DateFormat('yyyy-MM-dd').format(_task.dueDate)}'),
+                        label: Text(_task.dueDate == null
+                            ? 'No due date'
+                            : 'Due: ${DateFormat('yyyy-MM-dd').format(_task.dueDate!)}'),
                       ),
                       if (_task.assigneeName != null && _task.assigneeName!.isNotEmpty)
                         Chip(
@@ -394,7 +406,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                   const SizedBox(height: 20),
 
                   // Status Selector Buttons
-                  if (canManageTasks && _task.canMove) ...[
+                  if (canManageTasks && _task.canMove && _statuses.isNotEmpty) ...[
                     Text(
                       'Update Status',
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
@@ -404,13 +416,10 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          _buildStatusButton('todo', 'To Do', _task.rawStatus, AppColors.textSecondary),
-                          const SizedBox(width: 8),
-                          _buildStatusButton('in_progress', 'In Progress', _task.rawStatus, AppColors.info),
-                          const SizedBox(width: 8),
-                          _buildStatusButton('testing', 'Review', _task.rawStatus, AppColors.warning),
-                          const SizedBox(width: 8),
-                          _buildStatusButton('completed', 'Completed', _task.rawStatus, AppColors.success),
+                          for (final s in _statuses) ...[
+                            _buildStatusButton(s.key, s.title, _task.rawStatus, s.color),
+                            if (s != _statuses.last) const SizedBox(width: 8),
+                          ],
                         ],
                       ),
                     ),
@@ -476,13 +485,13 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                                         const SizedBox(height: 4),
                                         if (c.message.isNotEmpty)
                                           Text(c.message, style: const TextStyle(fontSize: 13)),
-                                        if (c.fileUrl != null && c.fileUrl!.isNotEmpty) ...[
+                                        for (final file in c.attachments) ...[
                                           const SizedBox(height: 6),
                                           InkWell(
                                             onTap: () {
                                               FileExportService.downloadAndShare(
-                                                endpoint: c.fileUrl!,
-                                                defaultFileName: c.fileName ?? 'comment_attachment',
+                                                endpoint: '/api/projects/tasks/attachments/${file.id}/download',
+                                                defaultFileName: file.fileName,
                                               );
                                             },
                                             child: Container(
@@ -497,7 +506,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                                                   const Icon(Icons.attachment_rounded, size: 14, color: AppColors.info),
                                                   const SizedBox(width: 4),
                                                   Text(
-                                                    c.fileName ?? 'View Attachment',
+                                                    file.fileName,
                                                     style: const TextStyle(fontSize: 11, color: AppColors.info, fontWeight: FontWeight.bold),
                                                   ),
                                                 ],

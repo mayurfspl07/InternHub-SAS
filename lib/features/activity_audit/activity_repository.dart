@@ -8,12 +8,13 @@ class ActivityRepository {
 
   final ApiClient _client = ApiClient();
 
-  /// GET /api/audit?page&action&date&actor&search
+  /// GET /api/audit?page&action&date&search&project_id
   Future<AuditLogList> fetchAudit({
     int page = 1,
     String? action,
     String? date,
     String? actor,
+    int? projectId,
   }) async {
     final params = <String, dynamic>{
       'page': page,
@@ -27,10 +28,13 @@ class ActivityRepository {
       params['date'] = date.trim();
     }
 
+    // Free-text search over who did it, what they did and what it was done to.
     if (actor != null && actor.trim().isNotEmpty) {
-      final actorTrimmed = actor.trim();
-      params['actor'] = actorTrimmed;
-      params['search'] = actorTrimmed; // Duplicate param as on web
+      params['search'] = actor.trim();
+    }
+
+    if (projectId != null) {
+      params['project_id'] = projectId;
     }
 
     final res = await _client.get('/api/audit', queryParameters: params);

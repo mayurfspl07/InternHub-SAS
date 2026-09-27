@@ -403,140 +403,85 @@ class AnnouncementModel {
   }
 }
 
+/// A notification from `GET /api/notifications` (`id, message, link, is_read, created_at`).
 class NotificationItem {
   final String id;
-  final String title;
-  final String body;
-  final DateTime time;
-  final String category; // 'task', 'attendance', 'leave', 'system'
+  final String message;
+  final String? link;
   final bool isRead;
-  final String? route;
+  final DateTime createdAt;
 
   const NotificationItem({
     required this.id,
-    required this.title,
-    required this.body,
-    required this.time,
-    required this.category,
+    required this.message,
+    this.link,
     this.isRead = false,
-    this.route,
+    required this.createdAt,
   });
+
+  /// What the notification is about, taken from the screen it links to.
+  String get kind {
+    final l = (link ?? '').toLowerCase();
+    if (l.contains('leave')) return 'leave';
+    if (l.contains('project') || l.contains('task')) return 'task';
+    if (l.contains('assignment')) return 'assignment';
+    if (l.contains('review')) return 'review';
+    if (l.contains('invite') || l.contains('signup')) return 'signup';
+    if (l.contains('cohort')) return 'cohort';
+    if (l.contains('announcement')) return 'announcement';
+    if (l.contains('attendance')) return 'attendance';
+    return 'general';
+  }
 
   factory NotificationItem.fromJson(Map<String, dynamic> json) {
-    DateTime parseDate(dynamic v) {
-      if (v == null) return DateTime.now();
-      if (v is DateTime) return v;
-      return DateTime.tryParse(v.toString()) ?? DateTime.now();
-    }
-
     return NotificationItem(
       id: json['id']?.toString() ?? '',
-      title: json['title']?.toString() ?? 'Notification',
-      body: json['body']?.toString() ?? json['message']?.toString() ?? '',
-      time: parseDate(json['created_at'] ?? json['time']),
-      category: json['category']?.toString() ?? json['type']?.toString() ?? 'system',
-      isRead: json['is_read'] is bool ? json['is_read'] as bool : (json['read'] == true),
-      route: json['route']?.toString() ?? json['link']?.toString(),
+      message: json['message']?.toString() ?? '',
+      link: (json['link']?.toString().isNotEmpty ?? false) ? json['link'].toString() : null,
+      isRead: json['is_read'] == true,
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '')?.toLocal() ?? DateTime.now(),
     );
   }
 
-  NotificationItem copyWith({
-    String? id,
-    String? title,
-    String? body,
-    DateTime? time,
-    String? category,
-    bool? isRead,
-    String? route,
-  }) {
-    return NotificationItem(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      body: body ?? this.body,
-      time: time ?? this.time,
-      category: category ?? this.category,
-      isRead: isRead ?? this.isRead,
-      route: route ?? this.route,
-    );
+  NotificationItem copyWith({bool? isRead}) {
+    return NotificationItem(id: id, message: message, link: link, isRead: isRead ?? this.isRead, createdAt: createdAt);
   }
 }
 
-class ActivityLogItem {
-  final String id;
-  final String userName;
-  final String userAvatar;
-  final String actionTitle;
-  final String details;
-  final DateTime timestamp;
-  final String category;
-
-  const ActivityLogItem({
-    required this.id,
-    required this.userName,
-    this.userAvatar = '',
-    required this.actionTitle,
-    required this.details,
-    required this.timestamp,
-    this.category = 'System',
-  });
-
-  factory ActivityLogItem.fromJson(Map<String, dynamic> json) {
-    DateTime parseDate(dynamic v) {
-      if (v == null) return DateTime.now();
-      if (v is DateTime) return v;
-      return DateTime.tryParse(v.toString()) ?? DateTime.now();
-    }
-
-    final actor = json['actor_name']?.toString() ?? json['user_name']?.toString() ?? 'System';
-    final action = json['action']?.toString() ?? '';
-    final target = json['target']?.toString() ?? json['details']?.toString() ?? '';
-
-    return ActivityLogItem(
-      id: json['id']?.toString() ?? '',
-      userName: actor,
-      userAvatar: json['actor_avatar']?.toString() ?? json['user_avatar']?.toString() ?? '',
-      actionTitle: action.isNotEmpty ? action : 'Activity update',
-      details: target,
-      timestamp: parseDate(json['created_at'] ?? json['timestamp']),
-      category: json['category']?.toString() ?? 'General',
-    );
-  }
-}
-
+/// A recycle-bin entry from `GET /api/admin/bin`.
 class RecycleBinItem {
   final String id;
-  final String entityType; // 'Task', 'Project', 'User', 'Document'
+  final String entityType;
   final String title;
-  final String deletedBy;
+  final String deletedByName;
   final DateTime deletedAt;
-  final int daysRemaining;
+  final DateTime? expiresAt;
 
   const RecycleBinItem({
     required this.id,
     required this.entityType,
     required this.title,
-    required this.deletedBy,
+    required this.deletedByName,
     required this.deletedAt,
-    this.daysRemaining = 15,
+    this.expiresAt,
   });
 
+  /// Whole days until the item is purged for good (null when the API gave no expiry).
+  int? get daysRemaining {
+    if (expiresAt == null) return null;
+    final left = expiresAt!.difference(DateTime.now());
+    return left.isNegative ? 0 : (left.inHours / 24).ceil();
+  }
+
   factory RecycleBinItem.fromJson(Map<String, dynamic> json) {
-    DateTime parseDate(dynamic v) {
-      if (v == null) return DateTime.now();
-      if (v is DateTime) return v;
-      return DateTime.tryParse(v.toString()) ?? DateTime.now();
-    }
-
-    final deleted = parseDate(json['deleted_at']);
-    final days = (json['days_remaining'] as num?)?.toInt() ?? (15 - DateTime.now().difference(deleted).inDays).clamp(0, 15);
-
+    DateTime? parse(dynamic v) => v == null ? null : DateTime.tryParse(v.toString())?.toLocal();
     return RecycleBinItem(
       id: json['id']?.toString() ?? '',
-      entityType: json['entity_type']?.toString() ?? json['type']?.toString() ?? 'Item',
-      title: json['title']?.toString() ?? json['name']?.toString() ?? 'Deleted Resource',
-      deletedBy: json['deleted_by']?.toString() ?? 'Admin',
-      deletedAt: deleted,
-      daysRemaining: days,
+      entityType: json['entity_type']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      deletedByName: json['deleted_by_name']?.toString() ?? '',
+      deletedAt: parse(json['deleted_at']) ?? DateTime.now(),
+      expiresAt: parse(json['expires_at']),
     );
   }
 }

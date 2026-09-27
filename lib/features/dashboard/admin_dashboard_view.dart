@@ -140,13 +140,15 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
                   padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
                   child: Column(
                     children: [
-                      AppTag(
-                        label: '${data.organization.name}${data.organization.type != null ? " · ${data.organization.type}" : ""}',
-                        icon: Icons.business_rounded,
-                        color: AppColors.primaryInk,
-                        background: AppColors.primarySoft,
-                      ),
-                      const SizedBox(height: 14),
+                      if (data.organization.name.isNotEmpty) ...[
+                        AppTag(
+                          label: '${data.organization.name}${data.organization.type != null ? " · ${data.organization.type}" : ""}',
+                          icon: Icons.business_rounded,
+                          color: AppColors.primaryInk,
+                          background: AppColors.primarySoft,
+                        ),
+                        const SizedBox(height: 14),
+                      ],
                       MetricHeader(value: '${data.stats.presentToday}', subtitle: 'of ${data.stats.totalMembers} team members checked in today'),
                       const SizedBox(height: 16),
                       Wrap(
@@ -334,7 +336,7 @@ class _AdminDashboardViewState extends ConsumerState<AdminDashboardView> {
               ),
               DashboardKpiCard(
                 title: 'On Leave',
-                value: '${stats.onLeaveToday > 0 ? stats.onLeaveToday : stats.pendingLeave}',
+                value: '${stats.onLeaveToday}',
                 subtitle: 'Authorized leave',
                 icon: Icons.event_note_rounded,
                 iconColor: AppColors.warning,

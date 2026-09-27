@@ -1,11 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/api/api_config.dart';
 import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/profile_overview_model.dart';
 import '../../shared/models/user_model.dart';
+import '../../shared/widgets/load_error_view.dart';
 import 'change_password_dialog.dart';
 import 'profile_repository.dart';
 import 'settings_screen.dart';
@@ -52,8 +56,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _isLoadingProfile = false;
         });
 
-        // Query 2: GET /api/users/{id}/overview ONLY when isIntern AND activeUser.id is set
-        if (user.role == UserRole.intern && user.id.isNotEmpty) {
+        // Query 2: GET /api/users/{id}/overview (interns and mentors get real stats there)
+        if ((user.role == UserRole.intern || user.role == UserRole.mentor) && user.id.isNotEmpty) {
           _loadInternOverview(user.id);
         }
       }
@@ -63,11 +67,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _isLoadingProfile = false;
           _errorMessage = e.toString();
         });
-        // Fallback: If profile fetch fails, check session user for intern overview
-        final sessionUser = ref.read(appStateProvider).currentUser;
-        if (sessionUser.role == UserRole.intern && sessionUser.id.isNotEmpty) {
-          _loadInternOverview(sessionUser.id);
-        }
       }
     }
   }
@@ -149,17 +148,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Future<void> _changePhoto() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 800, imageQuality: 85);
+    if (picked == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(appStateProvider.notifier).uploadAvatar(File(picked.path));
+      if (mounted) setState(() => _profileUser = _profileUser?.copyWith(avatarUrl: ref.read(appStateProvider).currentUser.avatarUrl));
+      messenger.showSnackBar(const SnackBar(content: Text('Profile photo updated')));
+    } catch (e) {
+      if (mounted) showApiError(context, e, prefix: 'Could not upload the photo');
+    }
+  }
+
+  /// Header numbers straight from GET /api/users/{id}/overview `stats`.
+  List<(String, String)> _headerStats(UserModel user) {
+    final stats = _overview?.stats ?? const {};
+    String v(String key) => stats[key] == null ? '–' : stats[key].toString();
+    if (user.role == UserRole.intern) {
+      return [(v('active_tasks'), 'Open tasks'), (v('projects'), 'Projects'), (v('present_30d'), 'Days present (30d)')];
+    }
+    if (user.role == UserRole.mentor) {
+      return [(v('interns'), 'Interns'), (v('projects'), 'Projects'), (v('tasks_assigned'), 'Tasks')];
+    }
+    return const [];
+  }
+
   Widget _buildHeaderCard(Color cardBg, Color borderColor, Color primaryTextColor, Color secondaryTextColor) {
     final user = _activeUser;
-    final initial = user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U';
-
-    final isIntern = user.role == UserRole.intern;
-    final box1Value = isIntern ? '${_overview?.totalProjectsCount ?? 4}' : '12';
-    final box1Label = isIntern ? 'Tasks' : 'Interns';
-    final box2Value = isIntern ? '${_overview?.totalProjectsCount ?? 2}' : '5';
-    final box2Label = 'Projects';
-    final box3Value = '4.8';
-    final box3Label = 'Rating';
+    final initial = user.name.isNotEmpty ? user.name[0].toUpperCase() : '?';
+    final headerStats = _headerStats(user);
+    final avatarUrl = user.avatarUrl ?? ref.watch(appStateProvider).currentUser.avatarUrl;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -180,20 +199,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   CircleAvatar(
                     radius: 46,
                     backgroundColor: AppColors.primary,
-                    child: Text(
-                      initial,
-                      style: TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.warningInk,
-                      ),
-                    ),
+                    backgroundImage: avatarUrl != null ? NetworkImage(ApiConfig.mediaUrl(avatarUrl)) : null,
+                    child: avatarUrl != null
+                        ? null
+                        : Text(
+                            initial,
+                            style: TextStyle(
+                              fontSize: 34,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.warningInk,
+                            ),
+                          ),
                   ),
                   Positioned(
                     right: 0,
                     bottom: 0,
                     child: GestureDetector(
-                      onTap: _openEditDialog,
+                      onTap: _changePhoto,
                       child: Container(
                         width: 30,
                         height: 30,
@@ -227,7 +249,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
               // Role & Department Subtitle
               Text(
-                '${user.role.name.toUpperCase()} • ${user.department ?? "Engineering"}',
+                [user.roleTitle, if ((user.department ?? '').isNotEmpty) user.department!].join(' • '),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -236,22 +258,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
               const SizedBox(height: 20),
 
-              // 3 KPI Metric Cards in a row
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildMetricTile(box1Value, box1Label, cardBg, borderColor, primaryTextColor, secondaryTextColor),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildMetricTile(box2Value, box2Label, cardBg, borderColor, primaryTextColor, secondaryTextColor),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildMetricTile(box3Value, box3Label, cardBg, borderColor, primaryTextColor, secondaryTextColor),
-                  ),
-                ],
-              ),
+              if (headerStats.isNotEmpty)
+                Row(
+                  children: [
+                    for (var i = 0; i < headerStats.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildMetricTile(headerStats[i].$1, headerStats[i].$2, cardBg, borderColor,
+                            primaryTextColor, secondaryTextColor),
+                      ),
+                    ],
+                  ],
+                ),
             ],
           ),
         ),
@@ -294,18 +312,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 secondaryTextColor: secondaryTextColor,
                 onTap: () => ChangePasswordDialog.show(context),
               ),
-              Divider(height: 1, color: borderColor),
-              _buildOptionItem(
-                icon: Icons.headset_mic_outlined,
-                title: 'Help & Support',
-                primaryTextColor: primaryTextColor,
-                secondaryTextColor: secondaryTextColor,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Support email: support@internhub.app')),
-                  );
-                },
-              ),
+
             ],
           ),
         ),
@@ -529,20 +536,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.shield_outlined, size: 18, color: AppColors.primaryInk),
-                  const SizedBox(width: 8),
-                  Text(
-                    _isIntern ? 'Professional Details' : 'Contact & Account Information',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: primaryTextColor,
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(Icons.shield_outlined, size: 18, color: AppColors.primaryInk),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        _isIntern ? 'Professional Details' : 'Contact & Account Information',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: primaryTextColor,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: _openEditDialog,
                 icon: const Icon(Icons.edit_outlined, size: 13),

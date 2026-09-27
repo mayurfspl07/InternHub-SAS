@@ -81,8 +81,7 @@ class LeaveRequest {
   final String reason;
   final String leave_type; // casual | sick | earned | comp
   final String status; // pending | approved | rejected
-  final String? comment;
-  final String? reviewer_comment;
+  final String? reviewComment;
   final int? reviewed_by;
   final String? reviewer_name;
   final String? reviewed_at;
@@ -102,8 +101,7 @@ class LeaveRequest {
     required this.reason,
     required this.leave_type,
     required this.status,
-    this.comment,
-    this.reviewer_comment,
+    this.reviewComment,
     this.reviewed_by,
     this.reviewer_name,
     this.reviewed_at,
@@ -156,8 +154,7 @@ class LeaveRequest {
       reason: json['reason']?.toString() ?? '',
       leave_type: json['leave_type']?.toString() ?? json['type']?.toString() ?? 'casual',
       status: json['status']?.toString() ?? 'pending',
-      comment: json['comment']?.toString(),
-      reviewer_comment: json['reviewer_comment']?.toString(),
+      reviewComment: json['review_comment']?.toString(),
       reviewed_by: json['reviewed_by'] != null ? toNum(json['reviewed_by']).toInt() : null,
       reviewer_name: json['reviewer_name']?.toString() ?? json['approved_by']?.toString(),
       reviewed_at: json['reviewed_at']?.toString(),
@@ -180,8 +177,7 @@ class LeaveRequest {
       'reason': reason,
       'leave_type': leave_type,
       'status': status,
-      'comment': comment,
-      'reviewer_comment': reviewer_comment,
+      'review_comment': reviewComment,
       'reviewed_by': reviewed_by,
       'reviewer_name': reviewer_name,
       'reviewed_at': reviewed_at,
@@ -197,7 +193,8 @@ class LeaveRequest {
   bool get isApproved => status.toLowerCase() == 'approved';
   bool get isRejected => status.toLowerCase() == 'rejected';
 
-  String get displayComment => reviewer_comment ?? comment ?? '';
+  /// Comment the reviewer left when approving or rejecting the request.
+  String get displayComment => reviewComment ?? '';
   String? get displayReviewer => reviewer_name ?? (reviewed_by != null ? 'Reviewer #$reviewed_by' : null);
 
   bool get hasAttachment =>
@@ -238,8 +235,8 @@ class LeaveBalance {
   const LeaveBalance({
     this.used = 0,
     this.pending,
-    this.quota = 15,
-    this.remaining = 15,
+    this.quota = 0,
+    this.remaining = 0,
     this.available_after_pending,
   });
 
@@ -250,7 +247,7 @@ class LeaveBalance {
       return num.tryParse(v.toString()) ?? defaultVal;
     }
 
-    final q = toNum(json['quota'], 15);
+    final q = toNum(json['quota'], 0);
     final u = toNum(json['used'], 0);
     final rem = toNum(json['remaining'], q - u);
     final pend = json['pending'] != null ? toNum(json['pending']) : null;
@@ -276,16 +273,6 @@ class LeaveBalance {
       'available_after_pending': available_after_pending,
     };
   }
-
-  // Backward compatibility getters
-  int get casualRemaining => (remaining * 0.25).round();
-  int get casualTotal => (quota * 0.25).round();
-  int get sickRemaining => (remaining * 0.25).round();
-  int get sickTotal => (quota * 0.25).round();
-  int get earnedRemaining => (remaining * 0.40).round();
-  int get earnedTotal => (quota * 0.40).round();
-  int get compOffRemaining => (remaining * 0.10).round();
-  int get compOffTotal => (quota * 0.10).round();
 }
 
 class LeaveSummary {
@@ -370,7 +357,7 @@ class LeaveMineResponse {
 
     final bal = json['balance'] != null && json['balance'] is Map<String, dynamic>
         ? LeaveBalance.fromJson(json['balance'] as Map<String, dynamic>)
-        : const LeaveBalance(used: 0, quota: 15, remaining: 15);
+        : const LeaveBalance();
 
     return LeaveMineResponse(
       requests: reqs,

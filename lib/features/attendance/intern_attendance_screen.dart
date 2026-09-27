@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/load_error_view.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
@@ -23,6 +24,7 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
   final AttendanceRepository _repo = AttendanceRepository();
 
   bool _isLoading = true;
+  String? _loadError;
   AttendanceRecord? _todayRecord;
   DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
   List<AttendanceRecord> _monthRecords = [];
@@ -42,16 +44,15 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
     try {
       // 1. Fetch today's record
       final todayResult = await _repo.fetchTodayAttendance();
       _todayRecord = todayResult.record;
 
-      // Also sync to app state provider if needed
-      if (_todayRecord != null) {
-        ref.read(appStateProvider.notifier).fetchAttendance();
-      }
 
       // 2. Fetch history for current selected month
       final monthStr = DateFormat('yyyy-MM').format(_currentMonth);
@@ -61,7 +62,9 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
       _recordsByDate = {
         for (final r in history.records) r.date: r,
       };
-    } catch (_) {}
+    } catch (e) {
+      _loadError = apiErrorMessage(e);
+    }
     if (mounted) {
       setState(() => _isLoading = false);
     }
@@ -237,6 +240,15 @@ class _InternAttendanceScreenState extends ConsumerState<InternAttendanceScreen>
                 if (_isLoading) ...[
                   const SizedBox(height: 12),
                   const LinearProgressIndicator(minHeight: 2),
+                ],
+                if (!_isLoading && _loadError != null) ...[
+                  const SizedBox(height: 12),
+                  LoadErrorView(
+                    title: "Couldn't load your attendance",
+                    message: _loadError!,
+                    onRetry: _loadData,
+                    compact: true,
+                  ),
                 ],
                 const SizedBox(height: 20),
 

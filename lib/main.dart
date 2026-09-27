@@ -28,6 +28,7 @@ import 'features/directory_cohorts/user_management_screen.dart';
 import 'features/directory_cohorts/team_directory_screen.dart';
 import 'features/invites/invite_links_screen.dart';
 import 'features/admin_ops/data_management_screen.dart';
+import 'features/org_settings/org_settings_screen.dart';
 import 'features/activity_audit/activity_timeline_screen.dart';
 import 'features/activity_audit/recycle_bin_screen.dart';
 import 'features/masters/task_statuses_screen.dart';
@@ -99,12 +100,18 @@ class InternHubApp extends ConsumerWidget {
               allowedRoles: [UserRole.admin, UserRole.mentor],
               child: InviteLinksScreen(),
             ),
+        '/org-settings': (_) => const GuardedRoute(
+              allowedRoles: [UserRole.admin],
+              child: OrgSettingsScreen(),
+            ),
         '/team': (_) => const GuardedRoute(
               allowedRoles: [UserRole.admin],
               child: TeamDirectoryScreen(),
             ),
+        // Wipes every organization's data: the API allows platform admins only.
         '/data': (_) => const GuardedRoute(
               allowedRoles: [UserRole.admin],
+              platformAdminOnly: true,
               child: DataManagementScreen(),
             ),
         '/bin': (_) => const GuardedRoute(
@@ -218,11 +225,13 @@ class InternHubApp extends ConsumerWidget {
 class GuardedRoute extends ConsumerWidget {
   final Widget child;
   final List<UserRole>? allowedRoles;
+  final bool platformAdminOnly;
 
   const GuardedRoute({
     super.key,
     required this.child,
     this.allowedRoles,
+    this.platformAdminOnly = false,
   });
 
   @override
@@ -234,6 +243,9 @@ class GuardedRoute extends ConsumerWidget {
     final roles = allowedRoles;
     if (roles != null && !roles.contains(state.currentUser.role)) {
       // Role restricted -> Redirect to dashboard
+      return const MainNavigationWrapper();
+    }
+    if (platformAdminOnly && !state.currentUser.isPlatformAdmin) {
       return const MainNavigationWrapper();
     }
     return child;

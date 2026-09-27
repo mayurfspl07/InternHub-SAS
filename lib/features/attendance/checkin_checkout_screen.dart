@@ -222,12 +222,13 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
       // Capture live photo right now from the in-circle camera stream
       final photo = await _captureCurrentFrame();
 
-      if (!isCheckOutMode && photo == null) {
+      // Both check-in and check-out need a selfie and the current location.
+      if (photo == null) {
         setState(() {
           _isProcessing = false;
           _errorMessage = _isCameraInitialized
-              ? 'Failed to snapshot live camera. Please hold still and tap Confirm again.'
-              : 'Live camera stream is not ready. Please restart your flutter run terminal command to link camera drivers.';
+              ? 'Could not take the photo. Hold still and tap Confirm again.'
+              : 'The camera is not ready. Allow camera access for InternHub and try again.';
         });
         return;
       }
@@ -235,8 +236,8 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
       if (isCheckOutMode) {
         await ref.read(appStateProvider.notifier).checkOut(
               photo: photo,
-              latitude: _currentPosition?.latitude,
-              longitude: _currentPosition?.longitude,
+              latitude: _currentPosition!.latitude,
+              longitude: _currentPosition!.longitude,
             );
 
         if (mounted) {
@@ -251,7 +252,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
         }
       } else {
         await ref.read(appStateProvider.notifier).checkIn(
-              photo: photo!,
+              photo: photo,
               latitude: _currentPosition!.latitude,
               longitude: _currentPosition!.longitude,
             );

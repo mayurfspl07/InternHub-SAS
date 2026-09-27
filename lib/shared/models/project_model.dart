@@ -36,9 +36,9 @@ enum KanbanStatus {
       case KanbanStatus.inProgress:
         return 'in_progress';
       case KanbanStatus.inReview:
-        return 'testing';
+        return 'review';
       case KanbanStatus.completed:
-        return 'completed';
+        return 'done';
     }
   }
 
@@ -56,11 +56,11 @@ enum KanbanStatus {
   }
 }
 
+/// Task priorities accepted by the API.
 enum TaskPriority {
   low,
   medium,
-  high,
-  urgent;
+  high;
 
   static TaskPriority fromString(String? val) {
     if (val == null) return TaskPriority.medium;
@@ -69,8 +69,6 @@ enum TaskPriority {
         return TaskPriority.low;
       case 'high':
         return TaskPriority.high;
-      case 'urgent':
-        return TaskPriority.urgent;
       case 'medium':
       default:
         return TaskPriority.medium;
@@ -105,10 +103,8 @@ class TaskStatusColumn {
     Color colColor = AppColors.textSecondary;
     final colorHex = json['color']?.toString() ?? json['color_hex']?.toString();
     if (colorHex != null && colorHex.isNotEmpty) {
-      try {
-        final hex = colorHex.replaceAll('#', '');
-        colColor = Color(int.parse('FF$hex', radix: 16));
-      } catch (_) {}
+      final parsed = int.tryParse('FF${colorHex.replaceAll('#', '')}', radix: 16);
+      if (parsed != null) colColor = Color(parsed);
     } else {
       if (colKey.contains('todo') || colKey.contains('to_do')) {
         colColor = AppColors.textSecondary;
@@ -135,8 +131,8 @@ class TaskStatusColumn {
     return const [
       TaskStatusColumn(key: 'todo', title: 'To Do', color: AppColors.textSecondary, statusCategory: 'todo', isDefault: true, orderIndex: 0),
       TaskStatusColumn(key: 'in_progress', title: 'In Progress', color: AppColors.info, statusCategory: 'in_progress', orderIndex: 1),
-      TaskStatusColumn(key: 'testing', title: 'Review', color: AppColors.warning, statusCategory: 'in_progress', orderIndex: 2),
-      TaskStatusColumn(key: 'completed', title: 'Completed', color: AppColors.success, statusCategory: 'done', orderIndex: 3),
+      TaskStatusColumn(key: 'review', title: 'Review', color: AppColors.warning, statusCategory: 'in_progress', orderIndex: 2),
+      TaskStatusColumn(key: 'done', title: 'Done', color: AppColors.success, statusCategory: 'done', orderIndex: 3),
     ];
   }
 }
@@ -148,10 +144,10 @@ class TaskComment {
   final String authorName;
   final String authorAvatar;
   final String message;
-  final String? fileUrl;
-  final String? fileName;
-  final String? attachmentId;
   final DateTime createdAt;
+
+  /// Files posted with the comment: task attachments whose `comment_id` is this comment.
+  final List<TaskAttachment> attachments;
 
   const TaskComment({
     required this.id,
@@ -160,11 +156,20 @@ class TaskComment {
     required this.authorName,
     required this.authorAvatar,
     required this.message,
-    this.fileUrl,
-    this.fileName,
-    this.attachmentId,
     required this.createdAt,
+    this.attachments = const [],
   });
+
+  TaskComment withAttachments(List<TaskAttachment> files) => TaskComment(
+        id: id,
+        taskId: taskId,
+        userId: userId,
+        authorName: authorName,
+        authorAvatar: authorAvatar,
+        message: message,
+        createdAt: createdAt,
+        attachments: files,
+      );
 
   factory TaskComment.fromJson(Map<String, dynamic> json) {
     DateTime parseDate(dynamic v) {
@@ -182,9 +187,6 @@ class TaskComment {
       authorName: json['user_name']?.toString() ?? json['author_name']?.toString() ?? userObj?['name']?.toString() ?? 'Member',
       authorAvatar: json['user_avatar']?.toString() ?? json['author_avatar']?.toString() ?? userObj?['avatar_url']?.toString() ?? '',
       message: json['body']?.toString() ?? json['message']?.toString() ?? json['comment']?.toString() ?? '',
-      fileUrl: json['file_url']?.toString() ?? json['url']?.toString(),
-      fileName: json['filename']?.toString() ?? json['file_name']?.toString(),
-      attachmentId: json['attachment_id']?.toString(),
       createdAt: parseDate(json['created_at']),
     );
   }
@@ -199,6 +201,7 @@ class TaskAttachment {
   final String? url;
   final String? description;
   final String? uploadedByName;
+  final String? commentId;
   final DateTime createdAt;
 
   const TaskAttachment({
@@ -210,6 +213,7 @@ class TaskAttachment {
     this.url,
     this.description,
     this.uploadedByName,
+    this.commentId,
     required this.createdAt,
   });
 
@@ -223,12 +227,13 @@ class TaskAttachment {
     return TaskAttachment(
       id: json['id']?.toString() ?? '',
       taskId: json['task_id']?.toString() ?? '',
-      fileName: json['original_name']?.toString() ?? json['file_name']?.toString() ?? json['filename']?.toString() ?? json['name']?.toString() ?? 'attachment',
-      fileSize: (json['file_size'] ?? json['size'] as num?)?.toInt() ?? 0,
-      contentType: json['content_type']?.toString() ?? json['mime_type']?.toString(),
-      url: json['download_url']?.toString() ?? json['file_url']?.toString() ?? json['url']?.toString(),
+      fileName: json['file_name']?.toString() ?? 'attachment',
+      fileSize: (json['file_size'] as num?)?.toInt() ?? 0,
+      contentType: json['file_type']?.toString(),
+      url: json['download_url']?.toString(),
       description: json['description']?.toString(),
-      uploadedByName: json['uploaded_by_name']?.toString() ?? json['uploader_name']?.toString(),
+      uploadedByName: json['user_name']?.toString(),
+      commentId: json['comment_id']?.toString(),
       createdAt: parseDate(json['created_at']),
     );
   }
@@ -263,7 +268,7 @@ class TaskModel {
   final String rawStatus;
   final KanbanStatus status;
   final TaskPriority priority;
-  final DateTime dueDate;
+  final DateTime? dueDate;
   final String? assignedTo;
   final String? assigneeName;
   final String? createdById;
@@ -290,7 +295,7 @@ class TaskModel {
     this.rawStatus = 'todo',
     required this.status,
     required this.priority,
-    required this.dueDate,
+    this.dueDate,
     this.assignedTo,
     this.assigneeName,
     this.createdById,
@@ -310,10 +315,10 @@ class TaskModel {
   });
 
   factory TaskModel.fromJson(Map<String, dynamic> json) {
-    DateTime parseDate(dynamic v) {
-      if (v == null) return DateTime.now().add(const Duration(days: 3));
+    DateTime? parseDate(dynamic v) {
+      if (v == null) return null;
       if (v is DateTime) return v;
-      return DateTime.tryParse(v.toString()) ?? DateTime.now().add(const Duration(days: 3));
+      return DateTime.tryParse(v.toString());
     }
 
     final rawStatusStr = (json['status']?.toString() ?? 'todo').trim();
@@ -367,7 +372,7 @@ class TaskModel {
     }
 
     final due = parseDate(json['deadline'] ?? json['due_date']);
-    final created = parseDate(json['created_at']);
+    final created = parseDate(json['created_at']) ?? DateTime.now();
 
     return TaskModel(
       id: json['id']?.toString() ?? '',
@@ -379,11 +384,12 @@ class TaskModel {
       status: kanbanStatus,
       priority: TaskPriority.fromString(json['priority']?.toString()),
       dueDate: due,
-      assignedTo: assignedToId ?? json['assigned_to']?.toString(),
+      assignedTo: assignedToId ?? json['assigned_to']?.toString() ?? json['assignee_id']?.toString(),
       assigneeName: assignedName ?? json['assignee_name']?.toString() ?? (names.isNotEmpty ? names.first : null),
       createdById: json['created_by_id']?.toString() ?? json['creator_id']?.toString(),
       createdByName: json['created_by_name']?.toString() ?? json['creator_name']?.toString(),
-      isOverdue: json['is_overdue'] == true || (due.isBefore(DateTime.now()) && kanbanStatus != KanbanStatus.completed),
+      isOverdue: json['is_overdue'] == true ||
+          (due != null && due.isBefore(DateTime.now()) && kanbanStatus != KanbanStatus.completed),
       canEdit: json['can_edit'] is bool ? json['can_edit'] as bool : true,
       canMove: json['can_move'] is bool ? json['can_move'] as bool : true,
       canDelete: json['can_delete'] is bool ? json['can_delete'] as bool : true,
@@ -406,8 +412,7 @@ class TaskModel {
       'status': rawStatus.isNotEmpty ? rawStatus : status.toApiValue(),
       'priority': priority.toApiValue(),
       'assigned_to': assignedTo,
-      'due_date': DateFormat('yyyy-MM-dd').format(dueDate),
-      'deadline': DateFormat('yyyy-MM-dd').format(dueDate),
+      if (dueDate != null) 'due_date': DateFormat('yyyy-MM-dd').format(dueDate!),
     };
   }
 
@@ -467,7 +472,7 @@ class TaskModel {
     );
   }
 
-  String get timeSlot => DateFormat('MMM dd, yyyy').format(dueDate);
+  String get timeSlot => dueDate == null ? 'No due date' : DateFormat('MMM dd, yyyy').format(dueDate!);
 }
 
 class ProjectComment {
@@ -596,7 +601,7 @@ class ProjectModel {
     required this.startDate,
     required this.endDate,
     required this.deadline,
-    this.department = 'Engineering',
+    this.department = '',
     this.mentorId,
     required this.mentorName,
     this.mentorIds = const [],
@@ -746,13 +751,7 @@ class ProjectModel {
     List<TaskModel> taskList = [];
     if (rawTaskList is List) {
       for (final t in rawTaskList) {
-        try {
-          if (t is Map<String, dynamic>) {
-            taskList.add(TaskModel.fromJson(t));
-          } else if (t is Map) {
-            taskList.add(TaskModel.fromJson(Map<String, dynamic>.from(t)));
-          }
-        } catch (_) {}
+        if (t is Map) taskList.add(TaskModel.fromJson(Map<String, dynamic>.from(t)));
       }
     }
 
@@ -762,8 +761,8 @@ class ProjectModel {
       calcTaskDone = (json['task_done'] as num).toInt();
     } else if (json['completed_tasks'] != null) {
       calcTaskDone = (json['completed_tasks'] as num).toInt();
-    } else if (json['completed_task_count'] != null) {
-      calcTaskDone = (json['completed_task_count'] as num).toInt();
+    } else if (json['completed_tasks_count'] != null) {
+      calcTaskDone = (json['completed_tasks_count'] as num).toInt();
     } else {
       calcTaskDone = taskList.where((t) => t.status == KanbanStatus.completed || t.rawStatus.toLowerCase() == 'completed' || t.rawStatus.toLowerCase() == 'done').length;
     }
@@ -775,17 +774,17 @@ class ProjectModel {
       calcTaskTotal = (json['total_tasks'] as num).toInt();
     } else if (json['task_count'] != null) {
       calcTaskTotal = (json['task_count'] as num).toInt();
-    } else if (json['total_task_count'] != null) {
-      calcTaskTotal = (json['total_task_count'] as num).toInt();
+    } else if (json['tasks_count'] != null) {
+      calcTaskTotal = (json['tasks_count'] as num).toInt();
     } else {
       calcTaskTotal = taskList.length;
     }
 
+    // The API reports progress as a whole percentage (0-100).
     double calcProgress = 0.0;
-    final rawProg = json['progress_percent'] ?? json['progress'] ?? json['completion_percentage'] ?? json['completion_percent'];
-    if (rawProg != null && rawProg is num) {
-      calcProgress = rawProg.toDouble();
-      if (calcProgress > 1.0) calcProgress = calcProgress / 100.0;
+    final rawProg = json['progress'];
+    if (rawProg is num) {
+      calcProgress = rawProg.toDouble() / 100.0;
     } else if (calcTaskTotal > 0) {
       calcProgress = (calcTaskDone / calcTaskTotal);
     }
@@ -806,7 +805,7 @@ class ProjectModel {
       startDate: start,
       endDate: end,
       deadline: end,
-      department: json['department']?.toString() ?? 'Engineering',
+      department: json['department']?.toString() ?? '',
       mentorId: mId,
       mentorName: mName,
       mentorIds: mentorIds,

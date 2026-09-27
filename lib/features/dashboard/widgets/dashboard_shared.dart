@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../activity_audit/models/activity_models.dart';
+import '../../../shared/widgets/load_error_view.dart';
 
 // ==========================================
 // 1) SHARED HELPER FUNCTIONS
@@ -453,56 +454,7 @@ class DashboardErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = Colors.white;
-    final primaryTextColor = AppColors.ink;
-    final secondaryTextColor = AppColors.textSecondary;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(20),
-        boxShadow: AppShadows.soft,
-      ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
-              const SizedBox(height: 14),
-              Text(
-                'Unable to load dashboard',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: primaryTextColor,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: secondaryTextColor),
-              ),
-              const SizedBox(height: 18),
-              ElevatedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded, size: 18),
-                label: const Text('Try Again'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.onPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    return LoadErrorView(title: 'Unable to load dashboard', message: message, onRetry: onRetry);
   }
 }
 

@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/api/api_client.dart';
+import '../activity_audit/activity_repository.dart';
+import '../activity_audit/models/activity_models.dart';
+import '../../shared/widgets/load_error_view.dart';
 import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/reference_components.dart';
 import '../../shared/widgets/page_header.dart';
@@ -39,6 +42,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   List<ProjectLink> _links = [];
   List<TaskStatusColumn> _taskStatuses = [];
   bool _isLoading = true;
+  String? _loadError;
+  List<AuditLogEntry> _activity = const [];
 
   // View state: 'board' or 'list'
   String _taskViewMode = 'board';
@@ -76,56 +81,34 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   }
 
   Future<void> _loadProjectData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
     final targetId = widget.project?.id ?? widget.projectId?.toString() ?? _project.id;
     try {
       final results = await Future.wait([
         ApiClient().get('/api/projects/$targetId'),
-        ApiClient().get('/api/projects/$targetId/links').catchError((_) => []),
-        ApiClient().get('/api/projects/$targetId/comments-board').catchError((_) => []),
-        ApiClient().get('/api/projects/task-statuses').catchError((_) => []),
+        ApiClient().get('/api/projects/$targetId/links'),
+        ApiClient().get('/api/projects/$targetId/comments-board'),
+        ApiClient().get('/api/projects/$targetId/task-statuses'),
       ]);
 
-      // 1. Project + embedded tasks/members
+      List<Map<String, dynamic>> maps(dynamic v) =>
+          v is List ? v.whereType<Map<String, dynamic>>().toList() : const [];
+
       final projRes = results[0];
       if (projRes is Map<String, dynamic>) {
         _project = ProjectModel.fromJson(projRes);
         _tasks = _project.tasks;
       }
-
-      // 2. Links
-      List<ProjectLink> linkList = [];
-      final linkRes = results[1];
-      if (linkRes is List) {
-        linkList = linkRes.whereType<Map<String, dynamic>>().map((l) => ProjectLink.fromJson(l)).toList();
-      } else if (linkRes is Map<String, dynamic>) {
-        final items = linkRes['links'] ?? linkRes['items'] ?? linkRes['data'];
-        if (items is List) linkList = items.whereType<Map<String, dynamic>>().map((l) => ProjectLink.fromJson(l)).toList();
-      }
-
-      // 3. Comments Board
-      List<ProjectComment> commentList = [];
-      final commRes = results[2];
-      if (commRes is List) {
-        commentList = commRes.whereType<Map<String, dynamic>>().map((c) => ProjectComment.fromJson(c)).toList();
-      } else if (commRes is Map<String, dynamic>) {
-        final items = commRes['comments'] ?? commRes['items'] ?? commRes['data'];
-        if (items is List) commentList = items.whereType<Map<String, dynamic>>().map((c) => ProjectComment.fromJson(c)).toList();
-      }
-
-      // 4. Task Statuses
-      List<TaskStatusColumn> statusCols = [];
-      final statusRes = results[3];
-      if (statusRes is List) {
-        statusCols = statusRes.whereType<Map<String, dynamic>>().map((c) => TaskStatusColumn.fromJson(c)).toList();
-      } else if (statusRes is Map<String, dynamic>) {
-        final items = statusRes['statuses'] ?? statusRes['items'] ?? statusRes['data'];
-        if (items is List) statusCols = items.whereType<Map<String, dynamic>>().map((c) => TaskStatusColumn.fromJson(c)).toList();
-      }
-
-      if (statusCols.isEmpty) {
-        statusCols = TaskStatusColumn.fallbackColumns();
-      }
+      // links and comments-board return lists; task-statuses returns {statuses: [...]}
+      final linkList = maps(results[1]).map(ProjectLink.fromJson).toList();
+      final commentList = maps(results[2]).map(ProjectComment.fromJson).toList();
+      final statusCols = maps(results[3] is Map ? (results[3] as Map)['statuses'] : null)
+          .map(TaskStatusColumn.fromJson)
+          .toList()
+        ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
 
       if (mounted) {
         setState(() {
@@ -135,8 +118,27 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           _isLoading = false;
         });
       }
+      _loadActivity(targetId);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _loadError = apiErrorMessage(e);
+        });
+      }
+    }
+  }
+
+  /// The project's real audit trail (GET /api/audit?project_id=).
+  Future<void> _loadActivity(String projectId) async {
+    final id = int.tryParse(projectId);
+    if (id == null) return;
+    try {
+      final res = await ActivityRepository().fetchAudit(projectId: id);
+      if (mounted) setState(() => _activity = res.logs.take(6).toList());
     } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+      // Activity is secondary: the section simply stays empty when it can't load.
+      if (mounted) setState(() => _activity = const []);
     }
   }
 
@@ -226,6 +228,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     String? selectedInternId;
     List<Map<String, dynamic>> availableInterns = [];
     bool loading = true;
+    bool loaded = false;
+    String? loadError;
 
     showDialog(
       context: context,
@@ -234,38 +238,20 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           final existingIds = _project.members.map((m) => m['id']?.toString()).toSet();
 
           if (loading) {
-            ApiClient()
-                .get('/api/users/dropdown?role=intern')
-                .catchError((_) => ApiClient().get('/api/projects/interns?page=1&page_size=30'))
-                .then((res) {
-              List<Map<String, dynamic>> list = [];
-              if (res is List) {
-                list = res.whereType<Map<String, dynamic>>().toList();
-              } else if (res is Map && (res['users'] ?? res['interns'] ?? res['items'] ?? res['data']) is List) {
-                list = ((res['users'] ?? res['interns'] ?? res['items'] ?? res['data']) as List).whereType<Map<String, dynamic>>().toList();
-              }
-              var filtered = list.where((i) => !existingIds.contains(i['id']?.toString())).toList();
-              if (filtered.isEmpty) {
-                final all = ref.read(appStateProvider).allUsers;
-                filtered = all
-                    .where((u) => u.role == UserRole.intern && !existingIds.contains(u.id))
-                    .map((u) => {'id': u.id, 'name': u.name, 'email': u.email, 'role': 'intern'})
-                    .toList();
-              }
-
+            loading = false; // start the request once
+            ApiClient().get('/api/users/dropdown', queryParameters: {'role': 'intern'}).then((res) {
+              final list = res is Map && res['interns'] is List
+                  ? (res['interns'] as List).whereType<Map<String, dynamic>>().toList()
+                  : <Map<String, dynamic>>[];
               setDialogState(() {
-                availableInterns = filtered;
-                loading = false;
+                availableInterns = list.where((i) => !existingIds.contains(i['id']?.toString())).toList();
+                loadError = null;
+                loaded = true;
               });
-            }).catchError((_) {
-              final all = ref.read(appStateProvider).allUsers;
-              final filtered = all
-                  .where((u) => u.role == UserRole.intern && !existingIds.contains(u.id))
-                  .map((u) => {'id': u.id, 'name': u.name, 'email': u.email, 'role': 'intern'})
-                  .toList();
+            }).catchError((Object e) {
               setDialogState(() {
-                availableInterns = filtered;
-                loading = false;
+                loadError = apiErrorMessage(e);
+                loaded = true;
               });
             });
           }
@@ -318,6 +304,24 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
+
+                  if (!loaded)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 10),
+                      child: LinearProgressIndicator(minHeight: 2),
+                    )
+                  else if (loadError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Text("Couldn't load interns: $loadError",
+                          style: const TextStyle(fontSize: 12, color: AppColors.danger)),
+                    )
+                  else if (availableInterns.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 10),
+                      child: Text('Every intern is already on this project.',
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    ),
 
                   Container(
                     height: 44,
@@ -627,53 +631,19 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     }
   }
 
-  // Synthetic Activity Items (client-only, max 4)
-  List<Map<String, String>> _buildSyntheticActivity() {
-    final items = <Map<String, String>>[];
-
-    // 1. "{mentor_name} created this project" using created_at
-    items.add({
-      'title': '${_project.mentorName} created this project',
-      'time': DateFormat('MMM d, h:mm a').format(_project.createdAt),
-      'icon': 'folder',
-    });
-
-    // 2. Last 2 tasks: "{assignee} added task \"{title}\""
-    final sortedTasks = List<TaskModel>.from(_tasks)..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    int taskCount = 0;
-    for (final t in sortedTasks) {
-      if (taskCount >= 2) break;
-      final who = t.assigneeName ?? t.createdByName ?? 'Team';
-      items.add({
-        'title': '$who added task "${t.title}"',
-        'time': DateFormat('MMM d, h:mm a').format(t.createdAt),
-        'icon': 'task',
-      });
-      taskCount++;
-    }
-
-    // 3. Last completed/done task: "Task \"{title}\" was completed"
-    final completedTask = _tasks.firstWhere(
-      (t) => t.status == KanbanStatus.completed || t.rawStatus.toLowerCase() == 'completed' || t.rawStatus.toLowerCase() == 'done',
-      orElse: () => TaskModel(
-        id: '',
-        projectId: '',
-        title: '',
-        status: KanbanStatus.todo,
-        priority: TaskPriority.medium,
-        dueDate: DateTime.now(),
-        createdAt: DateTime.now(),
-      ),
-    );
-    if (completedTask.id.isNotEmpty && items.length < 4) {
-      items.add({
-        'title': 'Task "${completedTask.title}" was completed',
-        'time': DateFormat('MMM d, h:mm a').format(completedTask.createdAt),
-        'icon': 'check',
-      });
-    }
-
-    return items.take(4).toList();
+  // Recent activity from the audit log, newest first.
+  List<Map<String, String>> _activityItems() {
+    return _activity.map((e) {
+      final when = DateTime.tryParse(e.createdAt)?.toLocal();
+      final icon = e.action.startsWith('project')
+          ? 'folder'
+          : (e.action.contains('status') || e.action.contains('complete') ? 'check' : 'task');
+      return {
+        'title': '${e.actorName} ${e.verb}${e.target.isNotEmpty ? ' "${e.target}"' : ''}',
+        'time': when == null ? '' : DateFormat('MMM d, h:mm a').format(when),
+        'icon': icon,
+      };
+    }).toList();
   }
 
   @override
@@ -686,6 +656,14 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         backgroundColor: AppColors.canvas,
         appBar: pageAppBar(context, title: 'Project'),
         body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_loadError != null) {
+      return Scaffold(
+        backgroundColor: AppColors.canvas,
+        appBar: pageAppBar(context, title: 'Project'),
+        body: LoadErrorView(title: "Couldn't load this project", message: _loadError!, onRetry: _loadProjectData),
       );
     }
 
@@ -1589,7 +1567,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                     Icon(Icons.calendar_today_outlined, size: 12, color: AppColors.textTertiary),
                     const SizedBox(width: 4),
                     Text(
-                      DateFormat('yyyy-MM-dd').format(task.dueDate),
+                      task.dueDate == null ? 'No due date' : DateFormat('yyyy-MM-dd').format(task.dueDate!),
                       style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
                     ),
                   ],
@@ -1656,7 +1634,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               ),
             ),
             subtitle: Text(
-              'Due: ${DateFormat('yyyy-MM-dd').format(t.dueDate)} • Assignee: ${t.assigneeName ?? 'Unassigned'}',
+              '${t.dueDate == null ? 'No due date' : 'Due: ${DateFormat('yyyy-MM-dd').format(t.dueDate!)}'} • Assignee: ${t.assigneeName ?? 'Unassigned'}',
               style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
             ),
             trailing: Container(
@@ -1910,7 +1888,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   }
 
   Widget _buildRecentActivitySection() {
-    final activity = _buildSyntheticActivity();
+    final activity = _activityItems();
+    if (activity.isEmpty) return const SizedBox.shrink();
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.p20),

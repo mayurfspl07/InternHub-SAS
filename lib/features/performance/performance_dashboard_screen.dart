@@ -160,7 +160,6 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
     final result = await PerformanceReviewDialog.show(context);
     if (result == true && mounted) {
       _fetchReviews();
-      ref.read(appStateProvider.notifier).fetchReviews();
     }
   }
 
@@ -168,7 +167,6 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
     final result = await PerformanceReviewDialog.show(context, review: item);
     if (result == true && mounted) {
       _fetchReviews();
-      ref.read(appStateProvider.notifier).fetchReviews();
     }
   }
 
@@ -176,7 +174,6 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
     final result = await DeleteReviewDialog.show(context, item);
     if (result == true && mounted) {
       _fetchReviews();
-      ref.read(appStateProvider.notifier).fetchReviews();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -853,8 +850,10 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
                     color: AppColors.surfaceMuted,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceAround,
+                    spacing: 8,
+                    runSpacing: 6,
                     children: [
                       if (item.technicalRating != null)
                         _buildCategoryBadge('Technical', item.technicalRating!),

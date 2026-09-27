@@ -4,17 +4,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
-import '../../core/state/app_state_provider.dart';
 import '../../core/constants/app_typography.dart';
 import '../../shared/widgets/app_tag.dart';
 import '../../shared/widgets/hero_banner_card.dart';
 import '../../shared/widgets/horizontal_date_strip.dart';
 import '../../shared/widgets/pastel_card.dart';
 import '../../shared/widgets/reference_components.dart';
+import '../../shared/widgets/load_error_view.dart';
 import '../attendance/attendance_home_screen.dart';
 import '../projects_tasks/projects_list_screen.dart';
 import '../leaves/leave_dashboard_screen.dart';
 import '../standup/standup_screen.dart';
+import '../standup/standup_repository.dart';
+import '../standup/models/standup_models.dart';
 import '../announcements/announcements_screen.dart';
 import 'dashboard_repository.dart';
 import 'models/dashboard_models.dart';
@@ -34,6 +36,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
   bool _isLoading = true;
   String? _errorMessage;
   InternDashboardData? _dashboardData;
+  StandupLog? _todayStandup;
 
   Timer? _timer;
   Duration _elapsedTime = Duration.zero;
@@ -97,29 +100,44 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
     return '$h:$m:$s';
   }
 
-  Future<void> _loadDashboard() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  /// Loads the dashboard and today's standup. [silent] refreshes without the skeleton
+  /// (used when returning from a screen that may have changed the data).
+  Future<void> _loadDashboard({bool silent = false}) async {
+    if (!silent || _dashboardData == null) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
-      final data = await _repository.getInternDashboard();
+      final results = await Future.wait([
+        _repository.getInternDashboard(),
+        StandupRepository().getTodayStandup(),
+      ]);
       if (mounted) {
         setState(() {
-          _dashboardData = data;
+          _dashboardData = results[0] as InternDashboardData;
+          _todayStandup = results[1] as StandupLog?;
           _isLoading = false;
+          _errorMessage = null;
         });
         _updateElapsedDuration();
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _errorMessage = apiErrorMessage(e);
           _isLoading = false;
         });
       }
     }
+  }
+
+  /// Opens a screen and refreshes the dashboard when the user comes back.
+  Future<void> _pushAndRefresh(Route<dynamic> route) async {
+    await Navigator.of(context).push(route);
+    if (mounted) await _loadDashboard(silent: true);
   }
 
   @override
@@ -165,7 +183,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
                   showMonthHeader: false,
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 18),
                   onDateSelected: (_) {
-                    Navigator.of(context).push(
+                    _pushAndRefresh(
                       MaterialPageRoute(builder: (_) => const AttendanceHomeScreen()),
                     );
                   },
@@ -176,7 +194,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
                   title: 'My Day',
                   actionText: 'History',
                   onActionTap: () {
-                    Navigator.of(context).push(
+                    _pushAndRefresh(
                       MaterialPageRoute(builder: (_) => const AttendanceHomeScreen()),
                     );
                   },
@@ -185,7 +203,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
                 _buildAttendanceHero(
                   context,
                   data.todayAttendance,
-                  data.streak > 0 ? data.streak : data.stats.effectiveDaysLogged,
+                  data.streak,
                 ),
                 const SizedBox(height: 24),
 
@@ -216,7 +234,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
                   count: data.openTasks.length,
                   actionLabel: 'View Projects →',
                   onAction: () {
-                    Navigator.of(context).push(
+                    _pushAndRefresh(
                       MaterialPageRoute(builder: (_) => const ProjectsListScreen()),
                     );
                   },
@@ -237,7 +255,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
                   count: data.activeProjects.length,
                   actionLabel: 'Explore All →',
                   onAction: () {
-                    Navigator.of(context).push(
+                    _pushAndRefresh(
                       MaterialPageRoute(builder: (_) => const ProjectsListScreen()),
                     );
                   },
@@ -258,7 +276,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
                   count: data.announcements.length,
                   actionLabel: 'View All →',
                   onAction: () {
-                    Navigator.of(context).push(
+                    _pushAndRefresh(
                       MaterialPageRoute(builder: (_) => const AnnouncementsScreen()),
                     );
                   },
@@ -279,7 +297,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
                   count: data.recentLeaveRequests.length,
                   actionLabel: 'Manage Leaves →',
                   onAction: () {
-                    Navigator.of(context).push(
+                    _pushAndRefresh(
                       MaterialPageRoute(builder: (_) => const LeaveDashboardScreen()),
                     );
                   },
@@ -291,7 +309,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
                     subtitle: 'Need time off? Apply for leave easily.',
                     actionLabel: 'Apply Leave',
                     onAction: () {
-                      Navigator.of(context).push(
+                      _pushAndRefresh(
                         MaterialPageRoute(builder: (_) => const LeaveDashboardScreen()),
                       );
                     },
@@ -334,7 +352,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
     return ReferenceCard(
       padding: const EdgeInsets.all(AppSpacing.p20),
       onTap: () {
-        Navigator.of(context).push(
+        _pushAndRefresh(
           MaterialPageRoute(builder: (_) => const ProjectsListScreen()),
         );
       },
@@ -396,10 +414,10 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
   }
 
   Widget _buildQuickAccess(BuildContext context, InternDashboardData data) {
-    final standupDone = ref.watch(appStateProvider).todayStandup != null;
+    final standupDone = _todayStandup != null;
 
     void open(Widget screen) {
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+      _pushAndRefresh(MaterialPageRoute(builder: (_) => screen));
     }
 
     return SizedBox(
@@ -486,7 +504,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
     }
 
     void openAttendance() {
-      Navigator.of(context).push(
+      _pushAndRefresh(
         MaterialPageRoute(builder: (_) => const AttendanceHomeScreen()),
       );
     }

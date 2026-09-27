@@ -38,6 +38,27 @@ class AuthStorage {
     }
   }
 
+  /// Replace the session token (e.g. the fresh token returned after a password change),
+  /// keeping the user's "remember me" choice.
+  static Future<void> updateToken(String token) async {
+    _inMemoryToken = token;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_keyRemember) ?? false) {
+      await prefs.setString(_keyToken, token);
+    }
+  }
+
+  /// Organization sent as `X-Organization-Id` on every request.
+  static Future<void> setOrgId(String? orgId) async {
+    _inMemoryOrgId = (orgId == null || orgId.isEmpty) ? null : orgId;
+    final prefs = await SharedPreferences.getInstance();
+    if (_inMemoryOrgId == null) {
+      await prefs.remove(_keyOrgId);
+    } else {
+      await prefs.setString(_keyOrgId, _inMemoryOrgId!);
+    }
+  }
+
   static Future<String?> getToken() async {
     if (_inMemoryToken != null && _inMemoryToken!.isNotEmpty) {
       return _inMemoryToken;

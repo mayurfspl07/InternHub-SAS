@@ -26,9 +26,29 @@ class MainNavigationWrapper extends ConsumerStatefulWidget {
   ConsumerState<MainNavigationWrapper> createState() => _MainNavigationWrapperState();
 }
 
-class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> {
+class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> with WidgetsBindingObserver {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _currentTabIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Keep the notification badge current when the app comes back to the foreground.
+    if (state == AppLifecycleState.resumed) {
+      ref.read(appStateProvider.notifier).fetchUnreadCount();
+    }
+  }
 
   // Standup (intern) and Notices (mentor/admin) live in the center "+" sheet and the drawer.
   List<NavItem> _getNavItemsForRole(UserRole role) {
@@ -160,13 +180,15 @@ class _MainNavigationWrapperState extends ConsumerState<MainNavigationWrapper> {
                     _drawerTile(Icons.article_outlined, 'Blogs', () => _go('/blogs')),
                     _drawerTile(Icons.insights_rounded, 'Activity', () => _go('/activity')),
                     _drawerTile(Icons.delete_outline_rounded, 'Recycle Bin', () => _go('/bin')),
-                    _drawerTile(Icons.dangerous_outlined, 'Danger Zone (Data)', () => _go('/data'), isDestructive: true),
+                    if (user.isPlatformAdmin)
+                      _drawerTile(Icons.dangerous_outlined, 'Danger Zone (Data)', () => _go('/data'), isDestructive: true),
                     if (role == UserRole.admin) ...[
                       _drawerSectionHeader('MASTERS'),
                       _drawerTile(Icons.checklist_rounded, 'Task Status', () => _go('/task-statuses')),
                       _drawerTile(Icons.layers_outlined, 'Project Status', () => _go('/project-statuses')),
                       _drawerTile(Icons.access_time_rounded, 'Duration', () => _go('/internship-durations')),
                       _drawerSectionHeader('SETTINGS'),
+                      _drawerTile(Icons.business_rounded, 'Organization', () => _go('/org-settings')),
                       _drawerTile(Icons.mark_email_read_outlined, 'Mail Configuration', () => _go('/admin/settings/mail')),
                     ],
                     _drawerSectionHeader('ACCOUNT'),

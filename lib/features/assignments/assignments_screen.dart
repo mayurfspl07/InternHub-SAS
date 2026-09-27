@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/load_error_view.dart';
 import '../../core/constants/app_typography.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../shared/widgets/reference_components.dart';
@@ -65,7 +66,10 @@ class _AssignmentsScreenState extends ConsumerState<AssignmentsScreen> {
       if (mounted) {
         setState(() => _projectFilterOptions = projs);
       }
-    } catch (_) {}
+    } catch (e) {
+      // The project filter is optional; the list still loads without it.
+      if (mounted) showApiError(context, e, prefix: 'Project filter unavailable');
+    }
   }
 
   void _onSearchChanged(String value) {

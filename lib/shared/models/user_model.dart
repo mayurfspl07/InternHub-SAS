@@ -31,14 +31,29 @@ enum UserRole {
         return 'intern';
     }
   }
+
+  String get label {
+    switch (this) {
+      case UserRole.admin:
+        return 'Admin';
+      case UserRole.mentor:
+        return 'Mentor';
+      case UserRole.superadmin:
+        return 'Super admin';
+      case UserRole.intern:
+        return 'Intern';
+    }
+  }
 }
 
+/// A user as returned by `/api/auth/me`, `/api/admin/users` and `/api/profile`.
 class UserModel {
   final String id;
   final String name;
   final String email;
   final UserRole role;
   final bool isActive;
+  final bool isPlatformAdmin;
   final String? bio;
   final String? department;
   final List<String> skills;
@@ -47,16 +62,15 @@ class UserModel {
   final String? joiningDate;
   final String? mentorId;
   final String? mentorName;
+  final String? avatarUrl;
+  final int? internshipDurationMonths;
+  final String? internshipEndDate;
+  final bool? isPaid;
+  final double? stipendAmount;
+
+  /// Filled from `GET /api/org/current` for the signed-in user (not part of user payloads).
   final String? organizationId;
   final String? organizationName;
-  final String? avatarUrl;
-
-  // Visual / UI metrics (from user overview or fallback)
-  final double performanceRating;
-  final int attendanceStreak;
-  final int completedTasks;
-  final int streakCoins;
-  final String? cohortName;
 
   const UserModel({
     required this.id,
@@ -64,6 +78,7 @@ class UserModel {
     required this.email,
     required this.role,
     this.isActive = true,
+    this.isPlatformAdmin = false,
     this.bio,
     this.department,
     this.skills = const [],
@@ -72,34 +87,29 @@ class UserModel {
     this.joiningDate,
     this.mentorId,
     this.mentorName,
+    this.avatarUrl,
+    this.internshipDurationMonths,
+    this.internshipEndDate,
+    this.isPaid,
+    this.stipendAmount,
     this.organizationId,
     this.organizationName,
-    this.avatarUrl,
-    this.performanceRating = 4.8,
-    this.attendanceStreak = 0,
-    this.completedTasks = 0,
-    this.streakCoins = 0,
-    this.cohortName,
   });
 
-  String get roleTitle {
-    if (jobTitle != null && jobTitle!.trim().isNotEmpty) {
-      return jobTitle!;
-    }
-    switch (role) {
-      case UserRole.admin:
-        return 'Administrator';
-      case UserRole.mentor:
-        return 'Technical Mentor';
-      case UserRole.superadmin:
-        return 'Super Administrator';
-      case UserRole.intern:
-        return 'Engineering Intern';
-    }
-  }
+  /// Org admins and platform admins get the admin experience inside their organization.
+  bool get isAdmin => role == UserRole.admin || role == UserRole.superadmin || isPlatformAdmin;
 
-  String get location => 'Remote / Office';
-  bool get isBiometricEnabled => false;
+  bool get isMentor => role == UserRole.mentor;
+
+  bool get isIntern => role == UserRole.intern && !isPlatformAdmin;
+
+  /// Role used for navigation and permissions: platform admins act as admins.
+  UserRole get effectiveRole => isAdmin ? UserRole.admin : role;
+
+  String get roleTitle {
+    final title = jobTitle?.trim() ?? '';
+    return title.isNotEmpty ? title : role.label;
+  }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     List<String> parsedSkills = [];
@@ -109,12 +119,15 @@ class UserModel {
       parsedSkills = json['skills'].toString().split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
     }
 
+    bool flag(dynamic v) => v == true || v == 1 || v?.toString() == 'true';
+
     return UserModel(
       id: json['id']?.toString() ?? '',
-      name: json['name']?.toString() ?? 'User',
+      name: json['name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       role: UserRole.fromString(json['role']?.toString()),
       isActive: json['is_active'] is bool ? json['is_active'] as bool : true,
+      isPlatformAdmin: flag(json['is_platform_admin']) || flag(json['is_superadmin']),
       bio: json['bio']?.toString(),
       department: json['department']?.toString(),
       skills: parsedSkills,
@@ -123,14 +136,11 @@ class UserModel {
       joiningDate: json['joining_date']?.toString(),
       mentorId: json['mentor_id']?.toString(),
       mentorName: json['mentor_name']?.toString(),
-      organizationId: json['organization_id']?.toString(),
-      organizationName: json['organization_name']?.toString(),
-      avatarUrl: json['avatar_url']?.toString() ?? json['avatar']?.toString(),
-      performanceRating: (json['performance_rating'] as num?)?.toDouble() ?? 4.8,
-      attendanceStreak: (json['attendance_streak'] as num?)?.toInt() ?? 0,
-      completedTasks: (json['completed_tasks'] as num?)?.toInt() ?? 0,
-      streakCoins: (json['streak_coins'] as num?)?.toInt() ?? 0,
-      cohortName: json['cohort_name']?.toString(),
+      avatarUrl: (json['avatar_url']?.toString().isNotEmpty ?? false) ? json['avatar_url'].toString() : null,
+      internshipDurationMonths: (json['internship_duration_months'] as num?)?.toInt(),
+      internshipEndDate: json['internship_end_date']?.toString(),
+      isPaid: json['is_paid'] is bool ? json['is_paid'] as bool : null,
+      stipendAmount: (json['stipend_amount'] as num?)?.toDouble(),
     );
   }
 
@@ -149,9 +159,10 @@ class UserModel {
       'joining_date': joiningDate,
       'mentor_id': mentorId,
       'mentor_name': mentorName,
-      'organization_id': organizationId,
-      'organization_name': organizationName,
       'avatar_url': avatarUrl,
+      'internship_duration_months': internshipDurationMonths,
+      'is_paid': isPaid,
+      'stipend_amount': stipendAmount,
     };
   }
 
@@ -161,6 +172,7 @@ class UserModel {
     String? email,
     UserRole? role,
     bool? isActive,
+    bool? isPlatformAdmin,
     String? bio,
     String? department,
     List<String>? skills,
@@ -169,14 +181,13 @@ class UserModel {
     String? joiningDate,
     String? mentorId,
     String? mentorName,
+    String? avatarUrl,
+    int? internshipDurationMonths,
+    String? internshipEndDate,
+    bool? isPaid,
+    double? stipendAmount,
     String? organizationId,
     String? organizationName,
-    String? avatarUrl,
-    double? performanceRating,
-    int? attendanceStreak,
-    int? completedTasks,
-    int? streakCoins,
-    String? cohortName,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -184,6 +195,7 @@ class UserModel {
       email: email ?? this.email,
       role: role ?? this.role,
       isActive: isActive ?? this.isActive,
+      isPlatformAdmin: isPlatformAdmin ?? this.isPlatformAdmin,
       bio: bio ?? this.bio,
       department: department ?? this.department,
       skills: skills ?? this.skills,
@@ -192,14 +204,13 @@ class UserModel {
       joiningDate: joiningDate ?? this.joiningDate,
       mentorId: mentorId ?? this.mentorId,
       mentorName: mentorName ?? this.mentorName,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      internshipDurationMonths: internshipDurationMonths ?? this.internshipDurationMonths,
+      internshipEndDate: internshipEndDate ?? this.internshipEndDate,
+      isPaid: isPaid ?? this.isPaid,
+      stipendAmount: stipendAmount ?? this.stipendAmount,
       organizationId: organizationId ?? this.organizationId,
       organizationName: organizationName ?? this.organizationName,
-      avatarUrl: avatarUrl ?? this.avatarUrl,
-      performanceRating: performanceRating ?? this.performanceRating,
-      attendanceStreak: attendanceStreak ?? this.attendanceStreak,
-      completedTasks: completedTasks ?? this.completedTasks,
-      streakCoins: streakCoins ?? this.streakCoins,
-      cohortName: cohortName ?? this.cohortName,
     );
   }
 }

@@ -3,6 +3,9 @@ class ApiConfig {
 
   static String baseUrl = const String.fromEnvironment('API_BASE_URL', defaultValue: defaultBaseUrl);
 
+  /// Absolute URL for an uploaded file: files kept on the API server come back as `/uploads/...`.
+  static String mediaUrl(String url) => url.startsWith('/') ? '$baseUrl$url' : url;
+
   static String url(String path) {
     final cleanPath = path.startsWith('/') ? path : '/$path';
     return '$baseUrl$cleanPath';

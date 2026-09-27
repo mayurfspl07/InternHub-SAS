@@ -5,10 +5,8 @@ import '../../core/api/api_config.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/page_header.dart';
-import '../../core/state/app_state_provider.dart';
 import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/custom_text_field.dart';
-import '../dashboard/main_navigation_wrapper.dart';
 
 class JoinInviteScreen extends ConsumerStatefulWidget {
   final String? initialToken;
@@ -106,53 +104,41 @@ class _JoinInviteScreenState extends ConsumerState<JoinInviteScreen> {
         'password': _passwordController.text,
         'confirm_password': _confirmPasswordController.text,
         'joining_date': DateTime.now().toIso8601String().substring(0, 10),
-        if (_phoneController.text.trim().isNotEmpty) 'phone': _phoneController.text.trim(),
-        if (_deptController.text.trim().isNotEmpty) 'department': _deptController.text.trim(),
-        if (_jobTitleController.text.trim().isNotEmpty) 'job_title': _jobTitleController.text.trim(),
+        // The API requires these keys (they may be blank).
+        'phone': _phoneController.text.trim(),
+        'department': _deptController.text.trim(),
+        'job_title': _jobTitleController.text.trim(),
       };
 
       final res = await ApiClient().post('/api/auth/invite/$token/register', body: body);
 
+      // Invite sign-ups always wait for approval by the link's mentor or an admin.
+      final message = res is Map && res['message'] is String
+          ? res['message'] as String
+          : 'Your request was submitted. You can sign in after it is approved.';
       if (mounted) {
-        if (res is Map && res['status'] == 'pending_approval') {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (ctx) => AlertDialog(
-              title: const Row(
-                children: [
-                  Icon(Icons.hourglass_top_rounded, color: AppColors.primaryInk),
-                  SizedBox(width: 8),
-                  Text('Registration Pending'),
-                ],
-              ),
-              content: const Text(
-                'Your account has been submitted for administrative approval. You will receive an email once approved.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    Navigator.pop(context); // back to login
-                  },
-                  child: const Text('OK'),
-                ),
+        setState(() => _isLoading = false);
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.hourglass_top_rounded, color: AppColors.primaryInk),
+                SizedBox(width: 8),
+                Text('Waiting for approval'),
               ],
             ),
-          );
-        } else {
-          // Attempt auto sign in
-          await ref.read(appStateProvider.notifier).login(
-                email: _emailController.text.trim(),
-                password: _passwordController.text,
-              );
-          if (mounted) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const MainNavigationWrapper()),
-              (route) => false,
-            );
-          }
-        }
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Back to sign in'),
+              ),
+            ],
+          ),
+        );
+        if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
       }
     } on ApiException catch (e) {
       if (mounted) {

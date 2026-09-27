@@ -33,9 +33,10 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
 
   // Ratings
   late int _rating;
-  late int _technicalRating;
-  late int _communicationRating;
-  late int _initiativeRating;
+  // Optional sub-ratings: null until the reviewer picks a value (never invented).
+  int? _technicalRating;
+  int? _communicationRating;
+  int? _initiativeRating;
 
   // Text inputs
   late final TextEditingController _feedbackController;
@@ -62,18 +63,18 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
       _selectedProjectName = r.projectName;
       _periodController = TextEditingController(text: r.period ?? '');
       _rating = r.rating;
-      _technicalRating = r.technicalRating ?? 5;
-      _communicationRating = r.communicationRating ?? 4;
-      _initiativeRating = r.initiativeRating ?? 5;
+      _technicalRating = r.technicalRating;
+      _communicationRating = r.communicationRating;
+      _initiativeRating = r.initiativeRating;
       _feedbackController = TextEditingController(text: r.feedback ?? '');
       _strengthsController = TextEditingController(text: r.strengths ?? '');
       _improvementsController = TextEditingController(text: r.improvements ?? '');
     } else {
       _periodController = TextEditingController();
       _rating = 5;
-      _technicalRating = 5;
-      _communicationRating = 4;
-      _initiativeRating = 5;
+      _technicalRating = null;
+      _communicationRating = null;
+      _initiativeRating = null;
       _feedbackController = TextEditingController();
       _strengthsController = TextEditingController();
       _improvementsController = TextEditingController();
@@ -711,7 +712,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
 
   Widget _buildCategoryStarBox(
     String title,
-    int rating,
+    int? rating,
     ValueChanged<int> onChanged,
     Color borderColor,
   ) {
@@ -738,7 +739,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
                 ),
               ),
               Text(
-                '$rating / 5',
+                rating == null ? 'Not rated' : '$rating / 5',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -749,7 +750,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
           ),
           const SizedBox(height: 6),
           StarRating(
-            rating: rating,
+            rating: rating ?? 0,
             size: 20,
             onRatingChanged: onChanged,
           ),

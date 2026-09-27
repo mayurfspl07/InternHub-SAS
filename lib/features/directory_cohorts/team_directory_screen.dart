@@ -5,6 +5,7 @@ import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/user_model.dart';
+import '../../shared/widgets/load_error_view.dart';
 import 'member_profile_screen.dart';
 
 class TeamDirectoryScreen extends ConsumerStatefulWidget {
@@ -20,6 +21,16 @@ class _TeamDirectoryScreenState extends ConsumerState<TeamDirectoryScreen> {
   String? _selectedDepartment;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+
+  static const _noDepartment = 'No department';
+  static const _deptColors = [AppColors.info, AppColors.peachInk, AppColors.primaryInk, AppColors.olive, AppColors.lavenderInk];
+
+  @override
+  void initState() {
+    super.initState();
+    // The directory needs everyone in the organization, not just the first page.
+    Future.microtask(() => ref.read(appStateProvider.notifier).fetchAllUsers());
+  }
 
   @override
   void dispose() {
@@ -57,30 +68,20 @@ class _TeamDirectoryScreenState extends ConsumerState<TeamDirectoryScreen> {
     );
   }
 
+  /// Members grouped by their real `department`, largest group first.
   Map<String, List<UserModel>> _groupByDepartment(List<UserModel> users) {
-    final Map<String, List<UserModel>> map = {
-      'Development': [],
-      'Design': [],
-      'Product': [],
-      'Marketing': [],
-    };
-
+    final map = <String, List<UserModel>>{};
     for (final u in users) {
-      final dept = (u.department ?? '').toLowerCase();
-      if (dept.contains('dev') || dept.contains('eng') || dept.contains('tech') || dept.contains('software')) {
-        map['Development']!.add(u);
-      } else if (dept.contains('design') || dept.contains('ui') || dept.contains('ux')) {
-        map['Design']!.add(u);
-      } else if (dept.contains('prod') || dept.contains('project') || dept.contains('manag')) {
-        map['Product']!.add(u);
-      } else if (dept.contains('market') || dept.contains('growth') || dept.contains('sales')) {
-        map['Marketing']!.add(u);
-      } else {
-        // Distribute or add
-        map['Development']!.add(u);
-      }
+      final dept = (u.department ?? '').trim();
+      map.putIfAbsent(dept.isEmpty ? _noDepartment : dept, () => []).add(u);
     }
-    return map;
+    final entries = map.entries.toList()
+      ..sort((a, b) {
+        if (a.key == _noDepartment) return 1;
+        if (b.key == _noDepartment) return -1;
+        return b.value.length.compareTo(a.value.length);
+      });
+    return Map.fromEntries(entries);
   }
 
   @override
@@ -92,7 +93,20 @@ class _TeamDirectoryScreenState extends ConsumerState<TeamDirectoryScreen> {
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
 
-    final allUsers = state.allUsers.isNotEmpty ? state.allUsers : state.users;
+    final allUsers = state.allUsers;
+    if (state.usersLoading && allUsers.isEmpty) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (state.usersError != null && allUsers.isEmpty) {
+      return Scaffold(
+        appBar: pageAppBar(context, title: 'Team directory'),
+        body: LoadErrorView(
+          title: 'Couldn\'t load the team',
+          message: state.usersError!,
+          onRetry: () => ref.read(appStateProvider.notifier).fetchAllUsers(),
+        ),
+      );
+    }
     final deptGroups = _groupByDepartment(allUsers);
 
     final filteredUsers = allUsers.where((u) {
@@ -114,7 +128,7 @@ class _TeamDirectoryScreenState extends ConsumerState<TeamDirectoryScreen> {
 
       if (_selectedCategory == 'Interns') return u.role == UserRole.intern;
       if (_selectedCategory == 'Mentors') return u.role == UserRole.mentor;
-      if (_selectedCategory == 'Admins') return u.role == UserRole.admin;
+      if (_selectedCategory == 'Admins') return u.isAdmin;
       return true;
     }).toList();
 
@@ -122,7 +136,7 @@ class _TeamDirectoryScreenState extends ConsumerState<TeamDirectoryScreen> {
       backgroundColor: bgColor,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () => ref.read(appStateProvider.notifier).fetchUsers(),
+          onRefresh: () => ref.read(appStateProvider.notifier).fetchAllUsers(),
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
@@ -208,53 +222,20 @@ class _TeamDirectoryScreenState extends ConsumerState<TeamDirectoryScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      _buildDepartmentCard(
-                        name: 'Development',
-                        count: deptGroups['Development']?.length ?? 12,
-                        icon: Icons.code_rounded,
-                        accentColor: AppColors.info,
-                        cardBg: cardBg,
-                        borderColor: borderColor,
-                        primaryTextColor: primaryTextColor,
-                        secondaryTextColor: secondaryTextColor,
-                        onTap: () => setState(() => _selectedDepartment = 'Development'),
-                      ),
-                      const SizedBox(height: 10),
-                      _buildDepartmentCard(
-                        name: 'Design',
-                        count: deptGroups['Design']?.length ?? 6,
-                        icon: Icons.palette_outlined,
-                        accentColor: AppColors.peachInk,
-                        cardBg: cardBg,
-                        borderColor: borderColor,
-                        primaryTextColor: primaryTextColor,
-                        secondaryTextColor: secondaryTextColor,
-                        onTap: () => setState(() => _selectedDepartment = 'Design'),
-                      ),
-                      const SizedBox(height: 10),
-                      _buildDepartmentCard(
-                        name: 'Product',
-                        count: deptGroups['Product']?.length ?? 4,
-                        icon: Icons.layers_outlined,
-                        accentColor: AppColors.primary,
-                        cardBg: cardBg,
-                        borderColor: borderColor,
-                        primaryTextColor: primaryTextColor,
-                        secondaryTextColor: secondaryTextColor,
-                        onTap: () => setState(() => _selectedDepartment = 'Product'),
-                      ),
-                      const SizedBox(height: 10),
-                      _buildDepartmentCard(
-                        name: 'Marketing',
-                        count: deptGroups['Marketing']?.length ?? 8,
-                        icon: Icons.campaign_outlined,
-                        accentColor: AppColors.info,
-                        cardBg: cardBg,
-                        borderColor: borderColor,
-                        primaryTextColor: primaryTextColor,
-                        secondaryTextColor: secondaryTextColor,
-                        onTap: () => setState(() => _selectedDepartment = 'Marketing'),
-                      ),
+                      for (final (i, entry) in deptGroups.entries.indexed) ...[
+                        _buildDepartmentCard(
+                          name: entry.key,
+                          count: entry.value.length,
+                          icon: Icons.apartment_rounded,
+                          accentColor: _deptColors[i % _deptColors.length],
+                          cardBg: cardBg,
+                          borderColor: borderColor,
+                          primaryTextColor: primaryTextColor,
+                          secondaryTextColor: secondaryTextColor,
+                          onTap: () => setState(() => _selectedDepartment = entry.key),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
                       const SizedBox(height: 20),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),

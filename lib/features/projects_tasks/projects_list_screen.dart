@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/api/api_client.dart';
-import '../../core/api/api_exception.dart';
 import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/reference_components.dart';
 import '../../shared/widgets/page_header.dart';
@@ -12,6 +11,7 @@ import '../../core/services/file_export_service.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/project_model.dart';
 import '../../shared/models/user_model.dart';
+import '../../shared/widgets/load_error_view.dart';
 import 'project_form_dialog.dart';
 
 class ProjectsListScreen extends ConsumerStatefulWidget {
@@ -33,6 +33,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
   // Pagination & Data State
   List<ProjectModel> _projects = [];
   bool _isLoading = true;
+  String? _loadError;
   int _currentPage = 1;
   final int _pageSize = 12;
   int _totalProjects = 0;
@@ -56,38 +57,22 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
 
   Future<void> _fetchMentorsList() async {
     try {
-      dynamic res;
-      try {
-        res = await ApiClient().get('/api/users/dropdown', queryParameters: {'role': 'mentor'});
-      } catch (_) {
-        res = await ApiClient().get('/api/projects/mentors', queryParameters: {'page': 1, 'page_size': 30}).catchError((_) => []);
-      }
-      List<Map<String, dynamic>> mentors = [];
-      if (res is List) {
-        mentors = res.whereType<Map<String, dynamic>>().where((m) => m['is_active'] != false).toList();
-      } else if (res is Map<String, dynamic>) {
-        final items = res['users'] ?? res['mentors'] ?? res['items'] ?? res['results'] ?? res['data'];
-        if (items is List) {
-          mentors = items.whereType<Map<String, dynamic>>().where((m) => m['is_active'] != false).toList();
-        }
-      }
-      if (mentors.isEmpty) {
-        final all = ref.read(appStateProvider).allUsers;
-        mentors = all
-            .where((u) => u.role == UserRole.mentor)
-            .map((u) => {'id': u.id, 'name': u.name, 'email': u.email, 'role': 'mentor'})
-            .toList();
-      }
-      if (mounted) {
-        setState(() {
-          _mentorOptions = mentors;
-        });
-      }
-    } catch (_) {}
+      final res = await ApiClient().get('/api/users/mentors');
+      final mentors = res is Map && res['mentors'] is List
+          ? (res['mentors'] as List).whereType<Map<String, dynamic>>().toList()
+          : <Map<String, dynamic>>[];
+      if (mounted) setState(() => _mentorOptions = mentors);
+    } catch (_) {
+      // The mentor filter is optional; the project list still loads without it.
+      if (mounted) setState(() => _mentorOptions = []);
+    }
   }
 
   Future<void> _loadProjects({int page = 1}) async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
     final query = _searchController.text.trim();
 
     try {
@@ -114,14 +99,7 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
           params['mentor_id'] = _selectedMentorId;
         }
 
-        try {
-          res = await ApiClient().get('/api/projects', queryParameters: params);
-        } catch (e) {
-          if (query.isNotEmpty || _fromDate != null || _toDate != null || (_selectedMentorId != null && _selectedMentorId != 'all')) {
-            rethrow;
-          }
-          res = await ApiClient().get('/api/projects');
-        }
+        res = await ApiClient().get('/api/projects', queryParameters: params);
       }
 
       List<ProjectModel> list = [];
@@ -154,15 +132,6 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
         }
       }
 
-      if (list.isEmpty && query.isEmpty && _fromDate == null && _toDate == null && (_selectedMentorId == null || _selectedMentorId == 'all')) {
-        final cached = ref.read(appStateProvider).projects;
-        if (cached.isNotEmpty) {
-          list = cached;
-          total = cached.length;
-          pages = 1;
-        }
-      }
-
       if (mounted) {
         setState(() {
           _projects = list;
@@ -173,21 +142,11 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
         });
       }
     } catch (e) {
-      final cached = ref.read(appStateProvider).projects;
       if (mounted) {
         setState(() {
-          if (cached.isNotEmpty && _projects.isEmpty) {
-            _projects = cached;
-            _totalProjects = cached.length;
-            _totalPages = 1;
-          }
           _isLoading = false;
+          _loadError = apiErrorMessage(e);
         });
-        if (cached.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to load projects: ${e is ApiException ? e.message : e}')),
-          );
-        }
       }
     }
   }
@@ -444,6 +403,12 @@ class _ProjectsListScreenState extends ConsumerState<ProjectsListScreen> {
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
+                  : _loadError != null
+                  ? LoadErrorView(
+                      title: 'Couldn\'t load projects',
+                      message: _loadError!,
+                      onRetry: () => _loadProjects(page: _currentPage),
+                    )
                   : RefreshIndicator(
                       onRefresh: () => _loadProjects(page: _currentPage),
                       child: _displayedProjects.isEmpty

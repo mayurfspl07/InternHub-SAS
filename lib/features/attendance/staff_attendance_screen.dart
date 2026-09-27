@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
+import '../../shared/widgets/load_error_view.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/attendance_model.dart';
 import '../../shared/models/user_model.dart';
+import '../../core/api/api_client.dart';
 import 'attendance_repository.dart';
+import 'monthly_attendance_report_screen.dart';
 import 'widgets/staff_attendance_export_dialog.dart';
 
 class StaffAttendanceScreen extends ConsumerStatefulWidget {
@@ -25,6 +28,8 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
 
   late String _activeTab; // 'all' or 'today'
   bool _isLoading = true;
+  String? _allError;
+  String? _todayError;
 
   // TAB ALL STATE
   List<AdminStudent> _allStudents = [];
@@ -63,6 +68,33 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
     super.dispose();
   }
 
+  /// Closes open sessions from earlier days (`POST /api/attendance/auto-checkout`).
+  Future<void> _runAutoCheckout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Run auto check-out?'),
+        content: const Text(
+          'Checks out everyone who forgot to check out on an earlier day, using the organization shift end time.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Run')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      final res = await ApiClient().post('/api/attendance/auto-checkout');
+      if (!mounted) return;
+      final msg = res is Map ? res['message']?.toString() : null;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg ?? 'Auto check-out finished')));
+      _loadData();
+    } catch (e) {
+      if (mounted) showApiError(context, e, prefix: 'Auto check-out failed');
+    }
+  }
+
   bool _isMentorRole() {
     final role = ref.read(appStateProvider).currentUser.role;
     return role == UserRole.mentor;
@@ -92,9 +124,12 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
           _allStudents = res.students;
           _allTotalPages = res.totalPages;
           _allTotal = res.total;
+          _allError = null;
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) setState(() => _allError = apiErrorMessage(e));
+    }
   }
 
   Future<void> _fetchTabToday() async {
@@ -113,9 +148,12 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
           _todayStudents = res.students;
           _todayTotalPages = res.totalPages;
           _todayTotal = res.total;
+          _todayError = null;
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) setState(() => _todayError = apiErrorMessage(e));
+    }
   }
 
   void _onAllSearchChanged(String val) {
@@ -220,10 +258,24 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const PageHeader(
+                PageHeader(
                   title: 'Attendance',
                   subtitle: 'Student attendance, last 30 days',
                   padding: EdgeInsets.zero,
+                  actions: [
+                    HeaderAction(
+                      icon: Icons.insert_chart_outlined_rounded,
+                      tooltip: 'Monthly report',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const MonthlyAttendanceReportScreen()),
+                      ),
+                    ),
+                    HeaderAction(
+                      icon: Icons.logout_rounded,
+                      tooltip: 'Run auto check-out',
+                      onTap: _runAutoCheckout,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
 
@@ -501,6 +553,8 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
               child: CircularProgressIndicator(),
             ),
           )
+        else if (_allError != null)
+          LoadErrorView(title: "Couldn't load students", message: _allError!, onRetry: _fetchTabAll, compact: true)
         else if (_allStudents.isEmpty)
           Container(
             width: double.infinity,
@@ -895,6 +949,8 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
               child: CircularProgressIndicator(),
             ),
           )
+        else if (_todayError != null)
+          LoadErrorView(title: "Couldn't load today's attendance", message: _todayError!, onRetry: _fetchTabToday, compact: true)
         else if (_todayStudents.isEmpty)
           Container(
             width: double.infinity,
@@ -1019,20 +1075,28 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              student.name,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.ink,
+                            Flexible(
+                              child: Text(
+                                student.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.ink,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              '($dept)',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textSecondary,
+                            Flexible(
+                              child: Text(
+                                '($dept)',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
                           ],

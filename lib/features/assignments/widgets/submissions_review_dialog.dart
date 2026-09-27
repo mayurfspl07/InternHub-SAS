@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../shared/models/assignment_model.dart';
 import '../assignments_repository.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/file_export_service.dart';
 
 class SubmissionsReviewDialog extends StatefulWidget {
   final AssignmentItem assignment;
@@ -484,7 +485,11 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                                 ),
                                               if (sub.hasFile && sub.fileUrl != null)
                                                 InkWell(
-                                                  onTap: () => _launchUrl(sub.fileUrl!),
+                                                  // Authenticated download (the URL is an API path, not a public link).
+                                                  onTap: () => FileExportService.downloadAndShare(
+                                                    endpoint: sub.fileUrl!,
+                                                    defaultFileName: sub.fileName ?? 'submission',
+                                                  ),
                                                   borderRadius: BorderRadius.circular(12),
                                                   child: Container(
                                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

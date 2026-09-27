@@ -5,12 +5,25 @@ import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
+import '../../shared/widgets/load_error_view.dart';
 
-class RecycleBinScreen extends ConsumerWidget {
+class RecycleBinScreen extends ConsumerStatefulWidget {
   const RecycleBinScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RecycleBinScreen> createState() => _RecycleBinScreenState();
+}
+
+class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Always show the current bin, not what was loaded at sign-in.
+    Future.microtask(() => ref.read(appStateProvider.notifier).fetchRecycleBin());
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider);
     final items = state.recycleBin;
 
@@ -34,7 +47,15 @@ class RecycleBinScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: state.recycleBinLoading && items.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : state.recycleBinError != null && items.isEmpty
+            ? LoadErrorView(
+                title: 'Couldn\'t load the recycle bin',
+                message: state.recycleBinError!,
+                onRetry: () => ref.read(appStateProvider.notifier).fetchRecycleBin(),
+              )
+            : RefreshIndicator(
           onRefresh: () => ref.read(appStateProvider.notifier).fetchRecycleBin(),
           child: items.isEmpty
               ? ListView(
@@ -57,7 +78,7 @@ class RecycleBinScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Deleted records with 30-day retention will appear here.',
+                            'Deleted records appear here until they expire.',
                             style: TextStyle(
                               fontSize: 13,
                               color: AppColors.textSecondary,
@@ -105,10 +126,11 @@ class RecycleBinScreen extends ConsumerWidget {
                                   ),
                                 ),
                               ),
-                              Text(
-                                '${item.daysRemaining} days left to purge',
-                                style: const TextStyle(fontSize: 11, color: AppColors.textTertiary, fontWeight: FontWeight.w600),
-                              ),
+                              if (item.daysRemaining != null)
+                                Text(
+                                  item.daysRemaining == 1 ? '1 day left' : '${item.daysRemaining} days left',
+                                  style: const TextStyle(fontSize: 11, color: AppColors.textTertiary, fontWeight: FontWeight.w600),
+                                ),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -123,7 +145,7 @@ class RecycleBinScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Deleted by ${item.deletedBy} on $deletedDate',
+                            item.deletedByName.isNotEmpty ? 'Deleted by ${item.deletedByName} on $deletedDate' : 'Deleted on $deletedDate',
                             style: TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,

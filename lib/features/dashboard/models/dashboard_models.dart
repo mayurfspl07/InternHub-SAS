@@ -575,8 +575,8 @@ class MentorDashboardTask {
       description: json['description']?.toString(),
       projectId: parseInt(json['project_id']),
       projectName: json['project_name']?.toString(),
-      assignedUserId: parseInt(json['assigned_user_id']),
-      assignedUserName: json['assigned_user_name']?.toString(),
+      assignedUserId: parseInt(json['assignee_id']),
+      assignedUserName: json['assignee_name']?.toString(),
       priority: json['priority']?.toString() ?? 'medium',
       deadline: json['deadline']?.toString() ?? json['due_date']?.toString(),
       status: json['status']?.toString() ?? 'todo',
@@ -785,7 +785,7 @@ class AdminDashboardOrg {
 
   factory AdminDashboardOrg.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
-      return const AdminDashboardOrg(id: 0, name: 'InternHub', slug: 'internhub');
+      return const AdminDashboardOrg(id: 0, name: '', slug: '');
     }
     int? parseInt(dynamic v) {
       if (v == null) return null;
@@ -796,8 +796,8 @@ class AdminDashboardOrg {
 
     return AdminDashboardOrg(
       id: parseInt(json['id']) ?? 0,
-      name: json['name']?.toString() ?? 'InternHub',
-      slug: json['slug']?.toString() ?? 'internhub',
+      name: json['name']?.toString() ?? '',
+      slug: json['slug']?.toString() ?? '',
       type: json['type']?.toString(),
     );
   }
@@ -937,7 +937,7 @@ class AdminDashboardStats {
     return AdminDashboardStats(
       presentToday: (json['present_today'] as num?)?.toInt() ?? 0,
       absentToday: (json['absent_today'] as num?)?.toInt() ?? 0,
-      onLeaveToday: (json['on_leave_today'] ?? json['on_leave'] as num?)?.toInt() ?? 0,
+      onLeaveToday: (json['on_leave_today'] as num?)?.toInt() ?? 0,
       totalInterns: (json['total_interns'] ?? json['interns_count'] as num?)?.toInt() ?? 0,
       totalMentors: (json['total_mentors'] ?? json['mentors_count'] as num?)?.toInt() ?? 0,
       activeProjects: (json['active_projects'] as num?)?.toInt() ?? 0,
@@ -967,7 +967,7 @@ class AdminDashboardData {
 
   const AdminDashboardData({
     this.role = 'admin',
-    this.organization = const AdminDashboardOrg(id: 0, name: 'InternHub', slug: 'internhub'),
+    this.organization = const AdminDashboardOrg(id: 0, name: '', slug: ''),
     this.stats = const AdminDashboardStats(),
     this.presentTodayList = const [],
     this.openTasks = const [],

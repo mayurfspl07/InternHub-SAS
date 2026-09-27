@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/api/api_config.dart';
 import '../../core/constants/app_colors.dart';
 
 class AppAvatar extends StatelessWidget {
@@ -20,6 +21,7 @@ class AppAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasUrl = url != null && url!.trim().isNotEmpty;
+    final resolved = hasUrl ? ApiConfig.mediaUrl(url!) : null;
 
     return Container(
       width: size,
@@ -33,7 +35,7 @@ class AppAvatar extends StatelessWidget {
       child: ClipOval(
         child: hasUrl
             ? Image.network(
-                url!,
+                resolved!,
                 width: size,
                 height: size,
                 fit: BoxFit.cover,

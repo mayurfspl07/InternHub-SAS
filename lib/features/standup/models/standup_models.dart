@@ -9,7 +9,7 @@ class StandupLog {
   final String did;
   final String plan;
   final String? blockers;
-  final String mood; // great | good | okay | bad
+  final String mood; // great | good | okay | tired | stressed, or '' when not recorded
   final String createdAt;
   final String? updatedAt;
 
@@ -21,7 +21,7 @@ class StandupLog {
     required this.did,
     required this.plan,
     this.blockers,
-    this.mood = 'good',
+    this.mood = '',
     required this.createdAt,
     this.updatedAt,
   });
@@ -55,7 +55,7 @@ class StandupLog {
       did: json['did']?.toString() ?? json['yesterday_work']?.toString() ?? '',
       plan: json['plan']?.toString() ?? json['today_plan']?.toString() ?? '',
       blockers: json['blockers']?.toString(),
-      mood: json['mood']?.toString().toLowerCase().trim() ?? 'good',
+      mood: json['mood']?.toString().toLowerCase().trim() ?? '',
       createdAt: json['created_at']?.toString() ?? DateTime.now().toIso8601String(),
       updatedAt: json['updated_at']?.toString(),
     );
@@ -146,49 +146,32 @@ class StandupMoodOption {
   });
 }
 
+/// The moods the API stores (`MOOD_OPTIONS` in routes/api/standup.py).
 const List<StandupMoodOption> standupMoodOptions = [
   StandupMoodOption(value: 'great', label: 'Great', emoji: '🔥'),
   StandupMoodOption(value: 'good', label: 'Good', emoji: '😊'),
   StandupMoodOption(value: 'okay', label: 'Okay', emoji: '😐'),
-  StandupMoodOption(value: 'bad', label: 'Bad', emoji: '😫'),
+  StandupMoodOption(value: 'tired', label: 'Tired', emoji: '😴'),
+  StandupMoodOption(value: 'stressed', label: 'Stressed', emoji: '😫'),
 ];
 
-String getMoodLabel(String mood) {
-  switch (mood.toLowerCase().trim()) {
-    case 'great':
-      return 'Great';
-    case 'good':
-      return 'Good';
-    case 'okay':
-      return 'Okay';
-    case 'bad':
-      return 'Bad';
-    default:
-      return 'Good';
+StandupMoodOption? _moodOption(String mood) {
+  final key = mood.toLowerCase().trim();
+  for (final opt in standupMoodOptions) {
+    if (opt.value == key) return opt;
   }
+  return null;
 }
 
-String getMoodEmoji(String mood) {
-  switch (mood.toLowerCase().trim()) {
-    case 'great':
-      return '🔥';
-    case 'good':
-      return '😊';
-    case 'okay':
-      return '😐';
-    case 'bad':
-      return '😫';
-    default:
-      return '😊';
-  }
-}
+/// Label for a stored mood; empty when no mood was recorded.
+String getMoodLabel(String mood) => _moodOption(mood)?.label ?? '';
 
-// Permission: canManageLog
+String getMoodEmoji(String mood) => _moodOption(mood)?.emoji ?? '';
+
+/// The API lets only the author or an admin edit or delete a standup.
 bool canManageLog(int logUserId, UserModel currentUser) {
   if (int.tryParse(currentUser.id) == logUserId || currentUser.id == logUserId.toString()) return true;
-  return currentUser.role == UserRole.admin ||
-      currentUser.role == UserRole.mentor ||
-      currentUser.role == UserRole.superadmin;
+  return currentUser.isAdmin;
 }
 
 // Date helpers
