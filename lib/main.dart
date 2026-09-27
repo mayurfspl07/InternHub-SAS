@@ -238,6 +238,10 @@ class GuardedRoute extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(appStateProvider);
     if (!state.isAuthenticated) {
+      // While the stored session is being checked, don't flash the login screen.
+      if (state.isSessionLoading) {
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      }
       return const LoginScreen();
     }
     final roles = allowedRoles;

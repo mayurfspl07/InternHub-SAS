@@ -158,7 +158,9 @@ class AppStateNotifier extends StateNotifier<AppState> {
       await _loadSignedInUser();
       state = state.copyWith(isAuthenticated: true, isSessionLoading: false);
       await refreshAllData();
-    } catch (_) {
+    } catch (e) {
+      // A token the server no longer accepts (expired, password reset) is dropped so the next start is clean.
+      if (e is ApiException && e.isUnauthorized) await AuthStorage.clearSession();
       state = AppState(currentUser: AppState.defaultGuestUser(), isSessionLoading: false);
     }
   }

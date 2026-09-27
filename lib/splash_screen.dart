@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'core/api/auth_storage.dart';
+import 'main.dart' show GuardedRoute;
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/main_navigation_wrapper.dart';
 import 'core/constants/app_colors.dart';
@@ -78,8 +79,9 @@ class _SplashScreenState extends State<SplashScreen>
         if (mounted) {
           final token = await AuthStorage.getToken();
           if (!mounted) return;
+          // A stored token may have expired, so the dashboard still goes through the auth guard.
           final targetPage = (token != null && token.isNotEmpty)
-              ? const MainNavigationWrapper()
+              ? const GuardedRoute(child: MainNavigationWrapper())
               : const LoginScreen();
 
           Navigator.of(context).pushReplacement(
