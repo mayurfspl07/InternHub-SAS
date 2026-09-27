@@ -1,4 +1,6 @@
 from copy import deepcopy
+import json
+import os
 from typing import Any, Dict
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
@@ -61,6 +63,23 @@ TAG_METADATA = [
     {"name": "Platform Admin", "description": "Multi-tenant platform administration and organization onboarding."},
     {"name": "Organization Management", "description": "Organization tenant settings, profile, and team members."},
 ]
+
+
+_EXAMPLES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "openapi_examples.json")
+try:
+    with open(_EXAMPLES_FILE, encoding="utf-8") as _fh:
+        CAPTURED_EXAMPLES: Dict[str, Any] = json.load(_fh)
+except (OSError, ValueError):
+    CAPTURED_EXAMPLES = {}
+
+
+def _is_file_download(path: str) -> bool:
+    return (
+        path.endswith((".csv", "/download", "/attachment", "/file", "/export"))
+        or "/photo/" in path
+        or "/export/" in path
+        or path.endswith("/stream")
+    )
 
 
 def build_custom_openapi(app: FastAPI) -> Dict[str, Any]:
@@ -1413,16 +1432,31 @@ def build_custom_openapi(app: FastAPI) -> Dict[str, Any]:
             content = res_200.setdefault("content", {})
             json_response = content.setdefault("application/json", {})
 
-            # Match custom detailed response example & schema
-            matched_custom = custom_responses.get(lookup_key)
-            if not matched_custom:
-                # Try prefix/generic matching
-                if method_upper == "DELETE":
-                    matched_custom = {"example": {"ok": True}, "description": "Operation successful"}
-                elif "export" in path:
-                    matched_custom = {"example": {"exported_at": "2026-08-16T12:00:00Z"}, "description": "Exported data payload"}
+            # Response examples: real responses captured from the API (openapi_examples.json) win;
+            # hand-written samples are only a fallback. File downloads are described as files,
+            # and nothing is invented for routes without a known example.
+            captured_key = f"{method_upper} {path}"
+            if captured_key in CAPTURED_EXAMPLES:
+                matched_custom = {
+                    "example": CAPTURED_EXAMPLES[captured_key],
+                    "description": custom_responses.get(lookup_key, {}).get("description", "Successful Response"),
+                }
+            else:
+                matched_custom = custom_responses.get(lookup_key)
+            if not matched_custom and _is_file_download(path):
+                content.pop("application/json", None)
+                if path.endswith("/stream"):
+                    content["text/event-stream"] = {"schema": {"type": "string"}}
+                    res_200["description"] = "Server-Sent Events stream of unread-count updates"
                 else:
-                    matched_custom = {"example": {"ok": True}, "description": "Successful Response"}
+                    mime = "text/csv" if ("export" in path or path.endswith(".csv")) else "application/octet-stream"
+                    content[mime] = {"schema": {"type": "string", "format": "binary"}}
+                    res_200["description"] = "File download"
+                continue
+            if not matched_custom:
+                if not json_response:
+                    content.pop("application/json", None)
+                continue
 
             if matched_custom:
                 json_response["example"] = matched_custom.get("example", {"ok": True})

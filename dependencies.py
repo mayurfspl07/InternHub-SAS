@@ -1,4 +1,5 @@
 """Authentication, CSRF, session, and tenant context helpers."""
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 import secrets
 import time
@@ -22,6 +23,19 @@ _serializer = URLSafeTimedSerializer(Config.SECRET_KEY, salt="auth-salt")
 # for CSRF double-submit validation (its value is never treated as a secret credential).
 SESSION_COOKIE_NAME = "ih_session"
 CSRF_COOKIE_NAME = "ih_csrf"
+
+# Organization of the authenticated request being served; lets record writers such as
+# record_audit stamp the right tenant without threading the request through every call.
+_current_org: ContextVar[int | None] = ContextVar("internhub_current_org", default=None)
+
+
+def current_org_id() -> int | None:
+    return _current_org.get()
+
+
+def reset_current_org():
+    """Clear the request organization (called at the start of every HTTP request)."""
+    return _current_org.set(None)
 ORG_ACCESS_STATUSES = ("active", "trial")
 _ORG_GATE_EXEMPT_PATHS = ("/api/auth/logout",)
 # What a self-registered account with no organization yet may use: its own account only.
@@ -66,6 +80,9 @@ class LoginRequired(Exception):
 # ---------------------------------------------------------------------------
 
 def get_optional_user(request: Request, db: DbSession) -> User | None:
+    state = getattr(request, "state", None)
+    if state is None or getattr(state, "org_access_checked_for", None) is None:
+        _current_org.set(None)  # never inherit a previous request's organization
     token = get_token_from_header(request) or request.cookies.get(SESSION_COOKIE_NAME)
     if not token:
         return None
@@ -95,14 +112,15 @@ def _enforce_org_access(request: Request, user: User, db) -> None:
 
     Platform admins are exempt. Checked once per request.
     """
-    if getattr(user, "is_platform_admin", False) or getattr(user, "is_superadmin", False):
-        return
-    if request.url.path.startswith(_ORG_GATE_EXEMPT_PATHS):
-        return
     state = getattr(request, "state", None)
     if state is not None and getattr(state, "org_access_checked_for", None) == user.id:
         return
     org_id = _resolve_request_org_id(request, user, db)
+    _current_org.set(org_id)
+    if getattr(user, "is_platform_admin", False) or getattr(user, "is_superadmin", False):
+        return
+    if request.url.path.startswith(_ORG_GATE_EXEMPT_PATHS):
+        return
     if org_id is None and getattr(user, "self_registered", False):
         if request.url.path.startswith(_NO_ORG_ALLOWED_PATHS):
             return

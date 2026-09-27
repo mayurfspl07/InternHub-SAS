@@ -309,3 +309,36 @@ def test_self_registered_account_sees_no_tenant_data_until_added(env):
     assert resp.status_code in (200, 201), resp.text[:200]
     assert c.get("/api/announcements", headers=h).status_code == 200
     assert c.get("/api/cohorts", headers=h).status_code == 200
+
+
+def test_audit_trail_and_attendance_are_filed_under_the_acting_org(env):
+    from models import AuditLog
+
+    c, i, db = env["client"], env["ids"], env["db"]
+    resp = c.post("/api/cohorts", headers=_as(env, "admin_b"), json={"name": "Beta audit cohort"})
+    assert resp.status_code in (200, 201), resp.text[:200]
+    db.expire_all()
+    log = db.query(AuditLog).filter_by(action="cohort.create").order_by(AuditLog.id.desc()).first()
+    assert log.organization_id == 2
+
+    def actions(who):
+        body = c.get("/api/audit", headers=_as(env, who)).json()
+        return [entry.get("target") for entry in body.get("logs", [])]
+
+    assert "Beta audit cohort" in actions("admin_b")
+    assert "Beta audit cohort" not in actions("admin_a")
+
+    day = (date.today() - timedelta(days=3)).isoformat()
+    resp = c.post("/api/attendance/manual", headers=_as(env, "admin_b"),
+                  json={"user_id": i["intern_b"], "date": day, "check_in": "09:30", "check_out": "18:00",
+                        "reason": "backfill"})
+    assert resp.status_code in (200, 201), resp.text[:200]
+    db.expire_all()
+    rec = db.query(Attendance).filter_by(user_id=i["intern_b"], date=date.fromisoformat(day)).one()
+    assert rec.organization_id == 2
+
+
+def test_interns_cannot_list_organization_members(env):
+    c = env["client"]
+    assert c.get("/api/org/members", headers=_as(env, "intern_a")).status_code == 403
+    assert c.get("/api/org/members", headers=_as(env)).status_code == 200

@@ -148,7 +148,12 @@ def list_organization_members(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
 ):
-    """List all members within the active organization."""
+    """List all members within the active organization (Org Admin & Mentor).
+
+    The rows carry contact details and stipends, so interns are refused.
+    """
+    if not (ctx.is_admin or ctx.is_mentor):
+        raise HTTPException(status_code=403, detail="Admin or Mentor access required")
     query = (
         db.query(OrganizationMembership, User)
         .join(User, OrganizationMembership.user_id == User.id)

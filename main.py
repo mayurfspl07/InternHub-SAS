@@ -295,6 +295,14 @@ _CSRF_EXEMPT_PATHS = ("/api/auth/login", "/api/auth/register", "/api/auth/invite
 
 
 @app.middleware("http")
+async def reset_request_org(request: Request, call_next):
+    from dependencies import reset_current_org
+
+    reset_current_org()
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def csrf_guard(request: Request, call_next):
     if (
         request.method in ("POST", "PUT", "DELETE", "PATCH")

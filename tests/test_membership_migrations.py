@@ -128,3 +128,31 @@ def test_post_cutover_self_signups_are_flagged_and_detached(world):
     assert live_orgs(db, public.id) == []
     assert not db.get(User, ids["legacy"]).self_registered
     assert live_orgs(db, ids["legacy"]) == [1]
+
+
+audit_attendance_fix = importlib.import_module("migrations.20260927_audit_attendance_org_backfill")
+
+
+def test_audit_and_attendance_rows_move_to_their_tenant(world):
+    from datetime import date as _date
+
+    from models import Attendance, AuditLog
+
+    engine, db, ids = world
+    spurious_fix.upgrade(engine)
+    db.add_all([
+        AuditLog(organization_id=1, actor_id=ids["beta_admin"], actor_name="b", action="x", verb="v", target="t"),
+        AuditLog(organization_id=1, actor_id=ids["legacy"], actor_name="l", action="x", verb="v", target="t"),
+        Attendance(organization_id=1, user_id=ids["beta_mentor"], date=_date(2026, 9, 1),
+                   check_in=datetime(2026, 9, 1, 9, 30)),
+        Attendance(organization_id=1, user_id=ids["legacy"], date=_date(2026, 9, 1),
+                   check_in=datetime(2026, 9, 1, 9, 30)),
+    ])
+    db.commit()
+    audit_attendance_fix.upgrade(engine)
+    audit_attendance_fix.upgrade(engine)
+    db.expire_all()
+    assert sorted((a.actor_id, a.organization_id) for a in db.query(AuditLog)) == sorted(
+        [(ids["beta_admin"], 2), (ids["legacy"], 1)])
+    assert sorted((a.user_id, a.organization_id) for a in db.query(Attendance)) == sorted(
+        [(ids["beta_mentor"], 2), (ids["legacy"], 1)])

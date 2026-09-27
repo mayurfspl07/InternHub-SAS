@@ -506,6 +506,7 @@ def sync_attendance_for_approved_leave(db: "Session", leave_request) -> int:
         else:
             check_in = datetime.combine(day, Config.SHIFT_START)
             record = Attendance(
+                organization_id=leave_request.organization_id or 1,
                 user_id=leave_request.user_id,
                 date=day,
                 check_in=check_in,
@@ -826,6 +827,29 @@ def attendance_photo_url(photo_ref: str | None, record_id: int, kind: str) -> st
     return f"/api/attendance/{record_id}/photo/{kind}"
 
 
+def owning_org_id(db: "Session", *, project_id: int | None = None, user_ids=()) -> int | None:
+    """Organization a record belongs to when no request context is available:
+    the project's organization, else the first listed user's earliest active membership."""
+    from models import OrganizationMembership, Project
+
+    if project_id:
+        project = db.get(Project, project_id)
+        if project is not None and project.organization_id is not None:
+            return project.organization_id
+    for uid in user_ids:
+        if not uid:
+            continue
+        membership = (
+            db.query(OrganizationMembership)
+            .filter_by(user_id=uid, is_active=True, is_deleted=False)
+            .order_by(OrganizationMembership.id.asc())
+            .first()
+        )
+        if membership is not None:
+            return membership.organization_id
+    return None
+
+
 def record_audit(
     db: "Session",
     actor,
@@ -835,16 +859,26 @@ def record_audit(
     target_id: int | None = None,
     project_id: int | None = None,
     affected_user_id: int | None = None,
+    organization_id: int | None = None,
 ) -> None:
-    """Write one entry to the audit_logs table and logs/activity.log. Caller must commit."""
+    """Write one entry to the audit_logs table and logs/activity.log. Caller must commit.
+
+    The entry is filed under the request's organization (see dependencies.current_org_id),
+    falling back to the project's or the actor's organization outside a request.
+    """
     from models import AuditLog
 
+    from dependencies import current_org_id
     from log_files import write_activity_log
 
     actor_id = getattr(actor, "id", None)
     actor_name = getattr(actor, "name", "")
     created_at = datetime.now(timezone.utc)
+    org_id = organization_id or current_org_id() or owning_org_id(
+        db, project_id=project_id, user_ids=(actor_id, affected_user_id)
+    )
     db.add(AuditLog(
+        organization_id=org_id,
         actor_id=actor_id,
         actor_name=actor_name,
         action=action,

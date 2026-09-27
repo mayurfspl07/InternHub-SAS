@@ -235,6 +235,7 @@ async def check_in(
 
     status = determine_attendance_status(now)
     record = Attendance(
+        organization_id=viewer_org_id(request, user, db),
         user_id=user.id,
         date=today,
         check_in=now,
@@ -1052,6 +1053,7 @@ async def create_attendance_manual(request: Request, db: DbSession, data: Manual
         raise HTTPException(status_code=409, detail="Attendance record already exists for this date.")
 
     record = Attendance(
+        organization_id=viewer_org_id(request, user, db),
         user_id=user_id,
         date=parsed_date,
         check_in=check_in_dt,

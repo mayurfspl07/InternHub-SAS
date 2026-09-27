@@ -1,0 +1,7131 @@
+{
+ "DELETE /api/admin/bin": {
+  "deleted_count": 10,
+  "message": "Permanently deleted 10 item(s).",
+  "ok": true
+ },
+ "DELETE /api/admin/bin/{bin_id}": {
+  "message": "Permanently deleted 'None'.",
+  "ok": true
+ },
+ "DELETE /api/admin/internship-durations/{duration_id}": {
+  "message": "Internship duration tier 'Winter sprint (E2E-TMP-1790466803)' deleted.",
+  "success": true
+ },
+ "DELETE /api/admin/invite-link/{link_id}": {
+  "ok": true
+ },
+ "DELETE /api/admin/project-statuses/{status_id}": {
+  "message": "Project status bucket 'QA Review (E2E-TMP-1790466803)' deleted.",
+  "success": true
+ },
+ "DELETE /api/admin/task-statuses/{status_id}": {
+  "message": "Status bucket 'QA Review (E2E-TMP-1790466803)' deleted.",
+  "success": true
+ },
+ "DELETE /api/admin/users/{user_id}": {
+  "ok": true
+ },
+ "DELETE /api/announcements/{ann_id}": {
+  "ok": true
+ },
+ "DELETE /api/assignments/{assignment_id}": {
+  "message": "Assignment 'Quiz: Pune metro lines E2E-TMP-1790466803' deleted.",
+  "success": true
+ },
+ "DELETE /api/attendance/{record_id}": {
+  "ok": true
+ },
+ "DELETE /api/blogs/{post_id}": {
+  "ok": true
+ },
+ "DELETE /api/cohorts/{cohort_id}": {
+  "ok": true
+ },
+ "DELETE /api/cohorts/{cohort_id}/members/{user_id}": {
+  "ok": true
+ },
+ "DELETE /api/notifications/{notif_id}": {
+  "ok": true
+ },
+ "DELETE /api/projects/comments-board/{comment_id}": {
+  "ok": true
+ },
+ "DELETE /api/projects/links/{link_id}": {
+  "ok": true
+ },
+ "DELETE /api/projects/tasks/attachments/{attachment_id}": {
+  "message": "Attachment deleted successfully.",
+  "ok": true,
+  "success": true
+ },
+ "DELETE /api/projects/tasks/comments/{comment_id}": {
+  "ok": true
+ },
+ "DELETE /api/projects/tasks/{task_id}": {
+  "ok": true
+ },
+ "DELETE /api/projects/{project_id}": {
+  "ok": true
+ },
+ "DELETE /api/projects/{project_id}/assign/{user_id}": {
+  "ok": true
+ },
+ "DELETE /api/reviews/{review_id}": {
+  "ok": true
+ },
+ "DELETE /api/standup/{log_id}": {
+  "ok": true
+ },
+ "DELETE /api/tasks/{task_id}": {
+  "ok": true
+ },
+ "GET /admin/dashboard": {
+  "active_projects": [
+   {
+    "completed_tasks_count": 0,
+    "created_at": "2026-09-26T23:51:31.536212Z",
+    "description": "Soil moisture and weather sensors for grape growers around Niphad and Dindori.",
+    "id": 4,
+    "members_count": 2,
+    "mentor_id": 5,
+    "mentor_name": "Sachin Gaikwad",
+    "name": "Nashik Vineyard IoT",
+    "status": "active",
+    "tasks_count": 2
+   },
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.392591Z",
+    "description": "Coordinates volunteers, water stations and medical camps along the Ashadhi Wari route.",
+    "id": 2,
+    "members_count": 2,
+    "mentor_id": 4,
+    "mentor_name": "Madhuri Deshpande",
+    "name": "Pandharpur Wari Volunteer App",
+    "status": "active",
+    "tasks_count": 3
+   }
+  ],
+  "attendance_chart": [
+   {
+    "date": "2026-09-14",
+    "hours": 72.4,
+    "present": 8,
+    "status": "present"
+   },
+   {
+    "date": "2026-09-15",
+    "hours": 63.2,
+    "present": 7,
+    "status": "present"
+   }
+  ],
+  "open_tasks": [
+   {
+    "assignee_id": 8,
+    "assignee_name": "Omkar Jadhav",
+    "deadline": "2026-10-11",
+    "id": 2,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "in_progress",
+    "title": "Stop-level ETA model"
+   },
+   {
+    "assignee_id": 10,
+    "assignee_name": "Pranav Joshi",
+    "deadline": "2026-10-11",
+    "id": 3,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "in_progress",
+    "title": "Marathi / English UI toggle"
+   }
+  ],
+  "organization": {
+   "id": 2,
+   "name": "Sahyadri Tech Labs",
+   "slug": "sahyadri-tech-labs",
+   "type": "business"
+  },
+  "pending_leave_requests": [
+   {
+    "created_at": "2026-09-26T23:52:22.952250Z",
+    "days": 1,
+    "days_count": 1,
+    "department": "Product Design",
+    "end_date": "2026-10-20",
+    "id": 3,
+    "leave_type": "sick",
+    "reason": "Medical check-up at Sassoon hospital",
+    "start_date": "2026-10-20",
+    "user_id": 7,
+    "user_name": "Sakshi Patil"
+   }
+  ],
+  "present_today_list": [],
+  "present_today_total": 0,
+  "project_status": {
+   "active": 3,
+   "planning": 1
+  },
+  "recent_activity": [
+   {
+    "action": "review.delete",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.252880Z",
+    "id": 283,
+    "project_id": 1,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "deleted performance review for"
+   },
+   {
+    "action": "review.update",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": null,
+    "created_at": "2026-09-26T23:54:05.236411Z",
+    "id": 282,
+    "project_id": null,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "updated performance review for"
+   }
+  ],
+  "role": "admin",
+  "stats": {
+   "absent_today": 10,
+   "active_projects": 3,
+   "days_logged": 10,
+   "on_leave_today": 0,
+   "open_tasks": 9,
+   "overdue_tasks": 0,
+   "pending_leave": 1,
+   "present_today": 0,
+   "total_hours": 670.9,
+   "total_interns": 10,
+   "total_mentors": 3,
+   "total_projects": 4
+  },
+  "streak": 0,
+  "task_status": {
+   "done": 2,
+   "in_progress": 5,
+   "review": 1,
+   "todo": 3
+  }
+ },
+ "GET /api/admin/attendance/search": {
+  "date_range": {
+   "end": "2026-09-27",
+   "start": "2026-08-29"
+  },
+  "filters": {
+   "department": null,
+   "end": "2026-09-27",
+   "is_active": null,
+   "search": "a",
+   "sort": "name",
+   "start": "2026-08-29"
+  },
+  "page": 1,
+  "page_size": 20,
+  "students": [
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 9,
+     "end_date": "2026-09-27",
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T10:05:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 9,
+     "start_date": "2026-08-29",
+     "total_hours": 81.56,
+     "total_records": 9,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:30.536786Z",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Aarav Deshmukh",
+    "phone": "+91 98503 11240"
+   },
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 9,
+     "end_date": "2026-09-27",
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T09:28:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 9,
+     "start_date": "2026-08-29",
+     "total_hours": 81.56,
+     "total_records": 9,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:31.223337Z",
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "is_active": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "joining_date": "2026-08-13",
+    "mentor_id": 5,
+    "mentor_name": "Sachin Gaikwad",
+    "name": "Gauri Bhosale",
+    "phone": "+91 70208 64419"
+   }
+  ],
+  "total": 8,
+  "total_pages": 1
+ },
+ "GET /api/admin/attendance/today": {
+  "filters": {
+   "department": null,
+   "is_active": "true",
+   "search": null,
+   "status": null
+  },
+  "page": 1,
+  "page_size": 20,
+  "students": [
+   {
+    "attendance": null,
+    "is_checked_in": false,
+    "is_checked_out": false,
+    "student": {
+     "department": "Engineering",
+     "email": "aarav.sahyadri-tech-labs@example.com",
+     "id": 6,
+     "is_active": true,
+     "job_title": "Intern — COEP Technological University, Pune",
+     "mentor_id": 3,
+     "name": "Aarav Deshmukh",
+     "phone": "+91 98503 11240"
+    },
+    "today_status": "not_checked_in"
+   },
+   {
+    "attendance": null,
+    "is_checked_in": false,
+    "is_checked_out": false,
+    "student": {
+     "department": "Data & Analytics",
+     "email": "gauri.sahyadri-tech-labs@example.com",
+     "id": 13,
+     "is_active": true,
+     "job_title": "Intern — MIT Academy of Engineering, Nashik",
+     "mentor_id": 5,
+     "name": "Gauri Bhosale",
+     "phone": "+91 70208 64419"
+    },
+    "today_status": "not_checked_in"
+   }
+  ],
+  "summary": {
+   "absent": 0,
+   "attendance_rate": 0.0,
+   "attended": 0,
+   "checked_in": 0,
+   "checked_out": 0,
+   "excused": 0,
+   "half_day": 0,
+   "late": 0,
+   "not_checked_in": 8,
+   "on_leave": 0,
+   "present": 0,
+   "total_interns": 8
+  },
+  "today": "2026-09-27",
+  "total": 8,
+  "total_pages": 1
+ },
+ "GET /api/admin/bin": {
+  "items": [
+   {
+    "deleted_at": "2026-09-26T23:53:55.865076Z",
+    "deleted_by_id": 2,
+    "deleted_by_name": "Anand Apte",
+    "entity_id": 5,
+    "entity_type": "project",
+    "expires_at": "2026-10-11T23:53:55.865076Z",
+    "id": 12,
+    "metadata": {
+     "description": "Updated",
+     "entity_type": "project",
+     "id": 5,
+     "mentor_id": 4,
+     "name": "None",
+     "status": "active"
+    },
+    "title": "None"
+   },
+   {
+    "deleted_at": "2026-09-26T23:53:55.796660Z",
+    "deleted_by_id": 2,
+    "deleted_by_name": "Anand Apte",
+    "entity_id": 13,
+    "entity_type": "task",
+    "expires_at": "2026-10-11T23:53:55.796660Z",
+    "id": 11,
+    "metadata": {
+     "assigned_to": null,
+     "entity_type": "task",
+     "id": 13,
+     "project_id": 5,
+     "status": "todo",
+     "title": "Alias delete E2E-TMP-1790466803"
+    },
+    "title": "Alias delete E2E-TMP-1790466803"
+   }
+  ],
+  "page": 1,
+  "total": 6,
+  "total_pages": 1
+ },
+ "GET /api/admin/dashboard": {
+  "active_projects": [
+   {
+    "completed_tasks_count": 0,
+    "created_at": "2026-09-26T23:51:31.536212Z",
+    "description": "Soil moisture and weather sensors for grape growers around Niphad and Dindori.",
+    "id": 4,
+    "members_count": 2,
+    "mentor_id": 5,
+    "mentor_name": "Sachin Gaikwad",
+    "name": "Nashik Vineyard IoT",
+    "status": "active",
+    "tasks_count": 2
+   },
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.392591Z",
+    "description": "Coordinates volunteers, water stations and medical camps along the Ashadhi Wari route.",
+    "id": 2,
+    "members_count": 2,
+    "mentor_id": 4,
+    "mentor_name": "Madhuri Deshpande",
+    "name": "Pandharpur Wari Volunteer App",
+    "status": "active",
+    "tasks_count": 3
+   }
+  ],
+  "attendance_chart": [
+   {
+    "date": "2026-09-14",
+    "hours": 72.4,
+    "present": 8,
+    "status": "present"
+   },
+   {
+    "date": "2026-09-15",
+    "hours": 63.2,
+    "present": 7,
+    "status": "present"
+   }
+  ],
+  "open_tasks": [
+   {
+    "assignee_id": 8,
+    "assignee_name": "Omkar Jadhav",
+    "deadline": "2026-10-11",
+    "id": 2,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "in_progress",
+    "title": "Stop-level ETA model"
+   },
+   {
+    "assignee_id": 10,
+    "assignee_name": "Pranav Joshi",
+    "deadline": "2026-10-11",
+    "id": 3,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "in_progress",
+    "title": "Marathi / English UI toggle"
+   }
+  ],
+  "organization": {
+   "id": 2,
+   "name": "Sahyadri Tech Labs",
+   "slug": "sahyadri-tech-labs",
+   "type": "business"
+  },
+  "pending_leave_requests": [
+   {
+    "created_at": "2026-09-26T23:52:22.952250Z",
+    "days": 1,
+    "days_count": 1,
+    "department": "Product Design",
+    "end_date": "2026-10-20",
+    "id": 3,
+    "leave_type": "sick",
+    "reason": "Medical check-up at Sassoon hospital",
+    "start_date": "2026-10-20",
+    "user_id": 7,
+    "user_name": "Sakshi Patil"
+   }
+  ],
+  "present_today_list": [],
+  "present_today_total": 0,
+  "project_status": {
+   "active": 3,
+   "planning": 1
+  },
+  "recent_activity": [
+   {
+    "action": "review.delete",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.252880Z",
+    "id": 283,
+    "project_id": 1,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "deleted performance review for"
+   },
+   {
+    "action": "review.update",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": null,
+    "created_at": "2026-09-26T23:54:05.236411Z",
+    "id": 282,
+    "project_id": null,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "updated performance review for"
+   }
+  ],
+  "role": "admin",
+  "stats": {
+   "absent_today": 10,
+   "active_projects": 3,
+   "days_logged": 10,
+   "on_leave_today": 0,
+   "open_tasks": 9,
+   "overdue_tasks": 0,
+   "pending_leave": 1,
+   "present_today": 0,
+   "total_hours": 670.9,
+   "total_interns": 10,
+   "total_mentors": 3,
+   "total_projects": 4
+  },
+  "streak": 0,
+  "task_status": {
+   "done": 2,
+   "in_progress": 5,
+   "review": 1,
+   "todo": 3
+  }
+ },
+ "GET /api/admin/intern-assignments": {
+  "assigned_count": 8,
+  "by_mentor": [
+   {
+    "count": 2,
+    "interns": [
+     {
+      "department": "Product Design",
+      "email": "sakshi.sahyadri-tech-labs@example.com",
+      "id": 7,
+      "is_active": true,
+      "mentor_id": 4,
+      "mentor_name": "Madhuri Deshpande",
+      "name": "Sakshi Patil"
+     },
+     {
+      "department": "Product Design",
+      "email": "snehal.sahyadri-tech-labs@example.com",
+      "id": 11,
+      "is_active": true,
+      "mentor_id": 4,
+      "mentor_name": "Madhuri Deshpande",
+      "name": "Snehal Pawar"
+     }
+    ],
+    "mentor": {
+     "bio": null,
+     "created_at": "2026-09-26T23:51:30.337153Z",
+     "department": "Product Design",
+     "email": "madhuri.sahyadri-tech-labs@example.com",
+     "id": 4,
+     "internship_duration_months": 3,
+     "internship_end_date": null,
+     "is_active": true,
+     "is_paid": null,
+     "job_title": "Design Lead, Mumbai",
+     "joining_date": "2026-08-13",
+     "mentor_id": null,
+     "mentor_name": null,
+     "name": "Madhuri Deshpande",
+     "phone": "+91 98190 27714",
+     "role": "mentor",
+     "skills": [],
+     "stipend_amount": null
+    }
+   },
+   {
+    "count": 3,
+    "interns": [
+     {
+      "department": "Engineering",
+      "email": "aarav.sahyadri-tech-labs@example.com",
+      "id": 6,
+      "is_active": true,
+      "mentor_id": 3,
+      "mentor_name": "Prashant Kulkarni",
+      "name": "Aarav Deshmukh"
+     },
+     {
+      "department": "Engineering",
+      "email": "omkar.sahyadri-tech-labs@example.com",
+      "id": 8,
+      "is_active": true,
+      "mentor_id": 3,
+      "mentor_name": "Prashant Kulkarni",
+      "name": "Omkar Jadhav"
+     }
+    ],
+    "mentor": {
+     "bio": null,
+     "created_at": "2026-09-26T23:51:30.237359Z",
+     "department": "Engineering",
+     "email": "prashant.sahyadri-tech-labs@example.com",
+     "id": 3,
+     "internship_duration_months": 3,
+     "internship_end_date": null,
+     "is_active": true,
+     "is_paid": null,
+     "job_title": "Senior Engineer, Pune",
+     "joining_date": "2026-08-13",
+     "mentor_id": null,
+     "mentor_name": null,
+     "name": "Prashant Kulkarni",
+     "phone": "+91 98220 41532",
+     "role": "mentor",
+     "skills": [],
+     "stipend_amount": null
+    }
+   }
+  ],
+  "no_project": [
+   {
+    "department": null,
+    "email": "e2e-tmp-1790466803.member@example.com",
+    "id": 14,
+    "is_active": true,
+    "mentor_id": null,
+    "mentor_name": null,
+    "name": "Kunal Wagh E2E-TMP-1790466803"
+   }
+  ],
+  "no_project_count": 1,
+  "organization_id": 2,
+  "page": 1,
+  "page_size": 20,
+  "scope": "admin",
+  "total": 3,
+  "total_interns": 9,
+  "total_pages": 1,
+  "unassigned": [
+   {
+    "department": null,
+    "email": "e2e-tmp-1790466803.member@example.com",
+    "id": 14,
+    "is_active": true,
+    "mentor_id": null,
+    "mentor_name": null,
+    "name": "Kunal Wagh E2E-TMP-1790466803"
+   }
+  ],
+  "unassigned_count": 1
+ },
+ "GET /api/admin/intern-signup-requests": {
+  "items": [],
+  "page": 1,
+  "page_size": 20,
+  "requests": [],
+  "total": 0,
+  "total_pages": 1
+ },
+ "GET /api/admin/internship-durations": {
+  "durations": [
+   {
+    "created_at": "2026-09-26T23:51:30.134527",
+    "duration_days": null,
+    "duration_months": 1,
+    "id": 4,
+    "intern_count": 0,
+    "internship_duration": 1,
+    "is_active": true,
+    "is_default": false,
+    "leaves": 2,
+    "order_index": 0,
+    "organization_id": 2,
+    "title": "1 Month",
+    "updated_at": "2026-09-26T23:51:30.134529"
+   },
+   {
+    "created_at": "2026-09-26T23:51:30.134530",
+    "duration_days": null,
+    "duration_months": 3,
+    "id": 5,
+    "intern_count": 2,
+    "internship_duration": 3,
+    "is_active": true,
+    "is_default": true,
+    "leaves": 5,
+    "order_index": 1,
+    "organization_id": 2,
+    "title": "3 Months",
+    "updated_at": "2026-09-26T23:51:30.134530"
+   }
+  ],
+  "items": [
+   {
+    "created_at": "2026-09-26T23:51:30.134527",
+    "duration_days": null,
+    "duration_months": 1,
+    "id": 4,
+    "intern_count": 0,
+    "internship_duration": 1,
+    "is_active": true,
+    "is_default": false,
+    "leaves": 2,
+    "order_index": 0,
+    "organization_id": 2,
+    "title": "1 Month",
+    "updated_at": "2026-09-26T23:51:30.134529"
+   },
+   {
+    "created_at": "2026-09-26T23:51:30.134530",
+    "duration_days": null,
+    "duration_months": 3,
+    "id": 5,
+    "intern_count": 2,
+    "internship_duration": 3,
+    "is_active": true,
+    "is_default": true,
+    "leaves": 5,
+    "order_index": 1,
+    "organization_id": 2,
+    "title": "3 Months",
+    "updated_at": "2026-09-26T23:51:30.134530"
+   }
+  ],
+  "page": 1,
+  "page_size": 100,
+  "total": 4,
+  "total_pages": 1
+ },
+ "GET /api/admin/internship-durations/dropdown": {
+  "durations": [
+   {
+    "created_at": "2026-09-26T23:51:30.134527",
+    "duration_days": null,
+    "duration_months": 1,
+    "id": 4,
+    "intern_count": 0,
+    "internship_duration": 1,
+    "is_active": true,
+    "is_default": false,
+    "leaves": 2,
+    "order_index": 0,
+    "organization_id": 2,
+    "title": "1 Month",
+    "updated_at": "2026-09-26T23:51:30.134529"
+   },
+   {
+    "created_at": "2026-09-26T23:51:30.134530",
+    "duration_days": null,
+    "duration_months": 3,
+    "id": 5,
+    "intern_count": 2,
+    "internship_duration": 3,
+    "is_active": true,
+    "is_default": true,
+    "leaves": 5,
+    "order_index": 1,
+    "organization_id": 2,
+    "title": "3 Months",
+    "updated_at": "2026-09-26T23:51:30.134530"
+   }
+  ],
+  "items": [
+   {
+    "created_at": "2026-09-26T23:51:30.134527",
+    "duration_days": null,
+    "duration_months": 1,
+    "id": 4,
+    "intern_count": 0,
+    "internship_duration": 1,
+    "is_active": true,
+    "is_default": false,
+    "leaves": 2,
+    "order_index": 0,
+    "organization_id": 2,
+    "title": "1 Month",
+    "updated_at": "2026-09-26T23:51:30.134529"
+   },
+   {
+    "created_at": "2026-09-26T23:51:30.134530",
+    "duration_days": null,
+    "duration_months": 3,
+    "id": 5,
+    "intern_count": 2,
+    "internship_duration": 3,
+    "is_active": true,
+    "is_default": true,
+    "leaves": 5,
+    "order_index": 1,
+    "organization_id": 2,
+    "title": "3 Months",
+    "updated_at": "2026-09-26T23:51:30.134530"
+   }
+  ],
+  "total": 4
+ },
+ "GET /api/admin/invite-link": {
+  "link": {
+   "created_at": "2026-09-26T23:52:10.878964Z",
+   "created_by_id": 2,
+   "created_by_name": "Anand Apte",
+   "id": 3,
+   "is_active": true,
+   "label": "Sahyadri campus drive 2026",
+   "mentor_id": 3,
+   "mentor_name": "Prashant Kulkarni",
+   "token": "<redacted>",
+   "url": "https://internhub-sas-production-b44c.up.railway.app/join/srID36l8KPu0sEcnWm5gUYasrfhX-VJ-df8V9mKAyW0",
+   "usage_count": 0
+  },
+  "links": [
+   {
+    "created_at": "2026-09-26T23:52:10.878964Z",
+    "created_by_id": 2,
+    "created_by_name": "Anand Apte",
+    "id": 3,
+    "is_active": true,
+    "label": "Sahyadri campus drive 2026",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "token": "<redacted>",
+    "url": "https://internhub-sas-production-b44c.up.railway.app/join/srID36l8KPu0sEcnWm5gUYasrfhX-VJ-df8V9mKAyW0",
+    "usage_count": 0
+   },
+   {
+    "created_at": "2026-09-26T23:52:10.854481Z",
+    "created_by_id": 2,
+    "created_by_name": "Anand Apte",
+    "id": 2,
+    "is_active": false,
+    "label": "Pune campus drive E2E-TMP-1790466703",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "token": "<redacted>",
+    "url": "https://internhub-sas-production-b44c.up.railway.app/join/CoFaSAhXmW1wc2rbUoLOk0lQak7GXnr0nxs_HCluE_U",
+    "usage_count": 0
+   }
+  ]
+ },
+ "GET /api/admin/mentors": [
+  {
+   "bio": null,
+   "created_at": "2026-09-26T23:51:30.337153Z",
+   "department": "Product Design",
+   "email": "madhuri.sahyadri-tech-labs@example.com",
+   "id": 4,
+   "internship_duration_months": 3,
+   "internship_end_date": null,
+   "is_active": true,
+   "is_paid": null,
+   "job_title": "Design Lead, Mumbai",
+   "joining_date": "2026-08-13",
+   "mentor_id": null,
+   "mentor_name": null,
+   "name": "Madhuri Deshpande",
+   "phone": "+91 98190 27714",
+   "role": "mentor",
+   "skills": [],
+   "stipend_amount": null
+  },
+  {
+   "bio": null,
+   "created_at": "2026-09-26T23:51:30.237359Z",
+   "department": "Engineering",
+   "email": "prashant.sahyadri-tech-labs@example.com",
+   "id": 3,
+   "internship_duration_months": 3,
+   "internship_end_date": null,
+   "is_active": true,
+   "is_paid": null,
+   "job_title": "Senior Engineer, Pune",
+   "joining_date": "2026-08-13",
+   "mentor_id": null,
+   "mentor_name": null,
+   "name": "Prashant Kulkarni",
+   "phone": "+91 98220 41532",
+   "role": "mentor",
+   "skills": [],
+   "stipend_amount": null
+  }
+ ],
+ "GET /api/admin/project-statuses": {
+  "items": [
+   {
+    "color": "#94A3B8",
+    "created_at": "2026-09-26T23:51:31.252193",
+    "id": 5,
+    "is_default": true,
+    "is_system": true,
+    "name": "Planning",
+    "order_index": 0,
+    "organization_id": 2,
+    "project_count": 1,
+    "slug": "planning",
+    "updated_at": "2026-09-26T23:52:13.040645"
+   },
+   {
+    "color": "#3B82F6",
+    "created_at": "2026-09-26T23:51:31.252197",
+    "id": 6,
+    "is_default": false,
+    "is_system": true,
+    "name": "Active",
+    "order_index": 1,
+    "organization_id": 2,
+    "project_count": 3,
+    "slug": "active",
+    "updated_at": "2026-09-26T23:52:13.041236"
+   }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "statuses": [
+   {
+    "color": "#94A3B8",
+    "created_at": "2026-09-26T23:51:31.252193",
+    "id": 5,
+    "is_default": true,
+    "is_system": true,
+    "name": "Planning",
+    "order_index": 0,
+    "organization_id": 2,
+    "project_count": 1,
+    "slug": "planning",
+    "updated_at": "2026-09-26T23:52:13.040645"
+   },
+   {
+    "color": "#3B82F6",
+    "created_at": "2026-09-26T23:51:31.252197",
+    "id": 6,
+    "is_default": false,
+    "is_system": true,
+    "name": "Active",
+    "order_index": 1,
+    "organization_id": 2,
+    "project_count": 3,
+    "slug": "active",
+    "updated_at": "2026-09-26T23:52:13.041236"
+   }
+  ],
+  "total": 4,
+  "total_pages": 1
+ },
+ "GET /api/admin/students": {
+  "filters": {
+   "department": null,
+   "is_active": null,
+   "search": null,
+   "sort": "name",
+   "window_days": 30
+  },
+  "page": 1,
+  "page_size": 20,
+  "students": [
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 9,
+     "end_date": null,
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T10:05:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 9,
+     "start_date": null,
+     "total_hours": 81.56,
+     "total_records": 9,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:30.536786Z",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Aarav Deshmukh",
+    "phone": "+91 98503 11240"
+   },
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 9,
+     "end_date": null,
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T09:28:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 9,
+     "start_date": null,
+     "total_hours": 81.56,
+     "total_records": 9,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:31.223337Z",
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "is_active": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "joining_date": "2026-08-13",
+    "mentor_id": 5,
+    "mentor_name": "Sachin Gaikwad",
+    "name": "Gauri Bhosale",
+    "phone": "+91 70208 64419"
+   }
+  ],
+  "total": 8,
+  "total_pages": 1
+ },
+ "GET /api/admin/students/overview/search": {
+  "date_range": {
+   "end": "2026-09-27",
+   "start": "2026-08-29"
+  },
+  "filters": {
+   "department": null,
+   "end": "2026-09-27",
+   "is_active": null,
+   "search": "a",
+   "sort": "name",
+   "start": "2026-08-29"
+  },
+  "page": 1,
+  "page_size": 20,
+  "students": [
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 9,
+     "end_date": "2026-09-27",
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T10:05:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 9,
+     "start_date": "2026-08-29",
+     "total_hours": 81.56,
+     "total_records": 9,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:30.536786Z",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Aarav Deshmukh",
+    "phone": "+91 98503 11240"
+   },
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 9,
+     "end_date": "2026-09-27",
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T09:28:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 9,
+     "start_date": "2026-08-29",
+     "total_hours": 81.56,
+     "total_records": 9,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:31.223337Z",
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "is_active": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "joining_date": "2026-08-13",
+    "mentor_id": 5,
+    "mentor_name": "Sachin Gaikwad",
+    "name": "Gauri Bhosale",
+    "phone": "+91 70208 64419"
+   }
+  ],
+  "total": 8,
+  "total_pages": 1
+ },
+ "GET /api/admin/students/search": {
+  "date_range": {
+   "end": "2026-09-27",
+   "start": "2026-08-29"
+  },
+  "filters": {
+   "department": null,
+   "end": "2026-09-27",
+   "is_active": null,
+   "search": "a",
+   "sort": "name",
+   "start": "2026-08-29"
+  },
+  "page": 1,
+  "page_size": 20,
+  "students": [
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 9,
+     "end_date": "2026-09-27",
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T10:05:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 9,
+     "start_date": "2026-08-29",
+     "total_hours": 81.56,
+     "total_records": 9,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:30.536786Z",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Aarav Deshmukh",
+    "phone": "+91 98503 11240"
+   },
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 9,
+     "end_date": "2026-09-27",
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T09:28:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 9,
+     "start_date": "2026-08-29",
+     "total_hours": 81.56,
+     "total_records": 9,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:31.223337Z",
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "is_active": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "joining_date": "2026-08-13",
+    "mentor_id": 5,
+    "mentor_name": "Sachin Gaikwad",
+    "name": "Gauri Bhosale",
+    "phone": "+91 70208 64419"
+   }
+  ],
+  "total": 8,
+  "total_pages": 1
+ },
+ "GET /api/admin/students/today": {
+  "filters": {
+   "department": null,
+   "is_active": "true",
+   "search": null,
+   "status": null
+  },
+  "page": 1,
+  "page_size": 20,
+  "students": [
+   {
+    "attendance": null,
+    "is_checked_in": false,
+    "is_checked_out": false,
+    "student": {
+     "department": "Engineering",
+     "email": "aarav.sahyadri-tech-labs@example.com",
+     "id": 6,
+     "is_active": true,
+     "job_title": "Intern — COEP Technological University, Pune",
+     "mentor_id": 3,
+     "name": "Aarav Deshmukh",
+     "phone": "+91 98503 11240"
+    },
+    "today_status": "not_checked_in"
+   },
+   {
+    "attendance": null,
+    "is_checked_in": false,
+    "is_checked_out": false,
+    "student": {
+     "department": "Data & Analytics",
+     "email": "gauri.sahyadri-tech-labs@example.com",
+     "id": 13,
+     "is_active": true,
+     "job_title": "Intern — MIT Academy of Engineering, Nashik",
+     "mentor_id": 5,
+     "name": "Gauri Bhosale",
+     "phone": "+91 70208 64419"
+    },
+    "today_status": "not_checked_in"
+   }
+  ],
+  "summary": {
+   "absent": 0,
+   "attendance_rate": 0.0,
+   "attended": 0,
+   "checked_in": 0,
+   "checked_out": 0,
+   "excused": 0,
+   "half_day": 0,
+   "late": 0,
+   "not_checked_in": 8,
+   "on_leave": 0,
+   "present": 0,
+   "total_interns": 8
+  },
+  "today": "2026-09-27",
+  "total": 8,
+  "total_pages": 1
+ },
+ "GET /api/admin/students/{user_id}/attendance": {
+  "filters": {
+   "end": "2026-09-27",
+   "month": null,
+   "start": "2026-08-29",
+   "status": null
+  },
+  "monthly_summary": [
+   {
+    "absent": 0,
+    "attendance_rate": 100.0,
+    "attended": 9,
+    "half_day": 0,
+    "late": 0,
+    "on_leave": 0,
+    "present": 9,
+    "total_days": 9,
+    "total_hours": 81.56,
+    "year_month": "2026-09"
+   }
+  ],
+  "page": 1,
+  "page_size": 31,
+  "records": [
+   {
+    "check_in": "10:05",
+    "check_in_dt": "2026-09-25T10:05:00",
+    "check_in_location": null,
+    "check_in_photo_url": null,
+    "check_out": "18:40",
+    "check_out_dt": "2026-09-25T18:40:00",
+    "check_out_location": null,
+    "check_out_photo_url": null,
+    "checkout_missed": false,
+    "checkout_source": "manual",
+    "date": "2026-09-25",
+    "hours_worked": 8.58,
+    "id": 1,
+    "notes": null,
+    "status": "present",
+    "user_id": 6,
+    "user_name": "Aarav Deshmukh"
+   },
+   {
+    "check_in": "09:28",
+    "check_in_dt": "2026-09-24T09:28:00",
+    "check_in_location": null,
+    "check_in_photo_url": null,
+    "check_out": "18:40",
+    "check_out_dt": "2026-09-24T18:40:00",
+    "check_out_location": null,
+    "check_out_photo_url": null,
+    "checkout_missed": false,
+    "checkout_source": "manual",
+    "date": "2026-09-24",
+    "hours_worked": 9.2,
+    "id": 9,
+    "notes": null,
+    "status": "present",
+    "user_id": 6,
+    "user_name": "Aarav Deshmukh"
+   }
+  ],
+  "student": {
+   "department": "Engineering",
+   "email": "aarav.sahyadri-tech-labs@example.com",
+   "id": 6,
+   "is_active": true,
+   "job_title": "Intern — COEP Technological University, Pune",
+   "joining_date": "2026-08-13",
+   "mentor_id": 3,
+   "mentor_name": "Prashant Kulkarni",
+   "name": "Aarav Deshmukh",
+   "phone": "+91 98503 11240"
+  },
+  "total": 9,
+  "total_pages": 1,
+  "totals": {
+   "absent": 0,
+   "attendance_rate": 100.0,
+   "attended": 9,
+   "excused": 0,
+   "half_day": 0,
+   "late": 0,
+   "on_leave": 0,
+   "present": 9,
+   "total_days": 9,
+   "total_hours": 81.56
+  }
+ },
+ "GET /api/admin/task-statuses": {
+  "items": [
+   {
+    "color": "#94A3B8",
+    "created_at": "2026-09-26T23:51:31.282507",
+    "id": 5,
+    "is_default": true,
+    "is_system": true,
+    "name": "To Do",
+    "order_index": 0,
+    "organization_id": 2,
+    "slug": "todo",
+    "status_category": "todo",
+    "task_count": 3,
+    "updated_at": "2026-09-26T23:52:10.916614"
+   },
+   {
+    "color": "#3B82F6",
+    "created_at": "2026-09-26T23:51:31.282510",
+    "id": 6,
+    "is_default": false,
+    "is_system": true,
+    "name": "In Progress",
+    "order_index": 1,
+    "organization_id": 2,
+    "slug": "in_progress",
+    "status_category": "in_progress",
+    "task_count": 5,
+    "updated_at": "2026-09-26T23:52:10.917343"
+   }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "statuses": [
+   {
+    "color": "#94A3B8",
+    "created_at": "2026-09-26T23:51:31.282507",
+    "id": 5,
+    "is_default": true,
+    "is_system": true,
+    "name": "To Do",
+    "order_index": 0,
+    "organization_id": 2,
+    "slug": "todo",
+    "status_category": "todo",
+    "task_count": 3,
+    "updated_at": "2026-09-26T23:52:10.916614"
+   },
+   {
+    "color": "#3B82F6",
+    "created_at": "2026-09-26T23:51:31.282510",
+    "id": 6,
+    "is_default": false,
+    "is_system": true,
+    "name": "In Progress",
+    "order_index": 1,
+    "organization_id": 2,
+    "slug": "in_progress",
+    "status_category": "in_progress",
+    "task_count": 5,
+    "updated_at": "2026-09-26T23:52:10.917343"
+   }
+  ],
+  "total": 4,
+  "total_pages": 1
+ },
+ "GET /api/admin/users": {
+  "counts": {
+   "all": 13,
+   "intern": 9,
+   "mentor": 3
+  },
+  "items": [
+   {
+    "bio": null,
+    "created_at": "2026-09-26T23:53:44.443340Z",
+    "department": null,
+    "email": "e2e-tmp-1790466803.member@example.com",
+    "id": 14,
+    "internship_duration_months": 3,
+    "internship_end_date": null,
+    "is_active": true,
+    "is_paid": null,
+    "job_title": null,
+    "joining_date": null,
+    "mentor_id": null,
+    "mentor_name": null,
+    "name": "Kunal Wagh E2E-TMP-1790466803",
+    "phone": null,
+    "role": "intern",
+    "skills": [],
+    "stipend_amount": null
+   },
+   {
+    "bio": null,
+    "created_at": "2026-09-26T23:51:31.223337Z",
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "internship_duration_months": 6,
+    "internship_end_date": "2027-02-13",
+    "is_active": true,
+    "is_paid": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "joining_date": "2026-08-13",
+    "mentor_id": 5,
+    "mentor_name": "Sachin Gaikwad",
+    "name": "Gauri Bhosale",
+    "phone": "+91 70208 64419",
+    "role": "intern",
+    "skills": [],
+    "stipend_amount": 12000.0
+   }
+  ],
+  "page": 1,
+  "page_size": 15,
+  "total": 13,
+  "total_pages": 1,
+  "users": [
+   {
+    "bio": null,
+    "created_at": "2026-09-26T23:53:44.443340Z",
+    "department": null,
+    "email": "e2e-tmp-1790466803.member@example.com",
+    "id": 14,
+    "internship_duration_months": 3,
+    "internship_end_date": null,
+    "is_active": true,
+    "is_paid": null,
+    "job_title": null,
+    "joining_date": null,
+    "mentor_id": null,
+    "mentor_name": null,
+    "name": "Kunal Wagh E2E-TMP-1790466803",
+    "phone": null,
+    "role": "intern",
+    "skills": [],
+    "stipend_amount": null
+   },
+   {
+    "bio": null,
+    "created_at": "2026-09-26T23:51:31.223337Z",
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "internship_duration_months": 6,
+    "internship_end_date": "2027-02-13",
+    "is_active": true,
+    "is_paid": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "joining_date": "2026-08-13",
+    "mentor_id": 5,
+    "mentor_name": "Sachin Gaikwad",
+    "name": "Gauri Bhosale",
+    "phone": "+91 70208 64419",
+    "role": "intern",
+    "skills": [],
+    "stipend_amount": 12000.0
+   }
+  ]
+ },
+ "GET /api/announcements": {
+  "items": [
+   {
+    "author_id": 2,
+    "author_name": "Anand Apte",
+    "author_role": "admin",
+    "body": "Office closes at 4 PM during Ganeshotsav. Ganpati Bappa Morya! Please update your standups before leaving.",
+    "created_at": "2026-09-26T23:51:31.731152Z",
+    "id": 1,
+    "is_pinned": true,
+    "project_id": null,
+    "project_name": null,
+    "title": "Ganeshotsav — office timings"
+   },
+   {
+    "author_id": 2,
+    "author_name": "Anand Apte",
+    "author_role": "admin",
+    "body": "1 May is a holiday for Maharashtra Din. Attendance is not required.",
+    "created_at": "2026-09-26T23:51:31.752396Z",
+    "id": 3,
+    "is_pinned": false,
+    "project_id": null,
+    "project_name": null,
+    "title": "Maharashtra Din holiday"
+   }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total": 3,
+  "total_pages": 1
+ },
+ "GET /api/assignments": {
+  "assignments": [
+   {
+    "assigned_to_user_id": null,
+    "assigned_user_name": null,
+    "attachment_name": null,
+    "attachment_url": null,
+    "cohort_id": 3,
+    "cohort_name": "Data Guild — Nagpur/Nashik",
+    "created_at": "2026-09-26T23:51:31.906544",
+    "created_by_id": 2,
+    "creator_name": "Anand Apte",
+    "description": "Aggregate payouts per village per fortnight.",
+    "due_date": "2026-10-02",
+    "graded_count": 0,
+    "has_attachment": false,
+    "id": 3,
+    "max_score": 20,
+    "organization_id": 2,
+    "pending_review_count": 0,
+    "project_id": null,
+    "project_name": null,
+    "reviewed_count": 0,
+    "status": "active",
+    "submission_count": 0,
+    "submissions_count": 0,
+    "title": "SQL exercise: payout aggregation",
+    "updated_at": "2026-09-26T23:51:31.906546"
+   },
+   {
+    "assigned_to_user_id": null,
+    "assigned_user_name": null,
+    "attachment_name": null,
+    "attachment_url": null,
+    "cohort_id": null,
+    "cohort_name": null,
+    "created_at": "2026-09-26T23:51:31.859734",
+    "created_by_id": 2,
+    "creator_name": "Anand Apte",
+    "description": "Record findings and top 3 fixes.",
+    "due_date": "2026-10-07",
+    "graded_count": 0,
+    "has_attachment": false,
+    "id": 2,
+    "max_score": 50,
+    "organization_id": 2,
+    "pending_review_count": 0,
+    "project_id": 2,
+    "project_name": "Pandharpur Wari Volunteer App",
+    "reviewed_count": 0,
+    "status": "active",
+    "submission_count": 0,
+    "submissions_count": 0,
+    "title": "Usability test with 5 warkaris",
+    "updated_at": "2026-09-26T23:51:31.859737"
+   }
+  ],
+  "counts": {
+   "active": 3,
+   "all": 3,
+   "archived": 0,
+   "closed": 0,
+   "draft": 0,
+   "pending_reviews": 0
+  },
+  "items": [
+   {
+    "assigned_to_user_id": null,
+    "assigned_user_name": null,
+    "attachment_name": null,
+    "attachment_url": null,
+    "cohort_id": 3,
+    "cohort_name": "Data Guild — Nagpur/Nashik",
+    "created_at": "2026-09-26T23:51:31.906544",
+    "created_by_id": 2,
+    "creator_name": "Anand Apte",
+    "description": "Aggregate payouts per village per fortnight.",
+    "due_date": "2026-10-02",
+    "graded_count": 0,
+    "has_attachment": false,
+    "id": 3,
+    "max_score": 20,
+    "organization_id": 2,
+    "pending_review_count": 0,
+    "project_id": null,
+    "project_name": null,
+    "reviewed_count": 0,
+    "status": "active",
+    "submission_count": 0,
+    "submissions_count": 0,
+    "title": "SQL exercise: payout aggregation",
+    "updated_at": "2026-09-26T23:51:31.906546"
+   },
+   {
+    "assigned_to_user_id": null,
+    "assigned_user_name": null,
+    "attachment_name": null,
+    "attachment_url": null,
+    "cohort_id": null,
+    "cohort_name": null,
+    "created_at": "2026-09-26T23:51:31.859734",
+    "created_by_id": 2,
+    "creator_name": "Anand Apte",
+    "description": "Record findings and top 3 fixes.",
+    "due_date": "2026-10-07",
+    "graded_count": 0,
+    "has_attachment": false,
+    "id": 2,
+    "max_score": 50,
+    "organization_id": 2,
+    "pending_review_count": 0,
+    "project_id": 2,
+    "project_name": "Pandharpur Wari Volunteer App",
+    "reviewed_count": 0,
+    "status": "active",
+    "submission_count": 0,
+    "submissions_count": 0,
+    "title": "Usability test with 5 warkaris",
+    "updated_at": "2026-09-26T23:51:31.859737"
+   }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total": 3,
+  "total_pages": 1
+ },
+ "GET /api/assignments/": {
+  "assignments": [
+   {
+    "assigned_to_user_id": null,
+    "assigned_user_name": null,
+    "attachment_name": "eta-template.pdf",
+    "attachment_url": "/api/assignments/1/attachment",
+    "cohort_id": null,
+    "cohort_name": null,
+    "created_at": "2026-09-26T23:51:31.774247",
+    "created_by_id": 2,
+    "creator_name": "Anand Apte",
+    "description": "Two pages: inputs, model choice, evaluation.",
+    "due_date": "2026-10-04",
+    "graded_count": 1,
+    "has_attachment": true,
+    "id": 1,
+    "max_score": 100,
+    "organization_id": 2,
+    "pending_review_count": 0,
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "reviewed_count": 1,
+    "status": "active",
+    "submission_count": 1,
+    "submissions_count": 1,
+    "title": "Write a design doc for the ETA model",
+    "updated_at": "2026-09-26T23:52:17.878442"
+   }
+  ],
+  "counts": {
+   "active": 3,
+   "all": 3,
+   "archived": 0,
+   "closed": 0,
+   "draft": 0,
+   "pending_reviews": 0
+  },
+  "items": [
+   {
+    "assigned_to_user_id": null,
+    "assigned_user_name": null,
+    "attachment_name": "eta-template.pdf",
+    "attachment_url": "/api/assignments/1/attachment",
+    "cohort_id": null,
+    "cohort_name": null,
+    "created_at": "2026-09-26T23:51:31.774247",
+    "created_by_id": 2,
+    "creator_name": "Anand Apte",
+    "description": "Two pages: inputs, model choice, evaluation.",
+    "due_date": "2026-10-04",
+    "graded_count": 1,
+    "has_attachment": true,
+    "id": 1,
+    "max_score": 100,
+    "organization_id": 2,
+    "pending_review_count": 0,
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "reviewed_count": 1,
+    "status": "active",
+    "submission_count": 1,
+    "submissions_count": 1,
+    "title": "Write a design doc for the ETA model",
+    "updated_at": "2026-09-26T23:52:17.878442"
+   }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total": 1,
+  "total_pages": 1
+ },
+ "GET /api/assignments/{assignment_id}": {
+  "assigned_to_user_id": null,
+  "assigned_user_name": null,
+  "attachment_name": "eta-template.pdf",
+  "attachment_url": "/api/assignments/1/attachment",
+  "cohort_id": null,
+  "cohort_name": null,
+  "created_at": "2026-09-26T23:51:31.774247",
+  "created_by_id": 2,
+  "creator_name": "Anand Apte",
+  "description": "Two pages: inputs, model choice, evaluation.",
+  "due_date": "2026-10-04",
+  "graded_count": 1,
+  "has_attachment": true,
+  "id": 1,
+  "max_score": 100,
+  "organization_id": 2,
+  "pending_review_count": 0,
+  "project_id": 1,
+  "project_name": "PMPML Bus Tracker",
+  "reviewed_count": 1,
+  "status": "active",
+  "submission_count": 1,
+  "submissions_count": 1,
+  "title": "Write a design doc for the ETA model",
+  "updated_at": "2026-09-26T23:52:17.878442"
+ },
+ "GET /api/assignments/{assignment_id}/submissions": {
+  "assignment": {
+   "assigned_to_user_id": null,
+   "assigned_user_name": null,
+   "attachment_name": "eta-template.pdf",
+   "attachment_url": "/api/assignments/1/attachment",
+   "cohort_id": null,
+   "cohort_name": null,
+   "created_at": "2026-09-26T23:51:31.774247",
+   "created_by_id": 2,
+   "creator_name": "Anand Apte",
+   "description": "Two pages: inputs, model choice, evaluation.",
+   "due_date": "2026-10-04",
+   "has_attachment": true,
+   "id": 1,
+   "max_score": 100,
+   "organization_id": 2,
+   "project_id": 1,
+   "project_name": "PMPML Bus Tracker",
+   "status": "active",
+   "title": "Write a design doc for the ETA model",
+   "updated_at": "2026-09-26T23:53:58.156694"
+  },
+  "items": [
+   {
+    "assignment_id": 1,
+    "assignment_title": "Write a design doc for the ETA model",
+    "feedback": "Uttam — revised.",
+    "file_name": "eta-design.pdf",
+    "file_size": 305,
+    "file_url": "/api/assignments/submissions/1/file",
+    "github_url": "https://github.com/example/pmpml-eta",
+    "has_file": true,
+    "id": 1,
+    "reviewed_at": "2026-09-26T23:52:17.945718",
+    "reviewed_by_id": 2,
+    "reviewer_name": "Anand Apte",
+    "score": 92.0,
+    "status": "approved",
+    "submission_text": "Design doc attached. Uses Kalman filter over GPS pings.",
+    "submitted_at": "2026-09-26T23:52:17.906908",
+    "updated_at": "2026-09-26T23:52:17.946080",
+    "user_email": "aarav.sahyadri-tech-labs@example.com",
+    "user_id": 6,
+    "user_name": "Aarav Deshmukh"
+   }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "submissions": [
+   {
+    "assignment_id": 1,
+    "assignment_title": "Write a design doc for the ETA model",
+    "feedback": "Uttam — revised.",
+    "file_name": "eta-design.pdf",
+    "file_size": 305,
+    "file_url": "/api/assignments/submissions/1/file",
+    "github_url": "https://github.com/example/pmpml-eta",
+    "has_file": true,
+    "id": 1,
+    "reviewed_at": "2026-09-26T23:52:17.945718",
+    "reviewed_by_id": 2,
+    "reviewer_name": "Anand Apte",
+    "score": 92.0,
+    "status": "approved",
+    "submission_text": "Design doc attached. Uses Kalman filter over GPS pings.",
+    "submitted_at": "2026-09-26T23:52:17.906908",
+    "updated_at": "2026-09-26T23:52:17.946080",
+    "user_email": "aarav.sahyadri-tech-labs@example.com",
+    "user_id": 6,
+    "user_name": "Aarav Deshmukh"
+   }
+  ],
+  "total": 1,
+  "total_pages": 1
+ },
+ "GET /api/attendance/history": {
+  "month": "2026-09",
+  "page": 1,
+  "records": [
+   {
+    "check_in": "10:05",
+    "check_in_dt": "2026-09-25T10:05:00+05:30",
+    "check_in_location": null,
+    "check_in_photo_url": null,
+    "check_in_time": "10:05 AM",
+    "check_out": "18:40",
+    "check_out_dt": "2026-09-25T18:40:00+05:30",
+    "check_out_location": null,
+    "check_out_photo_url": null,
+    "check_out_time": "6:40 PM",
+    "checkout_missed": false,
+    "checkout_source": "manual",
+    "date": "2026-09-25",
+    "hours_worked": 8.58,
+    "id": 1,
+    "notes": null,
+    "status": "present",
+    "user_id": 6,
+    "user_name": "Aarav Deshmukh"
+   },
+   {
+    "check_in": "09:28",
+    "check_in_dt": "2026-09-24T09:28:00+05:30",
+    "check_in_location": null,
+    "check_in_photo_url": null,
+    "check_in_time": "9:28 AM",
+    "check_out": "18:40",
+    "check_out_dt": "2026-09-24T18:40:00+05:30",
+    "check_out_location": null,
+    "check_out_photo_url": null,
+    "check_out_time": "6:40 PM",
+    "checkout_missed": false,
+    "checkout_source": "manual",
+    "date": "2026-09-24",
+    "hours_worked": 9.2,
+    "id": 9,
+    "notes": null,
+    "status": "present",
+    "user_id": 6,
+    "user_name": "Aarav Deshmukh"
+   }
+  ],
+  "total": 9,
+  "total_pages": 1
+ },
+ "GET /api/attendance/report": {
+  "filters": {
+   "end": null,
+   "intern_id": null,
+   "start": null
+  },
+  "interns": [
+   {
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "joining_date": "2026-08-13",
+    "name": "Aarav Deshmukh"
+   },
+   {
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "joining_date": "2026-08-13",
+    "name": "Gauri Bhosale"
+   }
+  ],
+  "monthly_summary": [
+   {
+    "absent": 0,
+    "half_day": 0,
+    "late": 0,
+    "present": 9,
+    "present_rate": 100.0,
+    "total_days": 9,
+    "user_id": 6,
+    "year_month": "2026-09"
+   },
+   {
+    "absent": 0,
+    "half_day": 0,
+    "late": 0,
+    "present": 9,
+    "present_rate": 100.0,
+    "total_days": 9,
+    "user_id": 7,
+    "year_month": "2026-09"
+   }
+  ],
+  "page": 1,
+  "page_size": 30,
+  "records": [
+   {
+    "check_in": "10:00",
+    "check_in_dt": "2026-10-06T10:00:00+05:30",
+    "check_in_location": null,
+    "check_in_photo_url": null,
+    "check_in_time": "10:00 AM",
+    "check_out": null,
+    "check_out_dt": null,
+    "check_out_location": null,
+    "check_out_photo_url": null,
+    "check_out_time": null,
+    "checkout_missed": false,
+    "checkout_source": null,
+    "date": "2026-10-06",
+    "hours_worked": 0.0,
+    "id": 75,
+    "notes": null,
+    "status": "on_leave",
+    "user_id": 7,
+    "user_name": "Sakshi Patil"
+   },
+   {
+    "check_in": "10:05",
+    "check_in_dt": "2026-09-25T10:05:00+05:30",
+    "check_in_location": null,
+    "check_in_photo_url": null,
+    "check_in_time": "10:05 AM",
+    "check_out": "18:40",
+    "check_out_dt": "2026-09-25T18:40:00+05:30",
+    "check_out_location": null,
+    "check_out_photo_url": null,
+    "check_out_time": "6:40 PM",
+    "checkout_missed": false,
+    "checkout_source": "manual",
+    "date": "2026-09-25",
+    "hours_worked": 8.58,
+    "id": 1,
+    "notes": null,
+    "status": "present",
+    "user_id": 6,
+    "user_name": "Aarav Deshmukh"
+   }
+  ],
+  "total": 75,
+  "total_pages": 3
+ },
+ "GET /api/attendance/today": {
+  "record": null,
+  "today": "2026-09-27"
+ },
+ "GET /api/attendance/{record_id}/audit": {
+  "logs": [
+   {
+    "created_at": "2026-09-26T23:54:02.567349Z",
+    "editor_id": 2,
+    "editor_name": "Anand Apte",
+    "field_name": "check_out",
+    "id": 226,
+    "new_value": "18:45",
+    "old_value": "18:10",
+    "reason": "Corrected by admin"
+   },
+   {
+    "created_at": "2026-09-26T23:54:02.555655Z",
+    "editor_id": 2,
+    "editor_name": "Anand Apte",
+    "field_name": "status",
+    "id": 225,
+    "new_value": "present",
+    "old_value": null,
+    "reason": "Forgot to punch E2E-TMP-1790466803"
+   }
+  ]
+ },
+ "GET /api/audit": {
+  "logs": [
+   {
+    "action": "review.delete",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.252Z",
+    "id": 283,
+    "project_id": 1,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "deleted performance review for"
+   },
+   {
+    "action": "review.update",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": null,
+    "created_at": "2026-09-26T23:54:05.236Z",
+    "id": 282,
+    "project_id": null,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "updated performance review for"
+   }
+  ],
+  "page": 1,
+  "page_size": 30,
+  "total": 277,
+  "total_pages": 10
+ },
+ "GET /api/auth/invite/{token}": {
+  "label": "Pune campus drive E2E-TMP-1790466803",
+  "mentor_name": "Prashant Kulkarni",
+  "valid": true
+ },
+ "GET /api/auth/me": {
+  "bio": null,
+  "created_at": "2026-09-26T23:51:25.625705Z",
+  "department": null,
+  "email": "anand.apte@example.com",
+  "id": 2,
+  "is_active": true,
+  "is_platform_admin": false,
+  "is_superadmin": false,
+  "job_title": null,
+  "joining_date": null,
+  "name": "Anand Apte",
+  "phone": null,
+  "role": "admin",
+  "session_version": 2,
+  "skills": []
+ },
+ "GET /api/blogs": {
+  "items": [
+   {
+    "author_id": 2,
+    "author_name": "Anand Apte",
+    "cover_image_url": null,
+    "created_at": "2026-09-26T23:51:31.962449Z",
+    "excerpt": "PMPML data, Marathi UI and lots of chai.",
+    "id": 1,
+    "published_at": "2026-09-26T23:51:31.962006Z",
+    "slug": "how-our-interns-built-a-bus-tracker-for-pune",
+    "status": "published",
+    "tags": [
+     "pune",
+     "transport"
+    ],
+    "title": "How our interns built a bus tracker for Pune",
+    "updated_at": "2026-09-26T23:51:31.962451Z"
+   }
+  ],
+  "page": 1,
+  "per_page": 12,
+  "total": 1
+ },
+ "GET /api/blogs/admin/all": {
+  "items": [
+   {
+    "author_id": 2,
+    "author_name": "Anand Apte",
+    "content": "<p>Connectivity along the palkhi route is patchy, so…</p>",
+    "cover_image_url": null,
+    "created_at": "2026-09-26T23:51:31.971812Z",
+    "excerpt": "Offline-first design for lakhs of pilgrims.",
+    "id": 2,
+    "published_at": null,
+    "slug": "designing-for-the-wari-lessons-from-pandharpur",
+    "status": "draft",
+    "tags": [
+     "design",
+     "wari"
+    ],
+    "title": "Designing for the Wari: lessons from Pandharpur",
+    "updated_at": "2026-09-26T23:51:31.971814Z"
+   },
+   {
+    "author_id": 2,
+    "author_name": "Anand Apte",
+    "content": "<p>This monsoon our Pune batch took on PMPML's open data…</p>",
+    "cover_image_url": null,
+    "created_at": "2026-09-26T23:51:31.962449Z",
+    "excerpt": "PMPML data, Marathi UI and lots of chai.",
+    "id": 1,
+    "published_at": "2026-09-26T23:51:31.962006Z",
+    "slug": "how-our-interns-built-a-bus-tracker-for-pune",
+    "status": "published",
+    "tags": [
+     "pune",
+     "transport"
+    ],
+    "title": "How our interns built a bus tracker for Pune",
+    "updated_at": "2026-09-26T23:51:31.962451Z"
+   }
+  ],
+  "page": 1,
+  "per_page": 50,
+  "total": 2
+ },
+ "GET /api/blogs/{slug}": {
+  "author_id": 2,
+  "author_name": "Anand Apte",
+  "content": "<p>temp</p>",
+  "cover_image_url": null,
+  "created_at": "2026-09-26T23:53:58.348515Z",
+  "excerpt": null,
+  "id": 3,
+  "published_at": "2026-09-26T23:53:58.359699Z",
+  "slug": "vada-pav-and-version-control-e2e-tmp-1790466803",
+  "status": "published",
+  "tags": [],
+  "title": "Vada pav and version control E2E-TMP-1790466803",
+  "updated_at": "2026-09-26T23:53:58.360436Z"
+ },
+ "GET /api/cohorts": {
+  "items": [
+   {
+    "created_at": "2026-09-26T23:51:31.695419Z",
+    "created_by_id": 2,
+    "description": "Analytics interns mentored from Nagpur.",
+    "end_date": "2027-01-25",
+    "id": 3,
+    "member_count": 3,
+    "name": "Data Guild — Nagpur/Nashik",
+    "start_date": "2026-08-13"
+   },
+   {
+    "created_at": "2026-09-26T23:51:31.673281Z",
+    "created_by_id": 2,
+    "description": "Hybrid batch across Andheri and Kolhapur.",
+    "end_date": "2027-01-25",
+    "id": 2,
+    "member_count": 2,
+    "name": "Mumbai & Kolhapur Batch — Monsoon 2026",
+    "start_date": "2026-08-13"
+   }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total": 3,
+  "total_pages": 1
+ },
+ "GET /api/cohorts/{cohort_id}": {
+  "created_at": "2026-09-26T23:51:31.636460Z",
+  "created_by_id": 2,
+  "description": "Interns working from the Baner, Pune office.",
+  "end_date": "2027-01-25",
+  "id": 1,
+  "member_count": 3,
+  "members": [
+   {
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "joined_at": "2026-09-26T23:51:31.650019Z",
+    "name": "Aarav Deshmukh",
+    "user_id": 6
+   },
+   {
+    "department": "Engineering",
+    "email": "omkar.sahyadri-tech-labs@example.com",
+    "joined_at": "2026-09-26T23:51:31.659565Z",
+    "name": "Omkar Jadhav",
+    "user_id": 8
+   }
+  ],
+  "name": "Pune Batch — Monsoon 2026",
+  "start_date": "2026-08-13"
+ },
+ "GET /api/dashboard": {
+  "active_projects": [
+   {
+    "completed_tasks_count": 0,
+    "created_at": "2026-09-26T23:51:31.536212Z",
+    "description": "Soil moisture and weather sensors for grape growers around Niphad and Dindori.",
+    "id": 4,
+    "members_count": 2,
+    "mentor_id": 5,
+    "mentor_name": "Sachin Gaikwad",
+    "name": "Nashik Vineyard IoT",
+    "status": "active",
+    "tasks_count": 2
+   },
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.392591Z",
+    "description": "Coordinates volunteers, water stations and medical camps along the Ashadhi Wari route.",
+    "id": 2,
+    "members_count": 2,
+    "mentor_id": 4,
+    "mentor_name": "Madhuri Deshpande",
+    "name": "Pandharpur Wari Volunteer App",
+    "status": "active",
+    "tasks_count": 3
+   }
+  ],
+  "attendance_chart": [
+   {
+    "date": "2026-09-14",
+    "hours": 72.4,
+    "present": 8,
+    "status": "present"
+   },
+   {
+    "date": "2026-09-15",
+    "hours": 63.2,
+    "present": 7,
+    "status": "present"
+   }
+  ],
+  "open_tasks": [
+   {
+    "assignee_id": 8,
+    "assignee_name": "Omkar Jadhav",
+    "deadline": "2026-10-11",
+    "id": 2,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "in_progress",
+    "title": "Stop-level ETA model"
+   },
+   {
+    "assignee_id": 10,
+    "assignee_name": "Pranav Joshi",
+    "deadline": "2026-10-11",
+    "id": 3,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "in_progress",
+    "title": "Marathi / English UI toggle"
+   }
+  ],
+  "organization": {
+   "id": 2,
+   "name": "Sahyadri Tech Labs",
+   "slug": "sahyadri-tech-labs",
+   "type": "business"
+  },
+  "pending_leave_requests": [
+   {
+    "created_at": "2026-09-26T23:52:22.952250Z",
+    "days": 1,
+    "days_count": 1,
+    "department": "Product Design",
+    "end_date": "2026-10-20",
+    "id": 3,
+    "leave_type": "sick",
+    "reason": "Medical check-up at Sassoon hospital",
+    "start_date": "2026-10-20",
+    "user_id": 7,
+    "user_name": "Sakshi Patil"
+   }
+  ],
+  "present_today_list": [],
+  "present_today_total": 0,
+  "project_status": {
+   "active": 3,
+   "planning": 1
+  },
+  "recent_activity": [
+   {
+    "action": "review.delete",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.252880Z",
+    "id": 283,
+    "project_id": 1,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "deleted performance review for"
+   },
+   {
+    "action": "review.update",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": null,
+    "created_at": "2026-09-26T23:54:05.236411Z",
+    "id": 282,
+    "project_id": null,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "updated performance review for"
+   }
+  ],
+  "role": "admin",
+  "stats": {
+   "absent_today": 10,
+   "active_projects": 3,
+   "days_logged": 10,
+   "on_leave_today": 0,
+   "open_tasks": 9,
+   "overdue_tasks": 0,
+   "pending_leave": 1,
+   "present_today": 0,
+   "total_hours": 670.9,
+   "total_interns": 10,
+   "total_mentors": 3,
+   "total_projects": 4
+  },
+  "streak": 0,
+  "task_status": {
+   "done": 2,
+   "in_progress": 5,
+   "review": 1,
+   "todo": 3
+  }
+ },
+ "GET /api/dashboard/admin": {
+  "active_projects": [
+   {
+    "completed_tasks_count": 0,
+    "created_at": "2026-09-26T23:51:31.536212Z",
+    "description": "Soil moisture and weather sensors for grape growers around Niphad and Dindori.",
+    "id": 4,
+    "members_count": 2,
+    "mentor_id": 5,
+    "mentor_name": "Sachin Gaikwad",
+    "name": "Nashik Vineyard IoT",
+    "status": "active",
+    "tasks_count": 2
+   },
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.392591Z",
+    "description": "Coordinates volunteers, water stations and medical camps along the Ashadhi Wari route.",
+    "id": 2,
+    "members_count": 2,
+    "mentor_id": 4,
+    "mentor_name": "Madhuri Deshpande",
+    "name": "Pandharpur Wari Volunteer App",
+    "status": "active",
+    "tasks_count": 3
+   }
+  ],
+  "attendance_chart": [
+   {
+    "date": "2026-09-14",
+    "hours": 72.4,
+    "present": 8,
+    "status": "present"
+   },
+   {
+    "date": "2026-09-15",
+    "hours": 63.2,
+    "present": 7,
+    "status": "present"
+   }
+  ],
+  "open_tasks": [
+   {
+    "assignee_id": 8,
+    "assignee_name": "Omkar Jadhav",
+    "deadline": "2026-10-11",
+    "id": 2,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "in_progress",
+    "title": "Stop-level ETA model"
+   },
+   {
+    "assignee_id": 10,
+    "assignee_name": "Pranav Joshi",
+    "deadline": "2026-10-11",
+    "id": 3,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "in_progress",
+    "title": "Marathi / English UI toggle"
+   }
+  ],
+  "organization": {
+   "id": 2,
+   "name": "Sahyadri Tech Labs",
+   "slug": "sahyadri-tech-labs",
+   "type": "business"
+  },
+  "pending_leave_requests": [
+   {
+    "created_at": "2026-09-26T23:52:22.952250Z",
+    "days": 1,
+    "days_count": 1,
+    "department": "Product Design",
+    "end_date": "2026-10-20",
+    "id": 3,
+    "leave_type": "sick",
+    "reason": "Medical check-up at Sassoon hospital",
+    "start_date": "2026-10-20",
+    "user_id": 7,
+    "user_name": "Sakshi Patil"
+   }
+  ],
+  "present_today_list": [],
+  "present_today_total": 0,
+  "project_status": {
+   "active": 3,
+   "planning": 1
+  },
+  "recent_activity": [
+   {
+    "action": "review.delete",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.252880Z",
+    "id": 283,
+    "project_id": 1,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "deleted performance review for"
+   },
+   {
+    "action": "review.update",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": null,
+    "created_at": "2026-09-26T23:54:05.236411Z",
+    "id": 282,
+    "project_id": null,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "updated performance review for"
+   }
+  ],
+  "role": "admin",
+  "stats": {
+   "absent_today": 10,
+   "active_projects": 3,
+   "days_logged": 10,
+   "on_leave_today": 0,
+   "open_tasks": 9,
+   "overdue_tasks": 0,
+   "pending_leave": 1,
+   "present_today": 0,
+   "total_hours": 670.9,
+   "total_interns": 10,
+   "total_mentors": 3,
+   "total_projects": 4
+  },
+  "streak": 0,
+  "task_status": {
+   "done": 2,
+   "in_progress": 5,
+   "review": 1,
+   "todo": 3
+  }
+ },
+ "GET /api/dashboard/attendance-chart": {
+  "chart": [
+   {
+    "date": "2026-09-14",
+    "hours": 72.4,
+    "present": 8,
+    "status": "present"
+   },
+   {
+    "date": "2026-09-15",
+    "hours": 63.2,
+    "present": 7,
+    "status": "present"
+   }
+  ],
+  "month": "2026-09",
+  "total_interns": 10
+ },
+ "GET /api/dashboard/intern": {
+  "active_projects": [
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.257413Z",
+    "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+    "id": 1,
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "my_tasks_count": 2,
+    "name": "PMPML Bus Tracker",
+    "status": "active"
+   }
+  ],
+  "announcements": [
+   {
+    "body": "Office closes at 4 PM during Ganeshotsav. Ganpati Bappa Morya! Please update your standups before leaving.",
+    "created_at": "2026-09-26T23:51:31.731152Z",
+    "id": 1,
+    "is_pinned": true,
+    "title": "Ganeshotsav — office timings"
+   },
+   {
+    "body": "1 May is a holiday for Maharashtra Din. Attendance is not required.",
+    "created_at": "2026-09-26T23:51:31.752396Z",
+    "id": 3,
+    "is_pinned": false,
+    "title": "Maharashtra Din holiday"
+   }
+  ],
+  "assigned_projects": [
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.257413Z",
+    "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+    "id": 1,
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "my_tasks_count": 2,
+    "name": "PMPML Bus Tracker",
+    "status": "active"
+   }
+  ],
+  "assigned_tasks": [
+   {
+    "created_at": "2026-09-26T23:51:31.356932Z",
+    "deadline": "2026-10-11",
+    "description": "Load test on 500 concurrent riders — PMPML Bus Tracker",
+    "id": 4,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "review",
+    "title": "Load test on 500 concurrent riders"
+   },
+   {
+    "created_at": "2026-09-26T23:51:31.295383Z",
+    "deadline": "2026-10-11",
+    "description": "GTFS feed import for PMPML routes — PMPML Bus Tracker",
+    "id": 1,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "done",
+    "title": "GTFS feed import for PMPML routes"
+   }
+  ],
+  "assigned_tasks_total": 2,
+  "attendance_chart": [
+   {
+    "date": "2026-09-14",
+    "hours": 9.2,
+    "status": "present"
+   },
+   {
+    "date": "2026-09-15",
+    "hours": 8.58,
+    "status": "present"
+   }
+  ],
+  "internship_summary": {
+   "approved_leaves": 0,
+   "days_remaining": 139,
+   "duration_label": "6 Months",
+   "duration_months": 6,
+   "end_date": "2027-02-13",
+   "leave_balance": {
+    "attended_saved": 0,
+    "available_after_pending": 10,
+    "deducted_used": 0,
+    "future_approved": 0,
+    "pending": 0,
+    "quota": 10,
+    "remaining": 10,
+    "used": 0
+   },
+   "leaves_used": 0,
+   "pending_leaves": 0,
+   "remaining_leave_balance": 10,
+   "start_date": "2026-08-13",
+   "summary_text": "Internship Period – 6 Months | Approved Leaves – 0 Days",
+   "total_leave_quota": 10
+  },
+  "open_tasks": [
+   {
+    "created_at": "2026-09-26T23:51:31.356932Z",
+    "deadline": "2026-10-11",
+    "description": "Load test on 500 concurrent riders — PMPML Bus Tracker",
+    "id": 4,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "review",
+    "title": "Load test on 500 concurrent riders"
+   }
+  ],
+  "project_status": {
+   "active": 1
+  },
+  "recent_activity": [
+   {
+    "action": "review.delete",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.252880Z",
+    "id": 283,
+    "project_id": 1,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "deleted performance review for"
+   },
+   {
+    "action": "announcement.delete",
+    "actor_id": 2,
+    "actor_name": "Anand Apte",
+    "affected_user_id": null,
+    "created_at": "2026-09-26T23:53:58.331100Z",
+    "id": 264,
+    "project_id": 1,
+    "target": "Wi-Fi maintenance E2E-TMP-1790466803",
+    "target_id": 4,
+    "verb": "deleted announcement"
+   }
+  ],
+  "recent_leave_requests": [],
+  "role": "intern",
+  "stats": {
+   "active_projects": 1,
+   "assigned_tasks_count": 2,
+   "completed_tasks_count": 1,
+   "days_logged": 9,
+   "open_tasks": 1,
+   "overdue_tasks": 0,
+   "pending_leave": 0,
+   "present_today": 0,
+   "total_days_logged": 9,
+   "total_hours": 81.6,
+   "total_interns": 0,
+   "total_projects": 1
+  },
+  "streak": 3,
+  "task_status": {
+   "done": 1,
+   "review": 1
+  },
+  "today_attendance": {
+   "check_in": null,
+   "check_in_address": null,
+   "check_in_photo_url": null,
+   "check_out": null,
+   "check_out_photo_url": null,
+   "has_checked_in": false,
+   "has_checked_out": false,
+   "hours_worked": 0.0,
+   "status": null
+  }
+ },
+ "GET /api/dashboard/mentor": {
+  "active_projects": [
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.257413Z",
+    "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+    "id": 1,
+    "members_count": 3,
+    "name": "PMPML Bus Tracker",
+    "status": "active",
+    "tasks_count": 4
+   }
+  ],
+  "assigned_interns": [
+   {
+    "check_in": null,
+    "check_in_photo_url": null,
+    "check_out": null,
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Aarav Deshmukh",
+    "open_tasks_count": 1,
+    "streak": 3,
+    "today_status": "absent",
+    "user_id": 6
+   },
+   {
+    "check_in": null,
+    "check_in_photo_url": null,
+    "check_out": null,
+    "department": "Engineering",
+    "email": "omkar.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Omkar Jadhav",
+    "open_tasks_count": 1,
+    "streak": 10,
+    "today_status": "absent",
+    "user_id": 8
+   }
+  ],
+  "assigned_interns_total": 3,
+  "attendance_chart": [
+   {
+    "date": "2026-09-14",
+    "hours": 27.6,
+    "present": 3,
+    "status": "present"
+   },
+   {
+    "date": "2026-09-15",
+    "hours": 27.0,
+    "present": 3,
+    "status": "present"
+   }
+  ],
+  "open_tasks": [
+   {
+    "assignee_id": 8,
+    "assignee_name": "Omkar Jadhav",
+    "deadline": "2026-10-11",
+    "id": 2,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "in_progress",
+    "title": "Stop-level ETA model"
+   },
+   {
+    "assignee_id": 10,
+    "assignee_name": "Pranav Joshi",
+    "deadline": "2026-10-11",
+    "id": 3,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "in_progress",
+    "title": "Marathi / English UI toggle"
+   }
+  ],
+  "pending_leave_requests": [],
+  "pending_leave_requests_total": 0,
+  "present_today_list": [],
+  "present_today_total": 0,
+  "project_status": {
+   "active": 1
+  },
+  "projects": [
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.257413Z",
+    "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+    "id": 1,
+    "members_count": 3,
+    "name": "PMPML Bus Tracker",
+    "status": "active",
+    "tasks_count": 4
+   }
+  ],
+  "recent_activity": [
+   {
+    "action": "review.delete",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.252880Z",
+    "id": 283,
+    "project_id": 1,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "deleted performance review for"
+   },
+   {
+    "action": "review.create",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.212299Z",
+    "id": 281,
+    "project_id": null,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "submitted performance review for"
+   }
+  ],
+  "role": "mentor",
+  "stats": {
+   "absent_today": 3,
+   "active_projects": 1,
+   "assigned_interns_count": 3,
+   "days_logged": 10,
+   "open_tasks": 3,
+   "overdue_tasks": 0,
+   "pending_leave": 0,
+   "present_today": 0,
+   "total_hours": 253.9,
+   "total_interns": 3,
+   "total_projects": 1
+  },
+  "streak": 0,
+  "task_status": {
+   "done": 1,
+   "in_progress": 2,
+   "review": 1
+  }
+ },
+ "GET /api/dashboard/open-tasks": {
+  "items": [
+   {
+    "assignee_id": 9,
+    "assignee_name": "Rutuja Shinde",
+    "deadline": "2026-10-11",
+    "id": 8,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 3,
+    "project_name": "Kolhapur Sugar Co-op Dashboard",
+    "status": "todo",
+    "title": "Farmer payout reconciliation report"
+   },
+   {
+    "assignee_id": 12,
+    "assignee_name": "Tejas More",
+    "deadline": "2026-10-11",
+    "id": 9,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 3,
+    "project_name": "Kolhapur Sugar Co-op Dashboard",
+    "status": "in_progress",
+    "title": "Daily crushing KPIs chart"
+   }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "tasks": [
+   {
+    "assignee_id": 9,
+    "assignee_name": "Rutuja Shinde",
+    "deadline": "2026-10-11",
+    "id": 8,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 3,
+    "project_name": "Kolhapur Sugar Co-op Dashboard",
+    "status": "todo",
+    "title": "Farmer payout reconciliation report"
+   },
+   {
+    "assignee_id": 12,
+    "assignee_name": "Tejas More",
+    "deadline": "2026-10-11",
+    "id": 9,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 3,
+    "project_name": "Kolhapur Sugar Co-op Dashboard",
+    "status": "in_progress",
+    "title": "Daily crushing KPIs chart"
+   }
+  ],
+  "total": 9,
+  "total_pages": 1
+ },
+ "GET /api/dashboard/present-today": {
+  "interns": [],
+  "items": [],
+  "page": 1,
+  "page_size": 20,
+  "total": 0,
+  "total_pages": 1
+ },
+ "GET /api/dashboard/superadmin": {
+  "organizations": [
+   {
+    "created_at": "2026-09-26T23:51:25.548111Z",
+    "id": 2,
+    "logo_url": "/uploads/logos/20260926_235405_sahyadri.png",
+    "name": "Sahyadri Tech Labs",
+    "project_count": 4,
+    "slug": "sahyadri-tech-labs",
+    "status": "active",
+    "timezone": "Asia/Kolkata",
+    "type": "business",
+    "user_count": 12
+   },
+   {
+    "created_at": "2026-09-26T23:51:20.919126Z",
+    "id": 1,
+    "logo_url": null,
+    "name": "Default Organization",
+    "project_count": 0,
+    "slug": "default",
+    "status": "active",
+    "timezone": "Asia/Kolkata",
+    "type": "business",
+    "user_count": 0
+   }
+  ],
+  "organizations_total": 2,
+  "recent_activity": [
+   {
+    "action": "bin.clear_all",
+    "actor_id": 2,
+    "actor_name": "Anand Apte",
+    "affected_user_id": null,
+    "created_at": "2026-09-26T23:54:05.638877Z",
+    "id": 284,
+    "project_id": null,
+    "target": "Recycle Bin",
+    "target_id": null,
+    "verb": "permanently deleted all 10 bin item(s)"
+   },
+   {
+    "action": "review.delete",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.252880Z",
+    "id": 283,
+    "project_id": 1,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "deleted performance review for"
+   }
+  ],
+  "role": "superadmin",
+  "stats": {
+   "active_subscriptions": 2,
+   "open_tasks": 0,
+   "pending_leave": 0,
+   "present_today": 0,
+   "total_admins": 1,
+   "total_business_orgs": 2,
+   "total_educational_orgs": 0,
+   "total_interns": 8,
+   "total_mentors": 3,
+   "total_organizations": 2,
+   "total_projects": 4,
+   "total_users": 13
+  },
+  "streak": 0,
+  "system_health": {
+   "database": "connected",
+   "status": "operational",
+   "version": "2.0.0"
+  }
+ },
+ "GET /api/health": {
+  "service": "internhub",
+  "status": "ok"
+ },
+ "GET /api/intern/dashboard": {
+  "active_projects": [
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.257413Z",
+    "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+    "id": 1,
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "my_tasks_count": 2,
+    "name": "PMPML Bus Tracker",
+    "status": "active"
+   }
+  ],
+  "announcements": [
+   {
+    "body": "Office closes at 4 PM during Ganeshotsav. Ganpati Bappa Morya! Please update your standups before leaving.",
+    "created_at": "2026-09-26T23:51:31.731152Z",
+    "id": 1,
+    "is_pinned": true,
+    "title": "Ganeshotsav — office timings"
+   },
+   {
+    "body": "1 May is a holiday for Maharashtra Din. Attendance is not required.",
+    "created_at": "2026-09-26T23:51:31.752396Z",
+    "id": 3,
+    "is_pinned": false,
+    "title": "Maharashtra Din holiday"
+   }
+  ],
+  "assigned_projects": [
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.257413Z",
+    "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+    "id": 1,
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "my_tasks_count": 2,
+    "name": "PMPML Bus Tracker",
+    "status": "active"
+   }
+  ],
+  "assigned_tasks": [
+   {
+    "created_at": "2026-09-26T23:51:31.356932Z",
+    "deadline": "2026-10-11",
+    "description": "Load test on 500 concurrent riders — PMPML Bus Tracker",
+    "id": 4,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "review",
+    "title": "Load test on 500 concurrent riders"
+   },
+   {
+    "created_at": "2026-09-26T23:51:31.295383Z",
+    "deadline": "2026-10-11",
+    "description": "GTFS feed import for PMPML routes — PMPML Bus Tracker",
+    "id": 1,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "done",
+    "title": "GTFS feed import for PMPML routes"
+   }
+  ],
+  "assigned_tasks_total": 2,
+  "attendance_chart": [
+   {
+    "date": "2026-09-14",
+    "hours": 9.2,
+    "status": "present"
+   },
+   {
+    "date": "2026-09-15",
+    "hours": 8.58,
+    "status": "present"
+   }
+  ],
+  "internship_summary": {
+   "approved_leaves": 0,
+   "days_remaining": 139,
+   "duration_label": "6 Months",
+   "duration_months": 6,
+   "end_date": "2027-02-13",
+   "leave_balance": {
+    "attended_saved": 0,
+    "available_after_pending": 10,
+    "deducted_used": 0,
+    "future_approved": 0,
+    "pending": 0,
+    "quota": 10,
+    "remaining": 10,
+    "used": 0
+   },
+   "leaves_used": 0,
+   "pending_leaves": 0,
+   "remaining_leave_balance": 10,
+   "start_date": "2026-08-13",
+   "summary_text": "Internship Period – 6 Months | Approved Leaves – 0 Days",
+   "total_leave_quota": 10
+  },
+  "open_tasks": [
+   {
+    "created_at": "2026-09-26T23:51:31.356932Z",
+    "deadline": "2026-10-11",
+    "description": "Load test on 500 concurrent riders — PMPML Bus Tracker",
+    "id": 4,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "review",
+    "title": "Load test on 500 concurrent riders"
+   }
+  ],
+  "project_status": {
+   "active": 1
+  },
+  "recent_activity": [
+   {
+    "action": "review.delete",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.252880Z",
+    "id": 283,
+    "project_id": 1,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "deleted performance review for"
+   },
+   {
+    "action": "announcement.delete",
+    "actor_id": 2,
+    "actor_name": "Anand Apte",
+    "affected_user_id": null,
+    "created_at": "2026-09-26T23:53:58.331100Z",
+    "id": 264,
+    "project_id": 1,
+    "target": "Wi-Fi maintenance E2E-TMP-1790466803",
+    "target_id": 4,
+    "verb": "deleted announcement"
+   }
+  ],
+  "recent_leave_requests": [],
+  "role": "intern",
+  "stats": {
+   "active_projects": 1,
+   "assigned_tasks_count": 2,
+   "completed_tasks_count": 1,
+   "days_logged": 9,
+   "open_tasks": 1,
+   "overdue_tasks": 0,
+   "pending_leave": 0,
+   "present_today": 0,
+   "total_days_logged": 9,
+   "total_hours": 81.6,
+   "total_interns": 0,
+   "total_projects": 1
+  },
+  "streak": 3,
+  "task_status": {
+   "done": 1,
+   "review": 1
+  },
+  "today_attendance": {
+   "check_in": null,
+   "check_in_address": null,
+   "check_in_photo_url": null,
+   "check_out": null,
+   "check_out_photo_url": null,
+   "has_checked_in": false,
+   "has_checked_out": false,
+   "hours_worked": 0.0,
+   "status": null
+  }
+ },
+ "GET /api/leave/balance": {
+  "attended_saved": 0,
+  "available_after_pending": 8,
+  "deducted_used": 0,
+  "future_approved": 1,
+  "pending": 1,
+  "quota": 10,
+  "remaining": 9,
+  "used": 1
+ },
+ "GET /api/leave/manage": {
+  "page": 1,
+  "page_size": 10,
+  "requests": [
+   {
+    "attachment_name": "note.pdf",
+    "attachment_url": "/api/leave/3/attachment",
+    "created_at": "2026-09-26T23:52:22.952250Z",
+    "days": 1,
+    "end_date": "2026-10-20",
+    "has_attachment": true,
+    "id": 3,
+    "leave_type": "sick",
+    "reason": "Medical check-up at Sassoon hospital",
+    "reviewed_at": null,
+    "reviewed_by": null,
+    "reviewer_name": null,
+    "start_date": "2026-10-20",
+    "status": "pending",
+    "user_id": 7,
+    "user_name": "Sakshi Patil"
+   }
+  ],
+  "total": 1,
+  "total_pages": 1
+ },
+ "GET /api/leave/mine": {
+  "approved_requests": [
+   {
+    "attachment_name": "note.pdf",
+    "attachment_url": "/api/leave/1/attachment",
+    "created_at": "2026-09-26T23:52:22.706304Z",
+    "days": 1,
+    "end_date": "2026-10-06",
+    "has_attachment": true,
+    "id": 1,
+    "leave_type": "casual",
+    "reason": "Ganeshotsav at home in Kolhapur",
+    "reviewed_at": "2026-09-26T23:52:22.842682Z",
+    "reviewed_by": 2,
+    "reviewer_name": "Anand Apte",
+    "start_date": "2026-10-06",
+    "status": "approved",
+    "user_id": 7,
+    "user_name": "Sakshi Patil"
+   }
+  ],
+  "balance": {
+   "attended_saved": 0,
+   "available_after_pending": 8,
+   "deducted_used": 0,
+   "future_approved": 1,
+   "pending": 1,
+   "quota": 10,
+   "remaining": 9,
+   "used": 1
+  },
+  "internship_summary": {
+   "approved_leaves": 1,
+   "days_remaining": 139,
+   "duration_label": "6 Months",
+   "duration_months": 6,
+   "end_date": "2027-02-13",
+   "leave_balance": {
+    "attended_saved": 0,
+    "available_after_pending": 8,
+    "deducted_used": 0,
+    "future_approved": 1,
+    "pending": 1,
+    "quota": 10,
+    "remaining": 9,
+    "used": 1
+   },
+   "leaves_used": 1,
+   "pending_leaves": 1,
+   "remaining_leave_balance": 9,
+   "start_date": "2026-08-13",
+   "summary_text": "Internship Period – 6 Months | Approved Leaves – 1 Days",
+   "total_leave_quota": 10
+  },
+  "pending_requests": [
+   {
+    "attachment_name": "note.pdf",
+    "attachment_url": "/api/leave/3/attachment",
+    "created_at": "2026-09-26T23:52:22.952250Z",
+    "days": 1,
+    "end_date": "2026-10-20",
+    "has_attachment": true,
+    "id": 3,
+    "leave_type": "sick",
+    "reason": "Medical check-up at Sassoon hospital",
+    "reviewed_at": null,
+    "reviewed_by": null,
+    "reviewer_name": null,
+    "start_date": "2026-10-20",
+    "status": "pending",
+    "user_id": 7,
+    "user_name": "Sakshi Patil"
+   }
+  ],
+  "rejected_requests": [
+   {
+    "attachment_name": "invite.pdf",
+    "attachment_url": "/api/leave/4/attachment",
+    "created_at": "2026-09-26T23:52:22.977506Z",
+    "days": 1,
+    "end_date": "2026-11-30",
+    "has_attachment": true,
+    "id": 4,
+    "leave_type": "casual",
+    "reason": "Family function in Pune E2E-TMP-1790466703",
+    "reviewed_at": "2026-09-26T23:52:23.068033Z",
+    "reviewed_by": 2,
+    "reviewer_name": "Anand Apte",
+    "start_date": "2026-11-30",
+    "status": "rejected",
+    "user_id": 7,
+    "user_name": "Sakshi Patil"
+   },
+   {
+    "attachment_name": null,
+    "attachment_url": null,
+    "created_at": "2026-09-26T23:52:22.858986Z",
+    "days": 1,
+    "end_date": "2026-10-13",
+    "has_attachment": false,
+    "id": 2,
+    "leave_type": "casual",
+    "reason": "Sister's wedding in Satara",
+    "reviewed_at": "2026-09-26T23:52:22.918358Z",
+    "reviewed_by": 2,
+    "reviewer_name": "Anand Apte",
+    "start_date": "2026-10-13",
+    "status": "rejected",
+    "user_id": 7,
+    "user_name": "Sakshi Patil"
+   }
+  ],
+  "requests": [
+   {
+    "attachment_name": "invite.pdf",
+    "attachment_url": "/api/leave/4/attachment",
+    "created_at": "2026-09-26T23:52:22.977506Z",
+    "days": 1,
+    "end_date": "2026-11-30",
+    "has_attachment": true,
+    "id": 4,
+    "leave_type": "casual",
+    "reason": "Family function in Pune E2E-TMP-1790466703",
+    "reviewed_at": "2026-09-26T23:52:23.068033Z",
+    "reviewed_by": 2,
+    "reviewer_name": "Anand Apte",
+    "start_date": "2026-11-30",
+    "status": "rejected",
+    "user_id": 7,
+    "user_name": "Sakshi Patil"
+   },
+   {
+    "attachment_name": "note.pdf",
+    "attachment_url": "/api/leave/3/attachment",
+    "created_at": "2026-09-26T23:52:22.952250Z",
+    "days": 1,
+    "end_date": "2026-10-20",
+    "has_attachment": true,
+    "id": 3,
+    "leave_type": "sick",
+    "reason": "Medical check-up at Sassoon hospital",
+    "reviewed_at": null,
+    "reviewed_by": null,
+    "reviewer_name": null,
+    "start_date": "2026-10-20",
+    "status": "pending",
+    "user_id": 7,
+    "user_name": "Sakshi Patil"
+   }
+  ],
+  "summary": {
+   "approved": 1,
+   "days_pending": 1,
+   "days_taken": 1,
+   "pending": 1,
+   "rejected": 2,
+   "total": 4
+  }
+ },
+ "GET /api/mentor/attendance/search": {
+  "date_range": {
+   "end": "2026-09-27",
+   "start": "2026-08-29"
+  },
+  "filters": {
+   "department": null,
+   "end": "2026-09-27",
+   "is_active": null,
+   "search": "a",
+   "sort": "name",
+   "start": "2026-08-29"
+  },
+  "page": 1,
+  "page_size": 20,
+  "students": [
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 9,
+     "end_date": "2026-09-27",
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T10:05:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 9,
+     "start_date": "2026-08-29",
+     "total_hours": 81.56,
+     "total_records": 9,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:30.536786Z",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Aarav Deshmukh",
+    "phone": "+91 98503 11240"
+   },
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 10,
+     "end_date": "2026-09-27",
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T09:28:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 10,
+     "start_date": "2026-08-29",
+     "total_hours": 90.76,
+     "total_records": 10,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:30.732075Z",
+    "department": "Engineering",
+    "email": "omkar.sahyadri-tech-labs@example.com",
+    "id": 8,
+    "is_active": true,
+    "job_title": "Intern — PICT, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Omkar Jadhav",
+    "phone": "+91 97654 20318"
+   }
+  ],
+  "total": 3,
+  "total_pages": 1
+ },
+ "GET /api/mentor/attendance/today": {
+  "filters": {
+   "department": null,
+   "is_active": "true",
+   "search": null,
+   "status": null
+  },
+  "page": 1,
+  "page_size": 20,
+  "students": [
+   {
+    "attendance": null,
+    "is_checked_in": false,
+    "is_checked_out": false,
+    "student": {
+     "department": "Engineering",
+     "email": "aarav.sahyadri-tech-labs@example.com",
+     "id": 6,
+     "is_active": true,
+     "job_title": "Intern — COEP Technological University, Pune",
+     "mentor_id": 3,
+     "name": "Aarav Deshmukh",
+     "phone": "+91 98503 11240"
+    },
+    "today_status": "not_checked_in"
+   },
+   {
+    "attendance": null,
+    "is_checked_in": false,
+    "is_checked_out": false,
+    "student": {
+     "department": "Engineering",
+     "email": "omkar.sahyadri-tech-labs@example.com",
+     "id": 8,
+     "is_active": true,
+     "job_title": "Intern — PICT, Pune",
+     "mentor_id": 3,
+     "name": "Omkar Jadhav",
+     "phone": "+91 97654 20318"
+    },
+    "today_status": "not_checked_in"
+   }
+  ],
+  "summary": {
+   "absent": 0,
+   "attendance_rate": 0.0,
+   "attended": 0,
+   "checked_in": 0,
+   "checked_out": 0,
+   "excused": 0,
+   "half_day": 0,
+   "late": 0,
+   "not_checked_in": 3,
+   "on_leave": 0,
+   "present": 0,
+   "total_interns": 3
+  },
+  "today": "2026-09-27",
+  "total": 3,
+  "total_pages": 1
+ },
+ "GET /api/mentor/dashboard": {
+  "active_projects": [
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.257413Z",
+    "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+    "id": 1,
+    "members_count": 3,
+    "name": "PMPML Bus Tracker",
+    "status": "active",
+    "tasks_count": 4
+   }
+  ],
+  "assigned_interns": [
+   {
+    "check_in": null,
+    "check_in_photo_url": null,
+    "check_out": null,
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Aarav Deshmukh",
+    "open_tasks_count": 1,
+    "streak": 3,
+    "today_status": "absent",
+    "user_id": 6
+   },
+   {
+    "check_in": null,
+    "check_in_photo_url": null,
+    "check_out": null,
+    "department": "Engineering",
+    "email": "omkar.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Omkar Jadhav",
+    "open_tasks_count": 1,
+    "streak": 10,
+    "today_status": "absent",
+    "user_id": 8
+   }
+  ],
+  "assigned_interns_total": 3,
+  "attendance_chart": [
+   {
+    "date": "2026-09-14",
+    "hours": 27.6,
+    "present": 3,
+    "status": "present"
+   },
+   {
+    "date": "2026-09-15",
+    "hours": 27.0,
+    "present": 3,
+    "status": "present"
+   }
+  ],
+  "open_tasks": [
+   {
+    "assignee_id": 8,
+    "assignee_name": "Omkar Jadhav",
+    "deadline": "2026-10-11",
+    "id": 2,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "in_progress",
+    "title": "Stop-level ETA model"
+   },
+   {
+    "assignee_id": 10,
+    "assignee_name": "Pranav Joshi",
+    "deadline": "2026-10-11",
+    "id": 3,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "in_progress",
+    "title": "Marathi / English UI toggle"
+   }
+  ],
+  "pending_leave_requests": [],
+  "pending_leave_requests_total": 0,
+  "present_today_list": [],
+  "present_today_total": 0,
+  "project_status": {
+   "active": 1
+  },
+  "projects": [
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.257413Z",
+    "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+    "id": 1,
+    "members_count": 3,
+    "name": "PMPML Bus Tracker",
+    "status": "active",
+    "tasks_count": 4
+   }
+  ],
+  "recent_activity": [
+   {
+    "action": "review.delete",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.252880Z",
+    "id": 283,
+    "project_id": 1,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "deleted performance review for"
+   },
+   {
+    "action": "review.create",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.212299Z",
+    "id": 281,
+    "project_id": null,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "submitted performance review for"
+   }
+  ],
+  "role": "mentor",
+  "stats": {
+   "absent_today": 3,
+   "active_projects": 1,
+   "assigned_interns_count": 3,
+   "days_logged": 10,
+   "open_tasks": 3,
+   "overdue_tasks": 0,
+   "pending_leave": 0,
+   "present_today": 0,
+   "total_hours": 253.9,
+   "total_interns": 3,
+   "total_projects": 1
+  },
+  "streak": 0,
+  "task_status": {
+   "done": 1,
+   "in_progress": 2,
+   "review": 1
+  }
+ },
+ "GET /api/mentor/students": {
+  "filters": {
+   "department": null,
+   "is_active": null,
+   "search": null,
+   "sort": "name",
+   "window_days": 30
+  },
+  "page": 1,
+  "page_size": 20,
+  "students": [
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 9,
+     "end_date": null,
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T10:05:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 9,
+     "start_date": null,
+     "total_hours": 81.56,
+     "total_records": 9,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:30.536786Z",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Aarav Deshmukh",
+    "phone": "+91 98503 11240"
+   },
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 10,
+     "end_date": null,
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T09:28:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 10,
+     "start_date": null,
+     "total_hours": 90.76,
+     "total_records": 10,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:30.732075Z",
+    "department": "Engineering",
+    "email": "omkar.sahyadri-tech-labs@example.com",
+    "id": 8,
+    "is_active": true,
+    "job_title": "Intern — PICT, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Omkar Jadhav",
+    "phone": "+91 97654 20318"
+   }
+  ],
+  "total": 3,
+  "total_pages": 1
+ },
+ "GET /api/mentor/students/overview/search": {
+  "date_range": {
+   "end": "2026-09-27",
+   "start": "2026-08-29"
+  },
+  "filters": {
+   "department": null,
+   "end": "2026-09-27",
+   "is_active": null,
+   "search": "a",
+   "sort": "name",
+   "start": "2026-08-29"
+  },
+  "page": 1,
+  "page_size": 20,
+  "students": [
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 9,
+     "end_date": "2026-09-27",
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T10:05:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 9,
+     "start_date": "2026-08-29",
+     "total_hours": 81.56,
+     "total_records": 9,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:30.536786Z",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Aarav Deshmukh",
+    "phone": "+91 98503 11240"
+   },
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 10,
+     "end_date": "2026-09-27",
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T09:28:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 10,
+     "start_date": "2026-08-29",
+     "total_hours": 90.76,
+     "total_records": 10,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:30.732075Z",
+    "department": "Engineering",
+    "email": "omkar.sahyadri-tech-labs@example.com",
+    "id": 8,
+    "is_active": true,
+    "job_title": "Intern — PICT, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Omkar Jadhav",
+    "phone": "+91 97654 20318"
+   }
+  ],
+  "total": 3,
+  "total_pages": 1
+ },
+ "GET /api/mentor/students/search": {
+  "date_range": {
+   "end": "2026-09-27",
+   "start": "2026-08-29"
+  },
+  "filters": {
+   "department": null,
+   "end": "2026-09-27",
+   "is_active": null,
+   "search": "a",
+   "sort": "name",
+   "start": "2026-08-29"
+  },
+  "page": 1,
+  "page_size": 20,
+  "students": [
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 9,
+     "end_date": "2026-09-27",
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T10:05:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 9,
+     "start_date": "2026-08-29",
+     "total_hours": 81.56,
+     "total_records": 9,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:30.536786Z",
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Aarav Deshmukh",
+    "phone": "+91 98503 11240"
+   },
+   {
+    "active_projects": 1,
+    "attendance_overview": {
+     "absent": 0,
+     "attendance_rate": 100.0,
+     "attended": 10,
+     "end_date": "2026-09-27",
+     "excused": 0,
+     "half_day": 0,
+     "last_check_in": "2026-09-25T09:28:00",
+     "late": 0,
+     "on_leave": 0,
+     "present": 10,
+     "start_date": "2026-08-29",
+     "total_hours": 90.76,
+     "total_records": 10,
+     "window_days": 30
+    },
+    "created_at": "2026-09-26T23:51:30.732075Z",
+    "department": "Engineering",
+    "email": "omkar.sahyadri-tech-labs@example.com",
+    "id": 8,
+    "is_active": true,
+    "job_title": "Intern — PICT, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Omkar Jadhav",
+    "phone": "+91 97654 20318"
+   }
+  ],
+  "total": 3,
+  "total_pages": 1
+ },
+ "GET /api/mentor/students/today": {
+  "filters": {
+   "department": null,
+   "is_active": "true",
+   "search": null,
+   "status": null
+  },
+  "page": 1,
+  "page_size": 20,
+  "students": [
+   {
+    "attendance": null,
+    "is_checked_in": false,
+    "is_checked_out": false,
+    "student": {
+     "department": "Engineering",
+     "email": "aarav.sahyadri-tech-labs@example.com",
+     "id": 6,
+     "is_active": true,
+     "job_title": "Intern — COEP Technological University, Pune",
+     "mentor_id": 3,
+     "name": "Aarav Deshmukh",
+     "phone": "+91 98503 11240"
+    },
+    "today_status": "not_checked_in"
+   },
+   {
+    "attendance": null,
+    "is_checked_in": false,
+    "is_checked_out": false,
+    "student": {
+     "department": "Engineering",
+     "email": "omkar.sahyadri-tech-labs@example.com",
+     "id": 8,
+     "is_active": true,
+     "job_title": "Intern — PICT, Pune",
+     "mentor_id": 3,
+     "name": "Omkar Jadhav",
+     "phone": "+91 97654 20318"
+    },
+    "today_status": "not_checked_in"
+   }
+  ],
+  "summary": {
+   "absent": 0,
+   "attendance_rate": 0.0,
+   "attended": 0,
+   "checked_in": 0,
+   "checked_out": 0,
+   "excused": 0,
+   "half_day": 0,
+   "late": 0,
+   "not_checked_in": 3,
+   "on_leave": 0,
+   "present": 0,
+   "total_interns": 3
+  },
+  "today": "2026-09-27",
+  "total": 3,
+  "total_pages": 1
+ },
+ "GET /api/mentor/students/{user_id}/attendance": {
+  "filters": {
+   "end": "2026-09-27",
+   "month": null,
+   "start": "2026-08-29",
+   "status": null
+  },
+  "monthly_summary": [
+   {
+    "absent": 0,
+    "attendance_rate": 100.0,
+    "attended": 9,
+    "half_day": 0,
+    "late": 0,
+    "on_leave": 0,
+    "present": 9,
+    "total_days": 9,
+    "total_hours": 81.56,
+    "year_month": "2026-09"
+   }
+  ],
+  "page": 1,
+  "page_size": 31,
+  "records": [
+   {
+    "check_in": "10:05",
+    "check_in_dt": "2026-09-25T10:05:00",
+    "check_in_location": null,
+    "check_in_photo_url": null,
+    "check_out": "18:40",
+    "check_out_dt": "2026-09-25T18:40:00",
+    "check_out_location": null,
+    "check_out_photo_url": null,
+    "checkout_missed": false,
+    "checkout_source": "manual",
+    "date": "2026-09-25",
+    "hours_worked": 8.58,
+    "id": 1,
+    "notes": null,
+    "status": "present",
+    "user_id": 6,
+    "user_name": "Aarav Deshmukh"
+   },
+   {
+    "check_in": "09:28",
+    "check_in_dt": "2026-09-24T09:28:00",
+    "check_in_location": null,
+    "check_in_photo_url": null,
+    "check_out": "18:40",
+    "check_out_dt": "2026-09-24T18:40:00",
+    "check_out_location": null,
+    "check_out_photo_url": null,
+    "checkout_missed": false,
+    "checkout_source": "manual",
+    "date": "2026-09-24",
+    "hours_worked": 9.2,
+    "id": 9,
+    "notes": null,
+    "status": "present",
+    "user_id": 6,
+    "user_name": "Aarav Deshmukh"
+   }
+  ],
+  "student": {
+   "department": "Engineering",
+   "email": "aarav.sahyadri-tech-labs@example.com",
+   "id": 6,
+   "is_active": true,
+   "job_title": "Intern — COEP Technological University, Pune",
+   "joining_date": "2026-08-13",
+   "mentor_id": 3,
+   "mentor_name": "Prashant Kulkarni",
+   "name": "Aarav Deshmukh",
+   "phone": "+91 98503 11240"
+  },
+  "total": 9,
+  "total_pages": 1,
+  "totals": {
+   "absent": 0,
+   "attendance_rate": 100.0,
+   "attended": 9,
+   "excused": 0,
+   "half_day": 0,
+   "late": 0,
+   "on_leave": 0,
+   "present": 9,
+   "total_days": 9,
+   "total_hours": 81.56
+  }
+ },
+ "GET /api/notifications": {
+  "notifications": [
+   {
+    "created_at": "2026-09-26T23:54:02.994334Z",
+    "id": 79,
+    "is_read": false,
+    "link": "/leave",
+    "message": "Your leave request (2026-11-30 → 2026-11-30) was rejected by Anand Apte."
+   },
+   {
+    "created_at": "2026-09-26T23:54:02.962803Z",
+    "id": 78,
+    "is_read": false,
+    "link": "/leave",
+    "message": "Your leave request (2026-11-30 → 2026-11-30) was rejected by Anand Apte."
+   }
+  ],
+  "page": 1,
+  "total": 17,
+  "total_pages": 1,
+  "unread_count": 5
+ },
+ "GET /api/notifications/unread-count": {
+  "count": 5
+ },
+ "GET /api/org/current": {
+  "membership": {
+   "created_at": "2026-09-26T23:51:25.626535",
+   "department": null,
+   "id": 1,
+   "internship_duration_months": 3,
+   "internship_end_date": null,
+   "is_active": true,
+   "is_paid": null,
+   "job_title": "Administrator",
+   "joining_date": null,
+   "mentor_membership_id": null,
+   "organization_id": 2,
+   "role": "admin",
+   "stipend_amount": null,
+   "user_id": 2
+  },
+  "organization": {
+   "created_at": "2026-09-26T23:51:25.548111",
+   "id": 2,
+   "logo_url": "/uploads/logos/20260926_235225_sahyadri.png",
+   "name": "Sahyadri Tech Labs",
+   "slug": "sahyadri-tech-labs",
+   "status": "active",
+   "timezone": "Asia/Kolkata",
+   "type": "business"
+  },
+  "role": "admin",
+  "settings": {
+   "advance_leave_days": 1,
+   "auto_checkout_enabled": true,
+   "checkin_block": "20:00:00",
+   "full_day_hours": 7.0,
+   "half_day_hours": 5.0,
+   "late_cutoff": "10:30:00",
+   "leave_quota_days": 12,
+   "noon_cutoff": "12:00:00",
+   "organization_id": 2,
+   "require_attendance_gps": false,
+   "require_attendance_selfie": false,
+   "shift_end": "18:30:00",
+   "shift_start": "09:30:00"
+  }
+ },
+ "GET /api/org/members": {
+  "members": [
+   {
+    "created_at": "2026-09-26T23:51:31.226052",
+    "department": "Data & Analytics",
+    "id": 12,
+    "internship_duration_months": 6,
+    "internship_end_date": "2027-02-13",
+    "is_active": true,
+    "is_paid": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "joining_date": "2026-08-13",
+    "mentor_membership_id": null,
+    "organization_id": 2,
+    "role": "intern",
+    "stipend_amount": 12000.0,
+    "user_email": "gauri.sahyadri-tech-labs@example.com",
+    "user_id": 13,
+    "user_name": "Gauri Bhosale",
+    "user_phone": "+91 70208 64419"
+   },
+   {
+    "created_at": "2026-09-26T23:51:31.125362",
+    "department": "Data & Analytics",
+    "id": 11,
+    "internship_duration_months": 6,
+    "internship_end_date": "2027-02-13",
+    "is_active": true,
+    "is_paid": true,
+    "job_title": "Intern — Government College of Engineering, Chhatrapati Sambhajinagar",
+    "joining_date": "2026-08-13",
+    "mentor_membership_id": null,
+    "organization_id": 2,
+    "role": "intern",
+    "stipend_amount": 10000.0,
+    "user_email": "tejas.sahyadri-tech-labs@example.com",
+    "user_id": 12,
+    "user_name": "Tejas More",
+    "user_phone": "+91 88050 91274"
+   }
+  ],
+  "page": 1,
+  "page_size": 50,
+  "total": 12
+ },
+ "GET /api/org/smtp": {
+  "created_at": "2026-09-26T23:52:03.972023",
+  "encryption": "tls",
+  "has_password": false,
+  "host": "",
+  "id": 1,
+  "is_enabled": false,
+  "notify_assignment_grade": true,
+  "notify_assignment_new": true,
+  "notify_assignment_submit": true,
+  "notify_attendance_alert": true,
+  "notify_leave_decision": true,
+  "notify_leave_request": true,
+  "notify_task_assigned": true,
+  "notify_welcome": true,
+  "organization_id": 2,
+  "password": "<redacted>",
+  "port": 587,
+  "sender_email": "noreply@example.com",
+  "sender_name": "Sahyadri Tech Labs",
+  "updated_at": "2026-09-26T23:52:03.970857",
+  "username": ""
+ },
+ "GET /api/org/smtp/logs": {
+  "logs": [
+   {
+    "email_type": "test",
+    "error_message": "[Errno 11001] getaddrinfo failed",
+    "id": 54,
+    "organization_id": 2,
+    "recipient_email": "e2e-1790466754@example.com",
+    "recipient_name": "Administrator",
+    "sent_at": "2026-09-26T23:52:38.966696",
+    "status": "failed",
+    "subject": "InternHub SMTP Test Email - Sahyadri Tech Labs"
+   },
+   {
+    "email_type": "leave_decision",
+    "error_message": null,
+    "id": 53,
+    "organization_id": 2,
+    "recipient_email": "sakshi.sahyadri-tech-labs@example.com",
+    "recipient_name": "Sakshi Patil",
+    "sent_at": "2026-09-26T23:52:23.069556",
+    "status": "simulated",
+    "subject": "Leave Request REJECTED: 2026-11-30 to 2026-11-30"
+   }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total": 54,
+  "total_pages": 3
+ },
+ "GET /api/platform/leads": {
+  "items": [
+   {
+    "cohort_size": "25-50",
+    "company": "Deccan Polytechnic, Pune",
+    "created_at": "2026-09-26T23:53:38.085909Z",
+    "email": "vaibhav.kale.e2e-tmp-1790466803@example.com",
+    "id": 2,
+    "ip_address": "127.0.0.1",
+    "message": "Want InternHub for our summer interns.",
+    "name": "Vaibhav Kale (E2E-TMP-1790466803)",
+    "phone": "+91 98230 11122",
+    "role": "Training & Placement Officer",
+    "source": "e2e",
+    "status": "new"
+   },
+   {
+    "cohort_size": "25-50",
+    "company": "Deccan Polytechnic, Pune",
+    "created_at": "2026-09-26T23:51:57.645245Z",
+    "email": "vaibhav.kale.e2e-tmp-1790466703@example.com",
+    "id": 1,
+    "ip_address": "127.0.0.1",
+    "message": "Want InternHub for our summer interns.",
+    "name": "Vaibhav Kale (E2E-TMP-1790466703)",
+    "phone": "+91 98230 11122",
+    "role": "Training & Placement Officer",
+    "source": "e2e",
+    "status": "new"
+   }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total": 2
+ },
+ "GET /api/platform/metrics": {
+  "active_organizations": 2,
+  "total_organizations": 2,
+  "total_projects": 4,
+  "total_users": 13
+ },
+ "GET /api/platform/organizations": {
+  "organizations": [
+   {
+    "created_at": "2026-09-26T23:51:25.548111",
+    "id": 2,
+    "logo_url": "/uploads/logos/20260926_235405_sahyadri.png",
+    "member_count": 12,
+    "name": "Sahyadri Tech Labs",
+    "project_count": 4,
+    "slug": "sahyadri-tech-labs",
+    "status": "active",
+    "timezone": "Asia/Kolkata",
+    "type": "business"
+   },
+   {
+    "created_at": "2026-09-26T23:51:20.919126",
+    "id": 1,
+    "logo_url": null,
+    "member_count": 0,
+    "name": "Default Organization",
+    "project_count": 0,
+    "slug": "default",
+    "status": "active",
+    "timezone": "Asia/Kolkata",
+    "type": "business"
+   }
+  ],
+  "page": 1,
+  "page_size": 100,
+  "total": 2
+ },
+ "GET /api/platform/organizations/{org_id}": {
+  "members": [
+   {
+    "created_at": "2026-09-26T23:51:25.626535",
+    "department": null,
+    "id": 1,
+    "internship_duration_months": 3,
+    "internship_end_date": null,
+    "is_active": true,
+    "is_paid": null,
+    "job_title": "Administrator",
+    "joining_date": null,
+    "mentor_membership_id": null,
+    "organization_id": 2,
+    "role": "admin",
+    "stipend_amount": null,
+    "user_id": 2
+   },
+   {
+    "created_at": "2026-09-26T23:51:30.241639",
+    "department": "Engineering",
+    "id": 2,
+    "internship_duration_months": 3,
+    "internship_end_date": null,
+    "is_active": true,
+    "is_paid": null,
+    "job_title": "Senior Engineer, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_membership_id": null,
+    "organization_id": 2,
+    "role": "mentor",
+    "stipend_amount": null,
+    "user_id": 3
+   }
+  ],
+  "organization": {
+   "created_at": "2026-09-26T23:51:25.548111",
+   "id": 2,
+   "logo_url": "/uploads/logos/20260926_235405_sahyadri.png",
+   "name": "Sahyadri Tech Labs",
+   "slug": "sahyadri-tech-labs",
+   "status": "active",
+   "timezone": "Asia/Kolkata",
+   "type": "business"
+  },
+  "settings": {
+   "advance_leave_days": 1,
+   "auto_checkout_enabled": true,
+   "checkin_block": "20:00:00",
+   "full_day_hours": 7.0,
+   "half_day_hours": 5.0,
+   "late_cutoff": "10:30:00",
+   "leave_quota_days": 12,
+   "noon_cutoff": "12:00:00",
+   "organization_id": 2,
+   "require_attendance_gps": false,
+   "require_attendance_selfie": false,
+   "shift_end": "18:30:00",
+   "shift_start": "09:30:00"
+  }
+ },
+ "GET /api/profile": {
+  "bio": null,
+  "created_at": "2026-09-26T23:51:25.625705Z",
+  "department": null,
+  "email": "anand.apte@example.com",
+  "id": 2,
+  "internship_duration_months": 3,
+  "internship_end_date": null,
+  "internship_summary": {
+   "approved_leaves": 0,
+   "days_remaining": null,
+   "duration_label": "3 Months",
+   "duration_months": 3,
+   "end_date": null,
+   "leave_balance": {
+    "attended_saved": 0,
+    "available_after_pending": 5,
+    "deducted_used": 0,
+    "future_approved": 0,
+    "pending": 0,
+    "quota": 5,
+    "remaining": 5,
+    "used": 0
+   },
+   "leaves_used": 0,
+   "pending_leaves": 0,
+   "remaining_leave_balance": 5,
+   "start_date": null,
+   "summary_text": "Internship Period – 3 Months | Approved Leaves – 0 Days",
+   "total_leave_quota": 5
+  },
+  "is_active": true,
+  "job_title": null,
+  "joining_date": null,
+  "name": "Anand Apte",
+  "phone": null,
+  "role": "admin",
+  "skills": []
+ },
+ "GET /api/projects": {
+  "filters": {
+   "from_date": null,
+   "mentor_id": null,
+   "search": null,
+   "status": null,
+   "to_date": null
+  },
+  "page": 1,
+  "page_size": 12,
+  "projects": [
+   {
+    "created_at": "2026-09-26T23:51:31.536212Z",
+    "description": "Soil moisture and weather sensors for grape growers around Niphad and Dindori.",
+    "end_date": "2026-12-16",
+    "id": 4,
+    "intern_ids": [
+     13,
+     12
+    ],
+    "members": [
+     {
+      "email": "gauri.sahyadri-tech-labs@example.com",
+      "id": 13,
+      "name": "Gauri Bhosale",
+      "role": "intern"
+     },
+     {
+      "email": "tejas.sahyadri-tech-labs@example.com",
+      "id": 12,
+      "name": "Tejas More",
+      "role": "intern"
+     }
+    ],
+    "mentor_id": 5,
+    "mentor_ids": [
+     5
+    ],
+    "mentor_name": "Sachin Gaikwad",
+    "mentors": [
+     {
+      "email": "sachin.sahyadri-tech-labs@example.com",
+      "id": 5,
+      "name": "Sachin Gaikwad",
+      "role": "mentor"
+     }
+    ],
+    "name": "Nashik Vineyard IoT",
+    "progress": 0,
+    "start_date": "2026-09-17",
+    "status": "active",
+    "task_count": 2,
+    "task_done": 0,
+    "task_total": 2
+   },
+   {
+    "created_at": "2026-09-26T23:51:31.473025Z",
+    "description": "Cane intake, crushing and payout dashboard for a cooperative sugar factory.",
+    "end_date": "2026-12-06",
+    "id": 3,
+    "intern_ids": [
+     9,
+     12
+    ],
+    "members": [
+     {
+      "email": "rutuja.sahyadri-tech-labs@example.com",
+      "id": 9,
+      "name": "Rutuja Shinde",
+      "role": "intern"
+     },
+     {
+      "email": "tejas.sahyadri-tech-labs@example.com",
+      "id": 12,
+      "name": "Tejas More",
+      "role": "intern"
+     }
+    ],
+    "mentor_id": 5,
+    "mentor_ids": [
+     5
+    ],
+    "mentor_name": "Sachin Gaikwad",
+    "mentors": [
+     {
+      "email": "sachin.sahyadri-tech-labs@example.com",
+      "id": 5,
+      "name": "Sachin Gaikwad",
+      "role": "mentor"
+     }
+    ],
+    "name": "Kolhapur Sugar Co-op Dashboard",
+    "progress": 0,
+    "start_date": "2026-09-07",
+    "status": "planning",
+    "task_count": 2,
+    "task_done": 0,
+    "task_total": 2
+   }
+  ],
+  "total": 4,
+  "total_pages": 1
+ },
+ "GET /api/projects/interns": {
+  "interns": [
+   {
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "mentor_id": 3,
+    "name": "Aarav Deshmukh",
+    "role": "intern"
+   },
+   {
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "is_active": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "mentor_id": 5,
+    "name": "Gauri Bhosale",
+    "role": "intern"
+   }
+  ],
+  "items": [
+   {
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "mentor_id": 3,
+    "name": "Aarav Deshmukh",
+    "role": "intern"
+   },
+   {
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "is_active": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "mentor_id": 5,
+    "name": "Gauri Bhosale",
+    "role": "intern"
+   }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total": 8,
+  "total_pages": 1
+ },
+ "GET /api/projects/interns/dropdown": {
+  "interns": [
+   {
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "mentor_id": 3,
+    "name": "Aarav Deshmukh",
+    "role": "intern"
+   },
+   {
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "is_active": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "mentor_id": 5,
+    "name": "Gauri Bhosale",
+    "role": "intern"
+   }
+  ],
+  "items": [
+   {
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "mentor_id": 3,
+    "name": "Aarav Deshmukh",
+    "role": "intern"
+   },
+   {
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "is_active": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "mentor_id": 5,
+    "name": "Gauri Bhosale",
+    "role": "intern"
+   }
+  ],
+  "page": 1,
+  "page_size": 100,
+  "total": 8,
+  "total_pages": 1
+ },
+ "GET /api/projects/mentors": {
+  "items": [
+   {
+    "department": "Product Design",
+    "email": "madhuri.sahyadri-tech-labs@example.com",
+    "id": 4,
+    "job_title": "Design Lead, Mumbai",
+    "name": "Madhuri Deshpande",
+    "role": "mentor"
+   },
+   {
+    "department": "Engineering",
+    "email": "prashant.sahyadri-tech-labs@example.com",
+    "id": 3,
+    "job_title": "Senior Engineer, Pune",
+    "name": "Prashant Kulkarni",
+    "role": "mentor"
+   }
+  ],
+  "mentors": [
+   {
+    "department": "Product Design",
+    "email": "madhuri.sahyadri-tech-labs@example.com",
+    "id": 4,
+    "job_title": "Design Lead, Mumbai",
+    "name": "Madhuri Deshpande",
+    "role": "mentor"
+   },
+   {
+    "department": "Engineering",
+    "email": "prashant.sahyadri-tech-labs@example.com",
+    "id": 3,
+    "job_title": "Senior Engineer, Pune",
+    "name": "Prashant Kulkarni",
+    "role": "mentor"
+   }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total": 3,
+  "total_pages": 1
+ },
+ "GET /api/projects/mentors/dropdown": {
+  "items": [
+   {
+    "department": "Product Design",
+    "email": "madhuri.sahyadri-tech-labs@example.com",
+    "id": 4,
+    "job_title": "Design Lead, Mumbai",
+    "name": "Madhuri Deshpande",
+    "role": "mentor"
+   },
+   {
+    "department": "Engineering",
+    "email": "prashant.sahyadri-tech-labs@example.com",
+    "id": 3,
+    "job_title": "Senior Engineer, Pune",
+    "name": "Prashant Kulkarni",
+    "role": "mentor"
+   }
+  ],
+  "mentors": [
+   {
+    "department": "Product Design",
+    "email": "madhuri.sahyadri-tech-labs@example.com",
+    "id": 4,
+    "job_title": "Design Lead, Mumbai",
+    "name": "Madhuri Deshpande",
+    "role": "mentor"
+   },
+   {
+    "department": "Engineering",
+    "email": "prashant.sahyadri-tech-labs@example.com",
+    "id": 3,
+    "job_title": "Senior Engineer, Pune",
+    "name": "Prashant Kulkarni",
+    "role": "mentor"
+   }
+  ],
+  "page": 1,
+  "page_size": 100,
+  "total": 3,
+  "total_pages": 1
+ },
+ "GET /api/projects/project-statuses": {
+  "statuses": [
+   {
+    "color": "#94A3B8",
+    "created_at": "2026-09-26T23:51:31.252193",
+    "id": 5,
+    "is_default": true,
+    "is_system": true,
+    "name": "Planning",
+    "order_index": 0,
+    "organization_id": 2,
+    "slug": "planning",
+    "updated_at": "2026-09-26T23:53:53.419845"
+   },
+   {
+    "color": "#3B82F6",
+    "created_at": "2026-09-26T23:51:31.252197",
+    "id": 6,
+    "is_default": false,
+    "is_system": true,
+    "name": "Active",
+    "order_index": 1,
+    "organization_id": 2,
+    "slug": "active",
+    "updated_at": "2026-09-26T23:53:53.421580"
+   }
+  ]
+ },
+ "GET /api/projects/search": {
+  "filters": {
+   "from_date": null,
+   "mentor_id": null,
+   "query": "PMPML",
+   "status": null,
+   "to_date": null
+  },
+  "projects": [
+   {
+    "created_at": "2026-09-26T23:51:31.257413Z",
+    "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+    "end_date": "2026-11-16",
+    "id": 1,
+    "intern_ids": [
+     6,
+     8
+    ],
+    "members": [
+     {
+      "email": "aarav.sahyadri-tech-labs@example.com",
+      "id": 6,
+      "name": "Aarav Deshmukh",
+      "role": "intern"
+     },
+     {
+      "email": "omkar.sahyadri-tech-labs@example.com",
+      "id": 8,
+      "name": "Omkar Jadhav",
+      "role": "intern"
+     }
+    ],
+    "mentor_id": 3,
+    "mentor_ids": [
+     3
+    ],
+    "mentor_name": "Prashant Kulkarni",
+    "mentors": [
+     {
+      "email": "prashant.sahyadri-tech-labs@example.com",
+      "id": 3,
+      "name": "Prashant Kulkarni",
+      "role": "mentor"
+     }
+    ],
+    "name": "PMPML Bus Tracker",
+    "progress": 25,
+    "start_date": "2026-08-18",
+    "status": "active",
+    "task_count": 4,
+    "task_done": 1,
+    "task_total": 4
+   }
+  ],
+  "query": "PMPML",
+  "total": 1
+ },
+ "GET /api/projects/statuses": {
+  "statuses": [
+   {
+    "color": "#94A3B8",
+    "created_at": "2026-09-26T23:51:31.252193",
+    "id": 5,
+    "is_default": true,
+    "is_system": true,
+    "name": "Planning",
+    "order_index": 0,
+    "organization_id": 2,
+    "slug": "planning",
+    "updated_at": "2026-09-26T23:53:53.419845"
+   },
+   {
+    "color": "#3B82F6",
+    "created_at": "2026-09-26T23:51:31.252197",
+    "id": 6,
+    "is_default": false,
+    "is_system": true,
+    "name": "Active",
+    "order_index": 1,
+    "organization_id": 2,
+    "slug": "active",
+    "updated_at": "2026-09-26T23:53:53.421580"
+   }
+  ]
+ },
+ "GET /api/projects/task-statuses": {
+  "statuses": [
+   {
+    "color": "#94A3B8",
+    "created_at": "2026-09-26T23:51:31.282507",
+    "id": 5,
+    "is_default": true,
+    "is_system": true,
+    "name": "To Do",
+    "order_index": 0,
+    "organization_id": 2,
+    "slug": "todo",
+    "status_category": "todo",
+    "updated_at": "2026-09-26T23:53:51.298868"
+   },
+   {
+    "color": "#3B82F6",
+    "created_at": "2026-09-26T23:51:31.282510",
+    "id": 6,
+    "is_default": false,
+    "is_system": true,
+    "name": "In Progress",
+    "order_index": 1,
+    "organization_id": 2,
+    "slug": "in_progress",
+    "status_category": "in_progress",
+    "updated_at": "2026-09-26T23:53:51.300316"
+   }
+  ]
+ },
+ "GET /api/projects/tasks/{task_id}/attachments": {
+  "attachments": [
+   {
+    "comment_id": null,
+    "created_at": "2026-09-26T23:53:55.748044",
+    "description": "Route notes",
+    "download_url": "/api/projects/tasks/attachments/1/download",
+    "file_name": "route-notes.pdf",
+    "file_size": 304,
+    "file_type": "application/pdf",
+    "id": 1,
+    "task_id": 12,
+    "user_id": 2,
+    "user_name": "Anand Apte"
+   }
+  ],
+  "task_id": 12,
+  "total": 1
+ },
+ "GET /api/projects/tasks/{task_id}/comments": [
+  {
+   "author_name": "Anand Apte",
+   "body": "Kaam chalu aahe 👍",
+   "created_at": "2026-09-26T23:53:55.717931Z",
+   "deleted_at": null,
+   "deleted_by_name": null,
+   "id": 1,
+   "is_deleted": false,
+   "task_id": 12,
+   "updated_at": null,
+   "user_id": 2,
+   "user_name": "Anand Apte"
+  }
+ ],
+ "GET /api/projects/{project_id}": {
+  "can_edit": true,
+  "created_at": "2026-09-26T23:51:31.257413Z",
+  "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+  "end_date": "2026-11-16",
+  "id": 1,
+  "intern_ids": [
+   6,
+   8
+  ],
+  "members": [
+   {
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "name": "Aarav Deshmukh",
+    "role": "intern"
+   },
+   {
+    "email": "omkar.sahyadri-tech-labs@example.com",
+    "id": 8,
+    "name": "Omkar Jadhav",
+    "role": "intern"
+   }
+  ],
+  "mentor_id": 3,
+  "mentor_ids": [
+   3
+  ],
+  "mentor_name": "Prashant Kulkarni",
+  "mentors": [
+   {
+    "email": "prashant.sahyadri-tech-labs@example.com",
+    "id": 3,
+    "name": "Prashant Kulkarni",
+    "role": "mentor"
+   }
+  ],
+  "name": "PMPML Bus Tracker",
+  "progress": 25,
+  "start_date": "2026-08-18",
+  "status": "active",
+  "task_count": 4,
+  "task_done": 1,
+  "task_total": 4,
+  "tasks": [
+   {
+    "assigned_to": 6,
+    "assignee_name": "Aarav Deshmukh",
+    "attachment_count": 0,
+    "attachments": [],
+    "can_delete": true,
+    "comment_count": 0,
+    "created_at": "2026-09-26T23:51:31.295383Z",
+    "created_by_id": 2,
+    "created_by_name": "Anand Apte",
+    "deadline": "2026-10-11",
+    "description": "GTFS feed import for PMPML routes — PMPML Bus Tracker",
+    "due_date": "2026-10-11",
+    "id": 1,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 1,
+    "status": "done",
+    "title": "GTFS feed import for PMPML routes"
+   },
+   {
+    "assigned_to": 8,
+    "assignee_name": "Omkar Jadhav",
+    "attachment_count": 0,
+    "attachments": [],
+    "can_delete": true,
+    "comment_count": 0,
+    "created_at": "2026-09-26T23:51:31.327139Z",
+    "created_by_id": 2,
+    "created_by_name": "Anand Apte",
+    "deadline": "2026-10-11",
+    "description": "Stop-level ETA model — PMPML Bus Tracker",
+    "due_date": "2026-10-11",
+    "id": 2,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 1,
+    "status": "in_progress",
+    "title": "Stop-level ETA model"
+   }
+  ]
+ },
+ "GET /api/projects/{project_id}/comments-board": [
+  {
+   "body": "Board note",
+   "created_at": "2026-09-26T23:53:55.834152Z",
+   "deleted_at": null,
+   "deleted_by_name": null,
+   "id": 5,
+   "is_deleted": false,
+   "project_id": 5,
+   "user_id": 2,
+   "user_name": "Anand Apte",
+   "user_role": "admin"
+  }
+ ],
+ "GET /api/projects/{project_id}/export": {
+  "exported_at": "2026-09-26T23:53:53.552207Z",
+  "members": [
+   {
+    "email": "prashant.sahyadri-tech-labs@example.com",
+    "id": 3,
+    "name": "Prashant Kulkarni",
+    "role": "mentor"
+   },
+   {
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "name": "Aarav Deshmukh",
+    "role": "intern"
+   }
+  ],
+  "project": {
+   "created_at": "2026-09-26T23:51:31.257413Z",
+   "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+   "end_date": "2026-11-16",
+   "id": 1,
+   "intern_ids": [
+    6,
+    8
+   ],
+   "members": [
+    {
+     "email": "aarav.sahyadri-tech-labs@example.com",
+     "id": 6,
+     "name": "Aarav Deshmukh",
+     "role": "intern"
+    },
+    {
+     "email": "omkar.sahyadri-tech-labs@example.com",
+     "id": 8,
+     "name": "Omkar Jadhav",
+     "role": "intern"
+    }
+   ],
+   "mentor_id": 3,
+   "mentor_ids": [
+    3
+   ],
+   "mentor_name": "Prashant Kulkarni",
+   "mentors": [
+    {
+     "email": "prashant.sahyadri-tech-labs@example.com",
+     "id": 3,
+     "name": "Prashant Kulkarni",
+     "role": "mentor"
+    }
+   ],
+   "name": "PMPML Bus Tracker",
+   "progress": 25,
+   "start_date": "2026-08-18",
+   "status": "active",
+   "task_count": 4,
+   "task_done": 0,
+   "task_total": 0
+  },
+  "tasks": [
+   {
+    "assigned_to": 6,
+    "assignee_name": "Aarav Deshmukh",
+    "attachment_count": 0,
+    "attachments": [],
+    "can_delete": true,
+    "comment_count": 0,
+    "comments": [],
+    "created_at": "2026-09-26T23:51:31.295383Z",
+    "created_by_id": 2,
+    "created_by_name": "Anand Apte",
+    "deadline": "2026-10-11",
+    "description": "GTFS feed import for PMPML routes — PMPML Bus Tracker",
+    "due_date": "2026-10-11",
+    "id": 1,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 1,
+    "status": "done",
+    "title": "GTFS feed import for PMPML routes"
+   },
+   {
+    "assigned_to": 8,
+    "assignee_name": "Omkar Jadhav",
+    "attachment_count": 0,
+    "attachments": [],
+    "can_delete": true,
+    "comment_count": 0,
+    "comments": [],
+    "created_at": "2026-09-26T23:51:31.327139Z",
+    "created_by_id": 2,
+    "created_by_name": "Anand Apte",
+    "deadline": "2026-10-11",
+    "description": "Stop-level ETA model — PMPML Bus Tracker",
+    "due_date": "2026-10-11",
+    "id": 2,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 1,
+    "status": "in_progress",
+    "title": "Stop-level ETA model"
+   }
+  ]
+ },
+ "GET /api/projects/{project_id}/links": [
+  {
+   "created_at": "2026-09-26T23:53:55.806490Z",
+   "deleted_at": null,
+   "deleted_by_name": null,
+   "id": 5,
+   "is_deleted": false,
+   "link": "https://example.com/dabbawala",
+   "project_id": 5,
+   "remark": "Reference",
+   "user_id": 2,
+   "user_name": "Anand Apte",
+   "user_role": "admin"
+  }
+ ],
+ "GET /api/projects/{project_id}/task-statuses": {
+  "statuses": [
+   {
+    "color": "#94A3B8",
+    "created_at": "2026-09-26T23:51:31.282507",
+    "id": 5,
+    "is_default": true,
+    "is_system": true,
+    "name": "To Do",
+    "order_index": 0,
+    "organization_id": 2,
+    "slug": "todo",
+    "status_category": "todo",
+    "updated_at": "2026-09-26T23:53:51.298868"
+   },
+   {
+    "color": "#3B82F6",
+    "created_at": "2026-09-26T23:51:31.282510",
+    "id": 6,
+    "is_default": false,
+    "is_system": true,
+    "name": "In Progress",
+    "order_index": 1,
+    "organization_id": 2,
+    "slug": "in_progress",
+    "status_category": "in_progress",
+    "updated_at": "2026-09-26T23:53:51.300316"
+   }
+  ]
+ },
+ "GET /api/reviews": {
+  "items": [
+   {
+    "communication_rating": 5,
+    "created_at": "2026-09-26T23:51:41.155339Z",
+    "feedback": "Great field research with volunteers.",
+    "id": 2,
+    "improvements": "Prototype fidelity.",
+    "initiative_rating": 4,
+    "intern_id": 7,
+    "intern_name": "Sakshi Patil",
+    "period": "2026-09",
+    "project_id": 2,
+    "project_name": "Pandharpur Wari Volunteer App",
+    "rating": 4,
+    "reviewer_id": 2,
+    "reviewer_name": "Anand Apte",
+    "strengths": "User interviews",
+    "technical_rating": 4
+   },
+   {
+    "communication_rating": 4,
+    "created_at": "2026-09-26T23:51:41.141451Z",
+    "feedback": "Excellent ownership of the data pipeline.",
+    "id": 1,
+    "improvements": "Share progress earlier in standups.",
+    "initiative_rating": 5,
+    "intern_id": 6,
+    "intern_name": "Aarav Deshmukh",
+    "period": "2026-09",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "rating": 5,
+    "reviewer_id": 2,
+    "reviewer_name": "Anand Apte",
+    "strengths": "Debugging, documentation",
+    "technical_rating": 5
+   }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total": 2,
+  "total_pages": 1
+ },
+ "GET /api/reviews/{review_id}": {
+  "communication_rating": 3,
+  "created_at": "2026-09-26T23:54:05.214247Z",
+  "feedback": "Solid progress on ETA.",
+  "id": 3,
+  "improvements": "Docs",
+  "initiative_rating": 4,
+  "intern_id": 8,
+  "intern_name": "Omkar Jadhav",
+  "period": "E2E E2E-TMP-1790466803",
+  "project_id": 1,
+  "project_name": "PMPML Bus Tracker",
+  "rating": 4,
+  "reviewer_id": 3,
+  "reviewer_name": "Prashant Kulkarni",
+  "strengths": "Math",
+  "technical_rating": 4
+ },
+ "GET /api/search": {
+  "q": "Pune",
+  "results": {
+   "projects": [
+    {
+     "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+     "id": 1,
+     "name": "PMPML Bus Tracker",
+     "status": "active"
+    }
+   ],
+   "tasks": [],
+   "users": []
+  },
+  "total": 1
+ },
+ "GET /api/standup": {
+  "logs": [
+   {
+    "blockers": null,
+    "created_at": "2026-09-26T23:51:34.745943Z",
+    "date": "2026-09-27",
+    "did": "GTFS import sampla. Stops table verified.",
+    "id": 1,
+    "mood": "great",
+    "plan": "Route shapes import karnar.",
+    "user_id": 6,
+    "user_name": "Aarav Deshmukh"
+   },
+   {
+    "blockers": "Need volunteer data sample.",
+    "created_at": "2026-09-26T23:51:36.890007Z",
+    "date": "2026-09-27",
+    "did": "Roster screen wireframes done.",
+    "id": 2,
+    "mood": "good",
+    "plan": "Review with Madhuri tai.",
+    "user_id": 7,
+    "user_name": "Sakshi Patil"
+   }
+  ],
+  "page": 1,
+  "total": 3,
+  "total_pages": 1
+ },
+ "GET /api/standup/today": {
+  "blockers": null,
+  "created_at": "2026-09-26T23:51:34.745943Z",
+  "date": "2026-09-27",
+  "did": "GTFS import sampla. Stops table verified.",
+  "id": 1,
+  "mood": "great",
+  "plan": "Route shapes import karnar.",
+  "user_id": 6,
+  "user_name": "Aarav Deshmukh"
+ },
+ "GET /api/superadmin/dashboard": {
+  "organizations": [
+   {
+    "created_at": "2026-09-26T23:51:25.548111Z",
+    "id": 2,
+    "logo_url": "/uploads/logos/20260926_235405_sahyadri.png",
+    "name": "Sahyadri Tech Labs",
+    "project_count": 4,
+    "slug": "sahyadri-tech-labs",
+    "status": "active",
+    "timezone": "Asia/Kolkata",
+    "type": "business",
+    "user_count": 12
+   },
+   {
+    "created_at": "2026-09-26T23:51:20.919126Z",
+    "id": 1,
+    "logo_url": null,
+    "name": "Default Organization",
+    "project_count": 0,
+    "slug": "default",
+    "status": "active",
+    "timezone": "Asia/Kolkata",
+    "type": "business",
+    "user_count": 0
+   }
+  ],
+  "organizations_total": 2,
+  "recent_activity": [
+   {
+    "action": "bin.clear_all",
+    "actor_id": 2,
+    "actor_name": "Anand Apte",
+    "affected_user_id": null,
+    "created_at": "2026-09-26T23:54:05.638877Z",
+    "id": 284,
+    "project_id": null,
+    "target": "Recycle Bin",
+    "target_id": null,
+    "verb": "permanently deleted all 10 bin item(s)"
+   },
+   {
+    "action": "review.delete",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.252880Z",
+    "id": 283,
+    "project_id": 1,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "deleted performance review for"
+   }
+  ],
+  "role": "superadmin",
+  "stats": {
+   "active_subscriptions": 2,
+   "open_tasks": 0,
+   "pending_leave": 0,
+   "present_today": 0,
+   "total_admins": 1,
+   "total_business_orgs": 2,
+   "total_educational_orgs": 0,
+   "total_interns": 8,
+   "total_mentors": 3,
+   "total_organizations": 2,
+   "total_projects": 4,
+   "total_users": 13
+  },
+  "streak": 0,
+  "system_health": {
+   "database": "connected",
+   "status": "operational",
+   "version": "2.0.0"
+  }
+ },
+ "GET /api/upload/status": {
+  "allowed_formats": [
+   ".jpg",
+   ".webp"
+  ],
+  "cloud_name": null,
+  "cloudinary_configured": false,
+  "folder": "internhub",
+  "max_size_mb": 10,
+  "provider": "local_disk"
+ },
+ "GET /api/users/dropdown": {
+  "interns": [
+   {
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Aarav Deshmukh",
+    "phone": "+91 98503 11240",
+    "role": "intern"
+   },
+   {
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "is_active": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "joining_date": "2026-08-13",
+    "mentor_id": 5,
+    "mentor_name": "Sachin Gaikwad",
+    "name": "Gauri Bhosale",
+    "phone": "+91 70208 64419",
+    "role": "intern"
+   }
+  ],
+  "total": 9,
+  "users": [
+   {
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Aarav Deshmukh",
+    "phone": "+91 98503 11240",
+    "role": "intern"
+   },
+   {
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "is_active": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "joining_date": "2026-08-13",
+    "mentor_id": 5,
+    "mentor_name": "Sachin Gaikwad",
+    "name": "Gauri Bhosale",
+    "phone": "+91 70208 64419",
+    "role": "intern"
+   }
+  ]
+ },
+ "GET /api/users/interns": {
+  "interns": [
+   {
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Aarav Deshmukh",
+    "phone": "+91 98503 11240",
+    "role": "intern"
+   },
+   {
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "is_active": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "joining_date": "2026-08-13",
+    "mentor_id": 5,
+    "mentor_name": "Sachin Gaikwad",
+    "name": "Gauri Bhosale",
+    "phone": "+91 70208 64419",
+    "role": "intern"
+   }
+  ],
+  "total": 9,
+  "users": [
+   {
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "id": 6,
+    "is_active": true,
+    "job_title": "Intern — COEP Technological University, Pune",
+    "joining_date": "2026-08-13",
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "name": "Aarav Deshmukh",
+    "phone": "+91 98503 11240",
+    "role": "intern"
+   },
+   {
+    "department": "Data & Analytics",
+    "email": "gauri.sahyadri-tech-labs@example.com",
+    "id": 13,
+    "is_active": true,
+    "job_title": "Intern — MIT Academy of Engineering, Nashik",
+    "joining_date": "2026-08-13",
+    "mentor_id": 5,
+    "mentor_name": "Sachin Gaikwad",
+    "name": "Gauri Bhosale",
+    "phone": "+91 70208 64419",
+    "role": "intern"
+   }
+  ]
+ },
+ "GET /api/users/mentors": {
+  "mentors": [
+   {
+    "department": "Product Design",
+    "email": "madhuri.sahyadri-tech-labs@example.com",
+    "id": 4,
+    "job_title": "Design Lead, Mumbai",
+    "name": "Madhuri Deshpande",
+    "role": "mentor"
+   },
+   {
+    "department": "Engineering",
+    "email": "prashant.sahyadri-tech-labs@example.com",
+    "id": 3,
+    "job_title": "Senior Engineer, Pune",
+    "name": "Prashant Kulkarni",
+    "role": "mentor"
+   }
+  ],
+  "total": 3
+ },
+ "GET /api/users/{user_id}/leave": {
+  "balance": {
+   "attended_saved": 0,
+   "available_after_pending": 10,
+   "deducted_used": 0,
+   "future_approved": 0,
+   "pending": 0,
+   "quota": 10,
+   "remaining": 10,
+   "used": 0
+  },
+  "requests": [],
+  "summary": {
+   "approved": 0,
+   "days_taken": 0,
+   "pending": 0,
+   "rejected": 0,
+   "total": 0
+  }
+ },
+ "GET /api/users/{user_id}/overview": {
+  "attendance": [
+   {
+    "check_in": "10:05",
+    "check_out": "18:40",
+    "date": "2026-09-25",
+    "hours": 8.58,
+    "status": "present"
+   },
+   {
+    "check_in": "09:28",
+    "check_out": "18:40",
+    "date": "2026-09-24",
+    "hours": 9.2,
+    "status": "present"
+   }
+  ],
+  "interns": [],
+  "leave_balance": {
+   "attended_saved": 0,
+   "available_after_pending": 10,
+   "deducted_used": 0,
+   "future_approved": 0,
+   "pending": 0,
+   "quota": 10,
+   "remaining": 10,
+   "used": 0
+  },
+  "leave_requests": [],
+  "leave_summary": {
+   "approved": 0,
+   "days_taken": 0,
+   "pending": 0,
+   "rejected": 0,
+   "total": 0
+  },
+  "projects": [
+   {
+    "end_date": "2026-11-16",
+    "id": 1,
+    "intern_count": 3,
+    "name": "PMPML Bus Tracker",
+    "progress": 25,
+    "start_date": "2026-08-18",
+    "status": "active"
+   }
+  ],
+  "stats": {
+   "absent_14d": 0,
+   "absent_30d": 0,
+   "active_tasks": 1,
+   "completed_tasks": 1,
+   "half_day_14d": 0,
+   "half_day_30d": 0,
+   "late_14d": 0,
+   "late_30d": 0,
+   "leave_approved": 0,
+   "leave_days_taken": 0,
+   "leave_pending": 0,
+   "leave_rejected": 0,
+   "leave_total": 0,
+   "on_leave_14d": 0,
+   "on_leave_30d": 0,
+   "present_14d": 9,
+   "present_30d": 9,
+   "projects": 1
+  },
+  "tasks": [
+   {
+    "due_date": "2026-10-11",
+    "id": 4,
+    "priority": "medium",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "review",
+    "title": "Load test on 500 concurrent riders"
+   },
+   {
+    "due_date": "2026-10-11",
+    "id": 1,
+    "priority": "high",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "done",
+    "title": "GTFS feed import for PMPML routes"
+   }
+  ],
+  "user": {
+   "bio": "COEP '27 · Pune · loves trains",
+   "created_at": "2026-09-26T23:51:30.536786Z",
+   "department": "Engineering",
+   "email": "aarav.sahyadri-tech-labs@example.com",
+   "id": 6,
+   "is_active": true,
+   "job_title": "Intern — COEP Technological University, Pune",
+   "joining_date": "2026-08-13",
+   "name": "Aarav Deshmukh",
+   "phone": "+91 98503 11240",
+   "role": "intern",
+   "skills": [
+    "Python",
+    "FastAPI"
+   ]
+  }
+ },
+ "GET /intern/dashboard": {
+  "active_projects": [
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.257413Z",
+    "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+    "id": 1,
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "my_tasks_count": 2,
+    "name": "PMPML Bus Tracker",
+    "status": "active"
+   }
+  ],
+  "announcements": [
+   {
+    "body": "Office closes at 4 PM during Ganeshotsav. Ganpati Bappa Morya! Please update your standups before leaving.",
+    "created_at": "2026-09-26T23:51:31.731152Z",
+    "id": 1,
+    "is_pinned": true,
+    "title": "Ganeshotsav — office timings"
+   },
+   {
+    "body": "1 May is a holiday for Maharashtra Din. Attendance is not required.",
+    "created_at": "2026-09-26T23:51:31.752396Z",
+    "id": 3,
+    "is_pinned": false,
+    "title": "Maharashtra Din holiday"
+   }
+  ],
+  "assigned_projects": [
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.257413Z",
+    "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+    "id": 1,
+    "mentor_id": 3,
+    "mentor_name": "Prashant Kulkarni",
+    "my_tasks_count": 2,
+    "name": "PMPML Bus Tracker",
+    "status": "active"
+   }
+  ],
+  "assigned_tasks": [
+   {
+    "created_at": "2026-09-26T23:51:31.356932Z",
+    "deadline": "2026-10-11",
+    "description": "Load test on 500 concurrent riders — PMPML Bus Tracker",
+    "id": 4,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "review",
+    "title": "Load test on 500 concurrent riders"
+   },
+   {
+    "created_at": "2026-09-26T23:51:31.295383Z",
+    "deadline": "2026-10-11",
+    "description": "GTFS feed import for PMPML routes — PMPML Bus Tracker",
+    "id": 1,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "done",
+    "title": "GTFS feed import for PMPML routes"
+   }
+  ],
+  "assigned_tasks_total": 2,
+  "attendance_chart": [
+   {
+    "date": "2026-09-14",
+    "hours": 9.2,
+    "status": "present"
+   },
+   {
+    "date": "2026-09-15",
+    "hours": 8.58,
+    "status": "present"
+   }
+  ],
+  "internship_summary": {
+   "approved_leaves": 0,
+   "days_remaining": 139,
+   "duration_label": "6 Months",
+   "duration_months": 6,
+   "end_date": "2027-02-13",
+   "leave_balance": {
+    "attended_saved": 0,
+    "available_after_pending": 10,
+    "deducted_used": 0,
+    "future_approved": 0,
+    "pending": 0,
+    "quota": 10,
+    "remaining": 10,
+    "used": 0
+   },
+   "leaves_used": 0,
+   "pending_leaves": 0,
+   "remaining_leave_balance": 10,
+   "start_date": "2026-08-13",
+   "summary_text": "Internship Period – 6 Months | Approved Leaves – 0 Days",
+   "total_leave_quota": 10
+  },
+  "open_tasks": [
+   {
+    "created_at": "2026-09-26T23:51:31.356932Z",
+    "deadline": "2026-10-11",
+    "description": "Load test on 500 concurrent riders — PMPML Bus Tracker",
+    "id": 4,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "review",
+    "title": "Load test on 500 concurrent riders"
+   }
+  ],
+  "project_status": {
+   "active": 1
+  },
+  "recent_activity": [
+   {
+    "action": "review.delete",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.252880Z",
+    "id": 283,
+    "project_id": 1,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "deleted performance review for"
+   },
+   {
+    "action": "announcement.delete",
+    "actor_id": 2,
+    "actor_name": "Anand Apte",
+    "affected_user_id": null,
+    "created_at": "2026-09-26T23:53:58.331100Z",
+    "id": 264,
+    "project_id": 1,
+    "target": "Wi-Fi maintenance E2E-TMP-1790466803",
+    "target_id": 4,
+    "verb": "deleted announcement"
+   }
+  ],
+  "recent_leave_requests": [],
+  "role": "intern",
+  "stats": {
+   "active_projects": 1,
+   "assigned_tasks_count": 2,
+   "completed_tasks_count": 1,
+   "days_logged": 9,
+   "open_tasks": 1,
+   "overdue_tasks": 0,
+   "pending_leave": 0,
+   "present_today": 0,
+   "total_days_logged": 9,
+   "total_hours": 81.6,
+   "total_interns": 0,
+   "total_projects": 1
+  },
+  "streak": 3,
+  "task_status": {
+   "done": 1,
+   "review": 1
+  },
+  "today_attendance": {
+   "check_in": null,
+   "check_in_address": null,
+   "check_in_photo_url": null,
+   "check_out": null,
+   "check_out_photo_url": null,
+   "has_checked_in": false,
+   "has_checked_out": false,
+   "hours_worked": 0.0,
+   "status": null
+  }
+ },
+ "GET /mentor/dashboard": {
+  "active_projects": [
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.257413Z",
+    "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+    "id": 1,
+    "members_count": 3,
+    "name": "PMPML Bus Tracker",
+    "status": "active",
+    "tasks_count": 4
+   }
+  ],
+  "assigned_interns": [
+   {
+    "check_in": null,
+    "check_in_photo_url": null,
+    "check_out": null,
+    "department": "Engineering",
+    "email": "aarav.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Aarav Deshmukh",
+    "open_tasks_count": 1,
+    "streak": 3,
+    "today_status": "absent",
+    "user_id": 6
+   },
+   {
+    "check_in": null,
+    "check_in_photo_url": null,
+    "check_out": null,
+    "department": "Engineering",
+    "email": "omkar.sahyadri-tech-labs@example.com",
+    "hours_worked": 0.0,
+    "name": "Omkar Jadhav",
+    "open_tasks_count": 1,
+    "streak": 10,
+    "today_status": "absent",
+    "user_id": 8
+   }
+  ],
+  "assigned_interns_total": 3,
+  "attendance_chart": [
+   {
+    "date": "2026-09-14",
+    "hours": 27.6,
+    "present": 3,
+    "status": "present"
+   },
+   {
+    "date": "2026-09-15",
+    "hours": 27.0,
+    "present": 3,
+    "status": "present"
+   }
+  ],
+  "open_tasks": [
+   {
+    "assignee_id": 8,
+    "assignee_name": "Omkar Jadhav",
+    "deadline": "2026-10-11",
+    "id": 2,
+    "is_overdue": false,
+    "priority": "high",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "in_progress",
+    "title": "Stop-level ETA model"
+   },
+   {
+    "assignee_id": 10,
+    "assignee_name": "Pranav Joshi",
+    "deadline": "2026-10-11",
+    "id": 3,
+    "is_overdue": false,
+    "priority": "medium",
+    "project_id": 1,
+    "project_name": "PMPML Bus Tracker",
+    "status": "in_progress",
+    "title": "Marathi / English UI toggle"
+   }
+  ],
+  "pending_leave_requests": [],
+  "pending_leave_requests_total": 0,
+  "present_today_list": [],
+  "present_today_total": 0,
+  "project_status": {
+   "active": 1
+  },
+  "projects": [
+   {
+    "completed_tasks_count": 1,
+    "created_at": "2026-09-26T23:51:31.257413Z",
+    "description": "Live bus arrival estimates for Pune commuters on the Swargate–Hinjewadi corridor.",
+    "id": 1,
+    "members_count": 3,
+    "name": "PMPML Bus Tracker",
+    "status": "active",
+    "tasks_count": 4
+   }
+  ],
+  "recent_activity": [
+   {
+    "action": "review.delete",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.252880Z",
+    "id": 283,
+    "project_id": 1,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "deleted performance review for"
+   },
+   {
+    "action": "review.create",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.212299Z",
+    "id": 281,
+    "project_id": null,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "submitted performance review for"
+   }
+  ],
+  "role": "mentor",
+  "stats": {
+   "absent_today": 3,
+   "active_projects": 1,
+   "assigned_interns_count": 3,
+   "days_logged": 10,
+   "open_tasks": 3,
+   "overdue_tasks": 0,
+   "pending_leave": 0,
+   "present_today": 0,
+   "total_hours": 253.9,
+   "total_interns": 3,
+   "total_projects": 1
+  },
+  "streak": 0,
+  "task_status": {
+   "done": 1,
+   "in_progress": 2,
+   "review": 1
+  }
+ },
+ "GET /superadmin/dashboard": {
+  "organizations": [
+   {
+    "created_at": "2026-09-26T23:51:25.548111Z",
+    "id": 2,
+    "logo_url": "/uploads/logos/20260926_235405_sahyadri.png",
+    "name": "Sahyadri Tech Labs",
+    "project_count": 4,
+    "slug": "sahyadri-tech-labs",
+    "status": "active",
+    "timezone": "Asia/Kolkata",
+    "type": "business",
+    "user_count": 12
+   },
+   {
+    "created_at": "2026-09-26T23:51:20.919126Z",
+    "id": 1,
+    "logo_url": null,
+    "name": "Default Organization",
+    "project_count": 0,
+    "slug": "default",
+    "status": "active",
+    "timezone": "Asia/Kolkata",
+    "type": "business",
+    "user_count": 0
+   }
+  ],
+  "organizations_total": 2,
+  "recent_activity": [
+   {
+    "action": "bin.clear_all",
+    "actor_id": 2,
+    "actor_name": "Anand Apte",
+    "affected_user_id": null,
+    "created_at": "2026-09-26T23:54:05.638877Z",
+    "id": 284,
+    "project_id": null,
+    "target": "Recycle Bin",
+    "target_id": null,
+    "verb": "permanently deleted all 10 bin item(s)"
+   },
+   {
+    "action": "review.delete",
+    "actor_id": 3,
+    "actor_name": "Prashant Kulkarni",
+    "affected_user_id": 8,
+    "created_at": "2026-09-26T23:54:05.252880Z",
+    "id": 283,
+    "project_id": 1,
+    "target": "Omkar Jadhav",
+    "target_id": null,
+    "verb": "deleted performance review for"
+   }
+  ],
+  "role": "superadmin",
+  "stats": {
+   "active_subscriptions": 2,
+   "open_tasks": 0,
+   "pending_leave": 0,
+   "present_today": 0,
+   "total_admins": 1,
+   "total_business_orgs": 2,
+   "total_educational_orgs": 0,
+   "total_interns": 8,
+   "total_mentors": 3,
+   "total_organizations": 2,
+   "total_projects": 4,
+   "total_users": 13
+  },
+  "streak": 0,
+  "system_health": {
+   "database": "connected",
+   "status": "operational",
+   "version": "2.0.0"
+  }
+ },
+ "PATCH /api/projects/tasks/{task_id}/status": {
+  "assigned_to": 6,
+  "assignee_name": "Aarav Deshmukh",
+  "attachment_count": 0,
+  "attachments": [],
+  "can_delete": true,
+  "comment_count": 0,
+  "created_at": "2026-09-26T23:53:55.683913Z",
+  "created_by_id": 2,
+  "created_by_name": "Anand Apte",
+  "deadline": null,
+  "description": "",
+  "due_date": null,
+  "id": 12,
+  "is_overdue": false,
+  "priority": "high",
+  "project_id": 5,
+  "status": "in_progress",
+  "title": "Map Dadar–Churchgate tiffin route E2E-TMP-1790466803"
+ },
+ "POST /api/admin/bin/{bin_id}/restore": {
+  "entity_id": 5,
+  "entity_type": "project",
+  "message": "Restored project 'None'.",
+  "ok": true
+ },
+ "POST /api/admin/clear-database": {
+  "admins_preserved": 2,
+  "deleted_rows": 635,
+  "message": "All database data has been cleared. 2 admin account(s) preserved.",
+  "ok": true,
+  "tables": {
+   "announcements": 3,
+   "attendance": 75,
+   "leave_requests": 4,
+   "projects": 4,
+   "tasks": 11
+  }
+ },
+ "POST /api/admin/intern-signup-requests/{user_id}/review": {
+  "ok": true
+ },
+ "POST /api/admin/internship-durations": {
+  "created_at": "2026-09-26T23:53:53.448083",
+  "duration_days": null,
+  "duration_months": 2,
+  "id": 8,
+  "intern_count": 0,
+  "internship_duration": 2,
+  "is_active": true,
+  "is_default": false,
+  "leaves": 2,
+  "order_index": 4,
+  "organization_id": 2,
+  "title": "Winter sprint (E2E-TMP-1790466803)",
+  "updated_at": "2026-09-26T23:53:53.448085"
+ },
+ "POST /api/admin/invite-link": {
+  "link": {
+   "created_at": "2026-09-26T23:53:47.009678Z",
+   "created_by_id": 2,
+   "created_by_name": "Anand Apte",
+   "id": 4,
+   "is_active": true,
+   "label": "Pune campus drive E2E-TMP-1790466803",
+   "mentor_id": 3,
+   "mentor_name": "Prashant Kulkarni",
+   "token": "<redacted>",
+   "url": "https://internhub-sas-production-b44c.up.railway.app/join/VRU5BqzLg3YG6I4WAcCAxtwDBznnPbRtgvmx9igdm1M",
+   "usage_count": 0
+  }
+ },
+ "POST /api/admin/invite-link/deactivate": {
+  "ok": true
+ },
+ "POST /api/admin/invite-link/regenerate": {
+  "link": {
+   "created_at": "2026-09-26T23:53:51.237969Z",
+   "created_by_id": 2,
+   "created_by_name": "Anand Apte",
+   "id": 5,
+   "is_active": true,
+   "label": "Pune campus drive E2E-TMP-1790466803",
+   "mentor_id": 3,
+   "mentor_name": "Prashant Kulkarni",
+   "token": "<redacted>",
+   "url": "https://internhub-sas-production-b44c.up.railway.app/join/hkvdf3I_QUXFU_yTnNevq2lYtAbb7XKwtRw7p8zcG1g",
+   "usage_count": 0
+  }
+ },
+ "POST /api/admin/project-statuses": {
+  "color": "#8C9A33",
+  "created_at": "2026-09-26T23:53:53.395756",
+  "id": 9,
+  "is_default": false,
+  "is_system": false,
+  "name": "Review (E2E-TMP-1790466803)",
+  "order_index": 4,
+  "organization_id": 2,
+  "project_count": 0,
+  "slug": "review_e2e_tmp_1790466803",
+  "updated_at": "2026-09-26T23:53:53.395759"
+ },
+ "POST /api/admin/task-statuses": {
+  "color": "#8C9A33",
+  "created_at": "2026-09-26T23:53:51.276403",
+  "id": 9,
+  "is_default": false,
+  "is_system": false,
+  "name": "Review (E2E-TMP-1790466803)",
+  "order_index": 4,
+  "organization_id": 2,
+  "slug": "review_e2e_tmp_1790466803",
+  "status_category": "in_progress",
+  "task_count": 0,
+  "updated_at": "2026-09-26T23:53:51.276406"
+ },
+ "POST /api/admin/users": {
+  "bio": null,
+  "created_at": "2026-09-26T23:53:44.591994Z",
+  "department": "QA",
+  "email": "e2e-tmp-1790466803.user@example.com",
+  "id": 15,
+  "internship_duration": {
+   "duration_months": 3,
+   "leaves": 5,
+   "title": "3 Months"
+  },
+  "internship_duration_months": 3,
+  "internship_end_date": "2026-12-27",
+  "is_active": true,
+  "is_paid": null,
+  "job_title": "None",
+  "joining_date": "2026-09-27",
+  "mentor_id": 4,
+  "mentor_name": "Madhuri Deshpande",
+  "name": "Ninad Sawant E2E-TMP-1790466803",
+  "phone": "+91 90040 55512",
+  "role": "intern",
+  "skills": [],
+  "stipend_amount": null
+ },
+ "POST /api/admin/users/{user_id}/role": {
+  "bio": null,
+  "created_at": "2026-09-26T23:53:44.591994Z",
+  "department": "Quality",
+  "email": "e2e-tmp-1790466803.user@example.com",
+  "id": 15,
+  "internship_duration_months": null,
+  "internship_end_date": null,
+  "is_active": true,
+  "is_paid": null,
+  "job_title": null,
+  "joining_date": "2026-09-27",
+  "mentor_id": 4,
+  "mentor_name": "Madhuri Deshpande",
+  "name": "Ninad Sawant E2E-TMP-1790466803",
+  "phone": null,
+  "role": "mentor",
+  "skills": [],
+  "stipend_amount": null
+ },
+ "POST /api/admin/users/{user_id}/toggle": {
+  "bio": null,
+  "created_at": "2026-09-26T23:53:44.591994Z",
+  "department": "Quality",
+  "email": "e2e-tmp-1790466803.user@example.com",
+  "id": 15,
+  "internship_duration_months": null,
+  "internship_end_date": null,
+  "is_active": false,
+  "is_paid": null,
+  "job_title": null,
+  "joining_date": "2026-09-27",
+  "mentor_id": 4,
+  "mentor_name": "Madhuri Deshpande",
+  "name": "Ninad Sawant E2E-TMP-1790466803",
+  "phone": null,
+  "role": "intern",
+  "skills": [],
+  "stipend_amount": null
+ },
+ "POST /api/announcements": {
+  "author_id": 2,
+  "author_name": "Anand Apte",
+  "author_role": "admin",
+  "body": "Baner office Wi-Fi down 2–3 PM.",
+  "created_at": "2026-09-26T23:53:58.306358Z",
+  "id": 4,
+  "is_pinned": false,
+  "project_id": 1,
+  "project_name": "PMPML Bus Tracker",
+  "title": "Wi-Fi maintenance E2E-TMP-1790466803"
+ },
+ "POST /api/assignments": {
+  "assigned_to_user_id": null,
+  "assigned_user_name": null,
+  "attachment_name": null,
+  "attachment_url": null,
+  "cohort_id": null,
+  "cohort_name": null,
+  "created_at": "2026-09-26T23:55:48.672015",
+  "created_by_id": 2,
+  "creator_name": "Anand Apte",
+  "description": "",
+  "due_date": "2026-10-01",
+  "graded_count": 0,
+  "has_attachment": false,
+  "id": 6,
+  "max_score": 5,
+  "organization_id": 2,
+  "pending_review_count": 0,
+  "project_id": null,
+  "project_name": null,
+  "reviewed_count": 0,
+  "status": "active",
+  "submission_count": 0,
+  "submissions_count": 0,
+  "title": "Reading: Pune Metro DPR E2E-TMP-1790466912",
+  "updated_at": "2026-09-26T23:55:48.672017"
+ },
+ "POST /api/assignments/": {
+  "assigned_to_user_id": 6,
+  "assigned_user_name": "Aarav Deshmukh",
+  "attachment_name": null,
+  "attachment_url": null,
+  "cohort_id": null,
+  "cohort_name": null,
+  "created_at": "2026-09-26T23:53:58.211060",
+  "created_by_id": 2,
+  "creator_name": "Anand Apte",
+  "description": "temp",
+  "due_date": "2026-09-30",
+  "graded_count": 0,
+  "has_attachment": false,
+  "id": 5,
+  "max_score": 10,
+  "organization_id": 2,
+  "pending_review_count": 0,
+  "project_id": null,
+  "project_name": null,
+  "reviewed_count": 0,
+  "status": "active",
+  "submission_count": 0,
+  "submissions_count": 0,
+  "title": "Quiz: Pune metro lines E2E-TMP-1790466803",
+  "updated_at": "2026-09-26T23:53:58.211062"
+ },
+ "POST /api/assignments/submissions/{submission_id}/review": {
+  "message": "Submission reviewed successfully.",
+  "submission": {
+   "assignment_id": 1,
+   "assignment_title": "Write a design doc for the ETA model",
+   "feedback": "Chan kaam!",
+   "file_name": "eta-design.pdf",
+   "file_size": 305,
+   "file_url": "/api/assignments/submissions/1/file",
+   "github_url": "https://github.com/example/pmpml-eta",
+   "has_file": true,
+   "id": 1,
+   "reviewed_at": "2026-09-26T23:53:58.185945",
+   "reviewed_by_id": 2,
+   "reviewer_name": "Anand Apte",
+   "score": 88.0,
+   "status": "approved",
+   "submission_text": "Design doc attached. Uses Kalman filter over GPS pings.",
+   "submitted_at": "2026-09-26T23:52:17.906908",
+   "updated_at": "2026-09-26T23:53:58.186160",
+   "user_email": "aarav.sahyadri-tech-labs@example.com",
+   "user_id": 6,
+   "user_name": "Aarav Deshmukh"
+  },
+  "success": true
+ },
+ "POST /api/assignments/{assignment_id}/attachment": {
+  "assigned_to_user_id": null,
+  "assigned_user_name": null,
+  "attachment_name": "eta-template.pdf",
+  "attachment_url": "/api/assignments/1/attachment",
+  "cohort_id": null,
+  "cohort_name": null,
+  "created_at": "2026-09-26T23:51:31.774247",
+  "created_by_id": 2,
+  "creator_name": "Anand Apte",
+  "description": "Two pages: inputs, model choice, evaluation.",
+  "due_date": "2026-10-04",
+  "graded_count": 1,
+  "has_attachment": true,
+  "id": 1,
+  "max_score": 100,
+  "organization_id": 2,
+  "pending_review_count": 0,
+  "project_id": 1,
+  "project_name": "PMPML Bus Tracker",
+  "reviewed_count": 1,
+  "status": "active",
+  "submission_count": 1,
+  "submissions_count": 1,
+  "title": "Write a design doc for the ETA model",
+  "updated_at": "2026-09-26T23:53:58.156694"
+ },
+ "POST /api/assignments/{assignment_id}/submit": {
+  "message": "Assignment submitted successfully.",
+  "submission": {
+   "assignment_id": 5,
+   "assignment_title": "Quiz: Pune metro lines E2E-TMP-1790466803",
+   "feedback": null,
+   "file_name": "metro-quiz.pdf",
+   "file_size": 306,
+   "file_url": "/api/assignments/submissions/3/file",
+   "github_url": null,
+   "has_file": true,
+   "id": 3,
+   "reviewed_at": null,
+   "reviewed_by_id": null,
+   "reviewer_name": null,
+   "score": null,
+   "status": "submitted",
+   "submission_text": "Aqua, Purple and Yellow lines.",
+   "submitted_at": "2026-09-26T23:53:58.238478",
+   "updated_at": "2026-09-26T23:53:58.238618",
+   "user_email": "aarav.sahyadri-tech-labs@example.com",
+   "user_id": 6,
+   "user_name": "Aarav Deshmukh"
+  },
+  "success": true
+ },
+ "POST /api/attendance/auto-checkout": {
+  "count": 0,
+  "message": "Auto check-out applied to 0 missed record(s)."
+ },
+ "POST /api/attendance/check-in": {
+  "check_in": "05:25",
+  "check_in_dt": "2026-09-27T05:25:53+05:30",
+  "check_in_location": {
+   "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+   "lat": 18.559,
+   "lng": 73.7868
+  },
+  "check_in_photo_url": "/api/attendance/76/photo/checkin",
+  "check_in_time": "5:25 AM",
+  "check_out": null,
+  "check_out_dt": null,
+  "check_out_location": null,
+  "check_out_photo_url": null,
+  "check_out_time": null,
+  "checkout_missed": false,
+  "checkout_source": null,
+  "date": "2026-09-27",
+  "hours_worked": null,
+  "id": 76,
+  "notes": null,
+  "status": "present",
+  "user_id": 6,
+  "user_name": "Aarav Deshmukh"
+ },
+ "POST /api/attendance/check-out": {
+  "check_in": "05:25",
+  "check_in_dt": "2026-09-27T05:25:53+05:30",
+  "check_in_location": {
+   "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+   "lat": 18.559,
+   "lng": 73.7868
+  },
+  "check_in_photo_url": "/api/attendance/76/photo/checkin",
+  "check_in_time": "5:25 AM",
+  "check_out": "05:25",
+  "check_out_dt": "2026-09-27T05:25:54+05:30",
+  "check_out_location": {
+   "address": "Baneshwar Temple, Baner Hill Trail, Baner Gaon, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+   "lat": 18.559,
+   "lng": 73.7868
+  },
+  "check_out_photo_url": "/api/attendance/76/photo/checkout",
+  "check_out_time": "5:25 AM",
+  "checkout_missed": false,
+  "checkout_source": "manual",
+  "date": "2026-09-27",
+  "hours_worked": 0.0,
+  "id": 76,
+  "notes": null,
+  "status": "present",
+  "user_id": 6,
+  "user_name": "Aarav Deshmukh"
+ },
+ "POST /api/attendance/manual": {
+  "check_in": "09:40",
+  "check_in_dt": "2026-09-02T09:40:00+05:30",
+  "check_in_location": null,
+  "check_in_photo_url": null,
+  "check_in_time": "9:40 AM",
+  "check_out": "18:10",
+  "check_out_dt": "2026-09-02T18:10:00+05:30",
+  "check_out_location": null,
+  "check_out_photo_url": null,
+  "check_out_time": "6:10 PM",
+  "checkout_missed": false,
+  "checkout_source": "manual",
+  "date": "2026-09-02",
+  "hours_worked": 8.5,
+  "id": 76,
+  "notes": null,
+  "status": "present",
+  "user_id": 7,
+  "user_name": "Sakshi Patil"
+ },
+ "POST /api/auth/invite/{token}/register": {
+  "message": "Your account request was submitted. You can sign in after your mentor approves it.",
+  "ok": true,
+  "pending_approval": true
+ },
+ "POST /api/auth/login": {
+  "ok": true,
+  "token": "<redacted>",
+  "user": {
+   "bio": null,
+   "created_at": "2026-09-26T23:51:30.834352Z",
+   "department": "Data & Analytics",
+   "email": "rutuja.sahyadri-tech-labs@example.com",
+   "id": 9,
+   "is_active": true,
+   "is_platform_admin": false,
+   "is_superadmin": false,
+   "job_title": "Intern — Walchand College of Engineering, Sangli",
+   "joining_date": "2026-08-13",
+   "name": "Rutuja Shinde",
+   "phone": "+91 90110 73452",
+   "role": "intern",
+   "session_version": 1,
+   "skills": []
+  }
+ },
+ "POST /api/auth/logout": {
+  "ok": true
+ },
+ "POST /api/auth/register": {
+  "message": "Registration successful. Ask your organization's admin to add you, or join with an invite link.",
+  "ok": true,
+  "user": {
+   "bio": null,
+   "created_at": "2026-09-26T23:54:27.092620Z",
+   "department": null,
+   "email": "e2e-1790466854.selfsignup@example.com",
+   "id": 14,
+   "is_active": true,
+   "is_platform_admin": false,
+   "is_superadmin": false,
+   "job_title": null,
+   "joining_date": null,
+   "name": "Chinmay Ghule (E2E)",
+   "phone": null,
+   "role": "intern",
+   "session_version": 1,
+   "skills": []
+  }
+ },
+ "POST /api/blogs": {
+  "author_id": 2,
+  "author_name": "Anand Apte",
+  "content": "<p>temp</p>",
+  "cover_image_url": null,
+  "created_at": "2026-09-26T23:53:58.348515Z",
+  "excerpt": null,
+  "id": 3,
+  "published_at": null,
+  "slug": "vada-pav-and-version-control-e2e-tmp-1790466803",
+  "status": "draft",
+  "tags": [
+   "culture"
+  ],
+  "title": "Vada pav and version control E2E-TMP-1790466803",
+  "updated_at": "2026-09-26T23:53:58.348518Z"
+ },
+ "POST /api/cohorts": {
+  "created_at": "2026-09-26T23:53:58.069354Z",
+  "created_by_id": 2,
+  "description": "temp",
+  "end_date": "2027-01-25",
+  "id": 4,
+  "member_count": 0,
+  "members": [],
+  "name": "Nagpur Winter Batch E2E-TMP-1790466803",
+  "start_date": "2026-10-27"
+ },
+ "POST /api/cohorts/{cohort_id}/members": {
+  "ok": true
+ },
+ "POST /api/leads": {
+  "ok": true
+ },
+ "POST /api/leave": {
+  "attachment_name": "invite.pdf",
+  "attachment_url": "/api/leave/5/attachment",
+  "created_at": "2026-09-26T23:54:02.848441Z",
+  "days": 1,
+  "end_date": "2026-11-30",
+  "has_attachment": true,
+  "id": 5,
+  "leave_type": "casual",
+  "reason": "Family function in Pune E2E-TMP-1790466803",
+  "reviewed_at": null,
+  "reviewed_by": null,
+  "reviewer_name": null,
+  "start_date": "2026-11-30",
+  "status": "pending",
+  "user_id": 7,
+  "user_name": "Sakshi Patil"
+ },
+ "POST /api/leave/review/{leave_id}": {
+  "attachment_name": "invite.pdf",
+  "attachment_url": "/api/leave/5/attachment",
+  "created_at": "2026-09-26T23:54:02.848441Z",
+  "days": 1,
+  "end_date": "2026-11-30",
+  "has_attachment": true,
+  "id": 5,
+  "leave_type": "casual",
+  "reason": "Family function in Pune E2E-TMP-1790466803",
+  "reviewed_at": "2026-09-26T23:54:02.912002Z",
+  "reviewed_by": 2,
+  "reviewer_name": "Anand Apte",
+  "start_date": "2026-11-30",
+  "status": "rejected",
+  "user_id": 7,
+  "user_name": "Sakshi Patil"
+ },
+ "POST /api/leave/{leave_id}/review": {
+  "attachment_name": "invite.pdf",
+  "attachment_url": "/api/leave/5/attachment",
+  "created_at": "2026-09-26T23:54:02.848441Z",
+  "days": 1,
+  "end_date": "2026-11-30",
+  "has_attachment": true,
+  "id": 5,
+  "leave_type": "casual",
+  "reason": "Family function in Pune E2E-TMP-1790466803",
+  "reviewed_at": "2026-09-26T23:54:02.975161Z",
+  "reviewed_by": 2,
+  "reviewer_name": "Anand Apte",
+  "start_date": "2026-11-30",
+  "status": "rejected",
+  "user_id": 7,
+  "user_name": "Sakshi Patil"
+ },
+ "POST /api/notifications/mark-read": {
+  "ok": true
+ },
+ "POST /api/org/members": {
+  "membership": {
+   "created_at": "2026-09-26T23:53:44.446777",
+   "department": "Engineering",
+   "id": 13,
+   "internship_duration_months": 3,
+   "internship_end_date": null,
+   "is_active": true,
+   "is_paid": null,
+   "job_title": null,
+   "joining_date": null,
+   "mentor_membership_id": null,
+   "organization_id": 2,
+   "role": "intern",
+   "stipend_amount": null,
+   "user_id": 14
+  },
+  "ok": true
+ },
+ "POST /api/org/smtp/test": {
+  "error": "[Errno 11001] getaddrinfo failed",
+  "message": "SMTP test failed: [Errno 11001] getaddrinfo failed",
+  "success": false
+ },
+ "POST /api/platform/organizations": {
+  "admin_user_id": 13,
+  "ok": true,
+  "organization": {
+   "created_at": "2026-09-26T23:51:25.548111",
+   "id": 2,
+   "logo_url": "/uploads/logos/20260926_235225_sahyadri.png",
+   "name": "Sahyadri Tech Labs",
+   "slug": "sahyadri-tech-labs",
+   "status": "active",
+   "timezone": "Asia/Kolkata",
+   "type": "business"
+  }
+ },
+ "POST /api/profile/change-password": {
+  "message": "Password changed successfully.",
+  "ok": true
+ },
+ "POST /api/projects": {
+  "created_at": "2026-09-26T23:53:55.617379Z",
+  "description": "Temp project for CRUD test",
+  "end_date": "2026-10-27",
+  "id": 5,
+  "intern_ids": [],
+  "members": [],
+  "mentor_id": 4,
+  "mentor_ids": [
+   4
+  ],
+  "mentor_name": "Madhuri Deshpande",
+  "mentors": [
+   {
+    "email": "madhuri.sahyadri-tech-labs@example.com",
+    "id": 4,
+    "name": "Madhuri Deshpande",
+    "role": "mentor"
+   }
+  ],
+  "name": "Mumbai Dabbawala Route Planner E2E-TMP-1790466803",
+  "progress": 0,
+  "start_date": "2026-09-27",
+  "status": "planning",
+  "task_count": 0,
+  "task_done": 0,
+  "task_total": 0
+ },
+ "POST /api/projects/tasks/{task_id}/attachments": {
+  "comment_id": null,
+  "created_at": "2026-09-26T23:53:55.748044",
+  "description": "Route notes",
+  "download_url": "/api/projects/tasks/attachments/1/download",
+  "file_name": "route-notes.pdf",
+  "file_size": 304,
+  "file_type": "application/pdf",
+  "id": 1,
+  "task_id": 12,
+  "user_id": 2,
+  "user_name": "Anand Apte"
+ },
+ "POST /api/projects/tasks/{task_id}/comments": {
+  "author_name": "Anand Apte",
+  "body": "Kaam chalu aahe 👍",
+  "created_at": "2026-09-26T23:53:55.717931Z",
+  "deleted_at": null,
+  "deleted_by_name": null,
+  "id": 1,
+  "is_deleted": false,
+  "task_id": 12,
+  "updated_at": null,
+  "user_id": 2,
+  "user_name": "Anand Apte"
+ },
+ "POST /api/projects/{project_id}/assign": {
+  "ok": true
+ },
+ "POST /api/projects/{project_id}/comments-board": {
+  "body": "Board note",
+  "created_at": "2026-09-26T23:53:55.834152Z",
+  "id": 5,
+  "project_id": 5,
+  "user_id": 2,
+  "user_name": "Anand Apte",
+  "user_role": "admin"
+ },
+ "POST /api/projects/{project_id}/links": {
+  "created_at": "2026-09-26T23:53:55.806490Z",
+  "id": 5,
+  "link": "https://example.com/dabbawala",
+  "project_id": 5,
+  "remark": "Reference",
+  "user_id": 2,
+  "user_name": "Anand Apte",
+  "user_role": "admin"
+ },
+ "POST /api/projects/{project_id}/tasks": {
+  "assigned_to": 6,
+  "assignee_name": "Aarav Deshmukh",
+  "attachment_count": 0,
+  "attachments": [],
+  "can_delete": true,
+  "comment_count": 0,
+  "created_at": "2026-09-26T23:53:55.683913Z",
+  "created_by_id": 2,
+  "created_by_name": "Anand Apte",
+  "deadline": "2026-10-02",
+  "description": "",
+  "due_date": "2026-10-02",
+  "id": 12,
+  "is_overdue": false,
+  "priority": "medium",
+  "project_id": 5,
+  "status": "todo",
+  "title": "Map Dadar–Churchgate tiffin route E2E-TMP-1790466803"
+ },
+ "POST /api/reviews": {
+  "communication_rating": 3,
+  "created_at": "2026-09-26T23:54:05.214247Z",
+  "feedback": "Solid progress on ETA.",
+  "id": 3,
+  "improvements": "Docs",
+  "initiative_rating": 4,
+  "intern_id": 8,
+  "intern_name": "Omkar Jadhav",
+  "period": "E2E E2E-TMP-1790466803",
+  "project_id": 1,
+  "project_name": "PMPML Bus Tracker",
+  "rating": 4,
+  "reviewer_id": 3,
+  "reviewer_name": "Prashant Kulkarni",
+  "strengths": "Math",
+  "technical_rating": 4
+ },
+ "POST /api/standup": {
+  "blockers": null,
+  "created_at": "2026-09-26T23:51:34.745943Z",
+  "date": "2026-09-27",
+  "did": "GTFS import sampla. Stops table verified.",
+  "id": 1,
+  "mood": "great",
+  "plan": "Route shapes import karnar.",
+  "user_id": 6,
+  "user_name": "Aarav Deshmukh"
+ },
+ "POST /api/upload/avatar": {
+  "avatar_url": "/uploads/avatars/20260926_235405_aarav.png",
+  "message": "Avatar uploaded successfully.",
+  "success": true,
+  "url": "/uploads/avatars/20260926_235405_aarav.png"
+ },
+ "POST /api/upload/image": {
+  "bytes": 70,
+  "provider": "local_disk",
+  "secure_url": "/uploads/blogs/20260926_235405_wari.png",
+  "success": true,
+  "url": "/uploads/blogs/20260926_235405_wari.png"
+ },
+ "POST /api/upload/org-logo": {
+  "logo_url": "/uploads/logos/20260926_235405_sahyadri.png",
+  "message": "Organization logo uploaded successfully.",
+  "success": true,
+  "url": "/uploads/logos/20260926_235405_sahyadri.png"
+ },
+ "PUT /api/admin/internship-durations/{duration_id}": {
+  "created_at": "2026-09-26T23:53:53.448083",
+  "duration_days": null,
+  "duration_months": 2,
+  "id": 8,
+  "internship_duration": 2,
+  "is_active": false,
+  "is_default": false,
+  "leaves": 3,
+  "order_index": 4,
+  "organization_id": 2,
+  "title": "Winter sprint (E2E-TMP-1790466803)",
+  "updated_at": "2026-09-26T23:53:53.458385"
+ },
+ "PUT /api/admin/project-statuses/reorder": {
+  "statuses": [
+   {
+    "color": "#94A3B8",
+    "created_at": "2026-09-26T23:51:31.252193",
+    "id": 5,
+    "is_default": true,
+    "is_system": true,
+    "name": "Planning",
+    "order_index": 0,
+    "organization_id": 2,
+    "slug": "planning",
+    "updated_at": "2026-09-26T23:53:53.419845"
+   },
+   {
+    "color": "#3B82F6",
+    "created_at": "2026-09-26T23:51:31.252197",
+    "id": 6,
+    "is_default": false,
+    "is_system": true,
+    "name": "Active",
+    "order_index": 1,
+    "organization_id": 2,
+    "slug": "active",
+    "updated_at": "2026-09-26T23:53:53.421580"
+   }
+  ]
+ },
+ "PUT /api/admin/project-statuses/{status_id}": {
+  "color": "#8C9A33",
+  "created_at": "2026-09-26T23:53:53.395756",
+  "id": 9,
+  "is_default": false,
+  "is_system": false,
+  "name": "QA Review (E2E-TMP-1790466803)",
+  "order_index": 4,
+  "organization_id": 2,
+  "slug": "review_e2e_tmp_1790466803",
+  "updated_at": "2026-09-26T23:53:53.410858"
+ },
+ "PUT /api/admin/task-statuses/reorder": {
+  "statuses": [
+   {
+    "color": "#94A3B8",
+    "created_at": "2026-09-26T23:51:31.282507",
+    "id": 5,
+    "is_default": true,
+    "is_system": true,
+    "name": "To Do",
+    "order_index": 0,
+    "organization_id": 2,
+    "slug": "todo",
+    "status_category": "todo",
+    "updated_at": "2026-09-26T23:53:51.298868"
+   },
+   {
+    "color": "#3B82F6",
+    "created_at": "2026-09-26T23:51:31.282510",
+    "id": 6,
+    "is_default": false,
+    "is_system": true,
+    "name": "In Progress",
+    "order_index": 1,
+    "organization_id": 2,
+    "slug": "in_progress",
+    "status_category": "in_progress",
+    "updated_at": "2026-09-26T23:53:51.300316"
+   }
+  ]
+ },
+ "PUT /api/admin/task-statuses/{status_id}": {
+  "color": "#8C9A33",
+  "created_at": "2026-09-26T23:53:51.276403",
+  "id": 9,
+  "is_default": false,
+  "is_system": false,
+  "name": "QA Review (E2E-TMP-1790466803)",
+  "order_index": 4,
+  "organization_id": 2,
+  "slug": "review_e2e_tmp_1790466803",
+  "status_category": "in_progress",
+  "updated_at": "2026-09-26T23:53:51.290053"
+ },
+ "PUT /api/admin/users/{user_id}": {
+  "bio": null,
+  "created_at": "2026-09-26T23:53:44.591994Z",
+  "department": "Quality",
+  "email": "e2e-tmp-1790466803.user@example.com",
+  "id": 15,
+  "internship_duration_months": null,
+  "internship_end_date": null,
+  "is_active": true,
+  "is_paid": null,
+  "job_title": null,
+  "joining_date": "2026-09-27",
+  "mentor_id": 4,
+  "mentor_name": "Madhuri Deshpande",
+  "name": "Ninad Sawant E2E-TMP-1790466803",
+  "phone": null,
+  "role": "intern",
+  "skills": [],
+  "stipend_amount": null
+ },
+ "PUT /api/announcements/{ann_id}": {
+  "author_id": 2,
+  "author_name": "Anand Apte",
+  "author_role": "admin",
+  "body": "Baner office Wi-Fi down 2–3 PM.",
+  "created_at": "2026-09-26T23:53:58.306358Z",
+  "id": 4,
+  "is_pinned": true,
+  "project_id": 1,
+  "project_name": "PMPML Bus Tracker",
+  "title": "Wi-Fi maintenance E2E-TMP-1790466803"
+ },
+ "PUT /api/assignments/submissions/{submission_id}/review": {
+  "message": "Submission reviewed successfully.",
+  "submission": {
+   "assignment_id": 1,
+   "assignment_title": "Write a design doc for the ETA model",
+   "feedback": "Uttam — revised.",
+   "file_name": "eta-design.pdf",
+   "file_size": 305,
+   "file_url": "/api/assignments/submissions/1/file",
+   "github_url": "https://github.com/example/pmpml-eta",
+   "has_file": true,
+   "id": 1,
+   "reviewed_at": "2026-09-26T23:53:58.199172",
+   "reviewed_by_id": 2,
+   "reviewer_name": "Anand Apte",
+   "score": 92.0,
+   "status": "approved",
+   "submission_text": "Design doc attached. Uses Kalman filter over GPS pings.",
+   "submitted_at": "2026-09-26T23:52:17.906908",
+   "updated_at": "2026-09-26T23:53:58.199377",
+   "user_email": "aarav.sahyadri-tech-labs@example.com",
+   "user_id": 6,
+   "user_name": "Aarav Deshmukh"
+  },
+  "success": true
+ },
+ "PUT /api/assignments/{assignment_id}": {
+  "assigned_to_user_id": null,
+  "assigned_user_name": null,
+  "attachment_name": null,
+  "attachment_url": null,
+  "cohort_id": null,
+  "cohort_name": null,
+  "created_at": "2026-09-26T23:53:58.211060",
+  "created_by_id": 2,
+  "creator_name": "Anand Apte",
+  "description": "temp",
+  "due_date": null,
+  "graded_count": 0,
+  "has_attachment": false,
+  "id": 5,
+  "max_score": 15,
+  "organization_id": 2,
+  "pending_review_count": 0,
+  "project_id": null,
+  "project_name": null,
+  "reviewed_count": 0,
+  "status": "active",
+  "submission_count": 0,
+  "submissions_count": 0,
+  "title": "Quiz: Pune metro lines E2E-TMP-1790466803",
+  "updated_at": "2026-09-26T23:53:58.226785"
+ },
+ "PUT /api/attendance/{record_id}": {
+  "check_in": "09:40",
+  "check_in_dt": "2026-09-02T09:40:00+05:30",
+  "check_in_location": null,
+  "check_in_photo_url": null,
+  "check_in_time": "9:40 AM",
+  "check_out": "18:45",
+  "check_out_dt": "2026-09-02T18:45:00+05:30",
+  "check_out_location": null,
+  "check_out_photo_url": null,
+  "check_out_time": "6:45 PM",
+  "checkout_missed": false,
+  "checkout_source": "manual",
+  "date": "2026-09-02",
+  "hours_worked": 9.08,
+  "id": 76,
+  "notes": null,
+  "status": "present",
+  "user_id": 7,
+  "user_name": "Sakshi Patil"
+ },
+ "PUT /api/blogs/{post_id}": {
+  "author_id": 2,
+  "author_name": "Anand Apte",
+  "content": "<p>temp</p>",
+  "cover_image_url": null,
+  "created_at": "2026-09-26T23:53:58.348515Z",
+  "excerpt": null,
+  "id": 3,
+  "published_at": "2026-09-26T23:53:58.359699Z",
+  "slug": "vada-pav-and-version-control-e2e-tmp-1790466803",
+  "status": "published",
+  "tags": [],
+  "title": "Vada pav and version control E2E-TMP-1790466803",
+  "updated_at": "2026-09-26T23:53:58.360436Z"
+ },
+ "PUT /api/cohorts/{cohort_id}": {
+  "created_at": "2026-09-26T23:53:58.069354Z",
+  "created_by_id": 2,
+  "description": "Updated",
+  "end_date": "2027-01-25",
+  "id": 4,
+  "member_count": 0,
+  "members": [],
+  "name": "Nagpur Winter Batch E2E-TMP-1790466803",
+  "start_date": "2026-10-27"
+ },
+ "PUT /api/leave/review/{leave_id}": {
+  "attachment_name": "invite.pdf",
+  "attachment_url": "/api/leave/5/attachment",
+  "created_at": "2026-09-26T23:54:02.848441Z",
+  "days": 1,
+  "end_date": "2026-11-30",
+  "has_attachment": true,
+  "id": 5,
+  "leave_type": "casual",
+  "reason": "Family function in Pune E2E-TMP-1790466803",
+  "reviewed_at": "2026-09-26T23:54:02.943177Z",
+  "reviewed_by": 2,
+  "reviewer_name": "Anand Apte",
+  "start_date": "2026-11-30",
+  "status": "rejected",
+  "user_id": 7,
+  "user_name": "Sakshi Patil"
+ },
+ "PUT /api/leave/{leave_id}/review": {
+  "attachment_name": "invite.pdf",
+  "attachment_url": "/api/leave/5/attachment",
+  "created_at": "2026-09-26T23:54:02.848441Z",
+  "days": 1,
+  "end_date": "2026-11-30",
+  "has_attachment": true,
+  "id": 5,
+  "leave_type": "casual",
+  "reason": "Family function in Pune E2E-TMP-1790466803",
+  "reviewed_at": "2026-09-26T23:54:02.889029Z",
+  "reviewed_by": 2,
+  "reviewer_name": "Anand Apte",
+  "start_date": "2026-11-30",
+  "status": "rejected",
+  "user_id": 7,
+  "user_name": "Sakshi Patil"
+ },
+ "PUT /api/org/profile": {
+  "ok": true,
+  "organization": {
+   "created_at": "2026-09-26T23:51:25.548111",
+   "id": 2,
+   "logo_url": "/uploads/logos/20260926_235225_sahyadri.png",
+   "name": "Sahyadri Tech Labs",
+   "slug": "sahyadri-tech-labs",
+   "status": "active",
+   "timezone": "Asia/Kolkata",
+   "type": "business"
+  }
+ },
+ "PUT /api/org/settings": {
+  "ok": true,
+  "settings": {
+   "advance_leave_days": 1,
+   "auto_checkout_enabled": true,
+   "checkin_block": "20:00:00",
+   "full_day_hours": 7.0,
+   "half_day_hours": 5.0,
+   "late_cutoff": "10:30:00",
+   "leave_quota_days": 12,
+   "noon_cutoff": "12:00:00",
+   "organization_id": 2,
+   "require_attendance_gps": false,
+   "require_attendance_selfie": false,
+   "shift_end": "18:30:00",
+   "shift_start": "09:30:00"
+  }
+ },
+ "PUT /api/org/smtp": {
+  "config": {
+   "created_at": "2026-09-26T23:52:03.972023",
+   "encryption": "tls",
+   "has_password": false,
+   "host": "",
+   "id": 1,
+   "is_enabled": false,
+   "notify_assignment_grade": true,
+   "notify_assignment_new": true,
+   "notify_assignment_submit": true,
+   "notify_attendance_alert": true,
+   "notify_leave_decision": true,
+   "notify_leave_request": true,
+   "notify_task_assigned": true,
+   "notify_welcome": true,
+   "organization_id": 2,
+   "password": "<redacted>",
+   "port": 587,
+   "sender_email": "noreply@example.com",
+   "sender_name": "Sahyadri Tech Labs",
+   "updated_at": "2026-09-26T23:53:44.360643",
+   "username": ""
+  },
+  "message": "SMTP settings saved successfully.",
+  "success": true
+ },
+ "PUT /api/platform/organizations/{org_id}/status": {
+  "ok": true,
+  "organization": {
+   "created_at": "2026-09-26T23:51:25.548111",
+   "id": 2,
+   "logo_url": "/uploads/logos/20260926_235405_sahyadri.png",
+   "name": "Sahyadri Tech Labs",
+   "slug": "sahyadri-tech-labs",
+   "status": "suspended",
+   "timezone": "Asia/Kolkata",
+   "type": "business"
+  }
+ },
+ "PUT /api/profile": {
+  "bio": "COEP '27 · Pune · loves trains",
+  "created_at": "2026-09-26T23:51:30.536786Z",
+  "department": "Engineering",
+  "email": "aarav.sahyadri-tech-labs@example.com",
+  "id": 6,
+  "internship_duration_months": 6,
+  "internship_end_date": "2027-02-13",
+  "is_active": true,
+  "job_title": "Intern — COEP Technological University, Pune",
+  "joining_date": "2026-08-13",
+  "name": "Aarav Deshmukh",
+  "phone": "+91 98503 11240",
+  "role": "intern",
+  "skills": [
+   "Python",
+   "FastAPI"
+  ]
+ },
+ "PUT /api/projects/tasks/{task_id}": {
+  "assigned_to": 6,
+  "assignee_name": "Aarav Deshmukh",
+  "attachment_count": 0,
+  "attachments": [],
+  "can_delete": true,
+  "comment_count": 0,
+  "created_at": "2026-09-26T23:53:55.683913Z",
+  "created_by_id": 2,
+  "created_by_name": "Anand Apte",
+  "deadline": null,
+  "description": "",
+  "due_date": null,
+  "id": 12,
+  "is_overdue": false,
+  "priority": "high",
+  "project_id": 5,
+  "status": "todo",
+  "title": "Map Dadar–Churchgate tiffin route E2E-TMP-1790466803"
+ },
+ "PUT /api/projects/{project_id}": {
+  "created_at": "2026-09-26T23:53:55.617379Z",
+  "description": "Updated",
+  "end_date": null,
+  "id": 5,
+  "intern_ids": [],
+  "members": [],
+  "mentor_id": 4,
+  "mentor_ids": [
+   4
+  ],
+  "mentor_name": "Madhuri Deshpande",
+  "mentors": [
+   {
+    "email": "madhuri.sahyadri-tech-labs@example.com",
+    "id": 4,
+    "name": "Madhuri Deshpande",
+    "role": "mentor"
+   }
+  ],
+  "name": "None",
+  "progress": 0,
+  "start_date": "2026-09-27",
+  "status": "active",
+  "task_count": 0,
+  "task_done": 0,
+  "task_total": 0
+ },
+ "PUT /api/reviews/{review_id}": {
+  "communication_rating": 3,
+  "created_at": "2026-09-26T23:54:05.214247Z",
+  "feedback": null,
+  "id": 3,
+  "improvements": null,
+  "initiative_rating": 4,
+  "intern_id": 8,
+  "intern_name": "Omkar Jadhav",
+  "period": "E2E E2E-TMP-1790466803",
+  "project_id": 1,
+  "project_name": "PMPML Bus Tracker",
+  "rating": 5,
+  "reviewer_id": 3,
+  "reviewer_name": "Prashant Kulkarni",
+  "strengths": null,
+  "technical_rating": 4
+ },
+ "PUT /api/standup/{log_id}": {
+  "blockers": null,
+  "created_at": "2026-09-26T23:54:05.149061Z",
+  "date": "2026-09-27",
+  "did": "ETA baseline",
+  "id": 4,
+  "mood": "great",
+  "plan": "Tune features",
+  "user_id": 8,
+  "user_name": "Omkar Jadhav"
+ }
+}
