@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from dependencies import DbSession, TenantContext
 from app.core.sanitize import validate_http_url
 from routes.api.schemas import coerce_is_paid, coerce_stipend_amount
+from utils import compute_internship_end_date, resolve_intern_duration
 from models import (
     Organization,
     OrganizationMembership,
@@ -50,6 +51,7 @@ class AddMemberRequest(BaseModel):
     mentor_id: int | None = None
     is_paid: bool | None = None
     stipend_amount: float | None = None
+    internship_duration_months: int | None = None
 
 
 class UpdateMemberRequest(BaseModel):
@@ -220,6 +222,14 @@ def add_organization_member(
         if is_paid is not True:
             stipend_amount = None
 
+    # Interns always get one of this org's duration tiers (default tier when none is given).
+    duration_months: int | None = None
+    if req.role == UserRole.INTERN:
+        duration_months, duration_error = resolve_intern_duration(db, ctx.organization.id, req.internship_duration_months)
+        if duration_error:
+            raise HTTPException(status_code=422, detail=duration_error)
+    end_date = compute_internship_end_date(req.joining_date, duration_months)
+
     user = db.query(User).filter_by(email=req.email).first()
     if not user:
         if not req.password:
@@ -254,8 +264,13 @@ def add_organization_member(
         existing_membership.joining_date = req.joining_date
         existing_membership.is_paid = is_paid
         existing_membership.stipend_amount = stipend_amount
+        existing_membership.internship_duration_months = duration_months
+        existing_membership.internship_end_date = end_date
         user.is_paid = is_paid
         user.stipend_amount = stipend_amount
+        if duration_months is not None:
+            user.internship_duration_months = duration_months
+            user.internship_end_date = end_date
         db.commit()
         return {"ok": True, "membership": existing_membership.to_dict()}
 
@@ -268,9 +283,14 @@ def add_organization_member(
         joining_date=req.joining_date,
         is_paid=is_paid,
         stipend_amount=stipend_amount,
+        internship_duration_months=duration_months,
+        internship_end_date=end_date,
         is_active=True,
         activated_at=_utcnow(),
     )
+    if duration_months is not None:
+        user.internship_duration_months = duration_months
+        user.internship_end_date = end_date
     db.add(membership)
     db.commit()
     db.refresh(membership)

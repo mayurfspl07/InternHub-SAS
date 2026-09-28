@@ -2983,6 +2983,7 @@
   "role": "mentor",
   "stats": {
    "absent_today": 2,
+   "on_leave_today": 0,
    "active_projects": 1,
    "assigned_interns_count": 3,
    "days_logged": 11,
@@ -3737,6 +3738,7 @@
   "role": "mentor",
   "stats": {
    "absent_today": 2,
+   "on_leave_today": 0,
    "active_projects": 1,
    "assigned_interns_count": 3,
    "days_logged": 11,
@@ -6047,6 +6049,7 @@
   "role": "mentor",
   "stats": {
    "absent_today": 2,
+   "on_leave_today": 0,
    "active_projects": 1,
    "assigned_interns_count": 3,
    "days_logged": 11,

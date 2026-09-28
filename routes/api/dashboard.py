@@ -358,7 +358,8 @@ def _build_mentor_dashboard(request: Request, user: User, db: Session) -> dict:
     )
     today_att_map = {att.user_id: att for att in today_attendances}
     present_today_count = sum(1 for att in today_attendances if att.status in present_statuses)
-    absent_today_count = max(0, len(mentee_ids) - present_today_count)
+    on_leave_today_count = sum(1 for att in today_attendances if att.status == "on_leave")
+    absent_today_count = max(0, len(mentee_ids) - present_today_count - on_leave_today_count)
 
     # 4. Mentees Detailed List
     mentee_tasks_q = (
@@ -541,6 +542,7 @@ def _build_mentor_dashboard(request: Request, user: User, db: Session) -> dict:
     stats = {
         "present_today": present_today_count,
         "absent_today": absent_today_count,
+        "on_leave_today": on_leave_today_count,
         "assigned_interns_count": len(mentee_ids),
         "active_projects": len([p for p in mentor_projects if p.status == "active"]),
         "total_projects": len(mentor_projects),

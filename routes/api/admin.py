@@ -48,6 +48,7 @@ from utils import (
     isoformat_utc,
     slugify_status_name,
     validate_org_internship_duration,
+    resolve_intern_duration,
 )
 from app.core.pagination import get_page_params
 
@@ -449,11 +450,19 @@ async def create_user(request: Request, db: DbSession, data: AdminCreateUserRequ
             raise HTTPException(status_code=422, detail="Invalid joining date format. Use YYYY-MM-DD.")
 
     internship_end_date: date | None = None
-    if duration_months is not None:
-        org_id = _resolve_admin_org_id(request, user, db)
-        tier, duration_error = validate_org_internship_duration(db, org_id, duration_months)
+    if role == UserRole.INTERN:
+        # Every intern gets a tier of this org (its leaves drive the leave quota);
+        # missing means the org's default tier.
+        duration_months, duration_error = resolve_intern_duration(
+            db, _resolve_admin_org_id(request, user, db), duration_months
+        )
         if duration_error:
             raise HTTPException(status_code=422, detail=duration_error)
+    elif duration_months is not None:
+        tier, duration_error = validate_org_internship_duration(db, _resolve_admin_org_id(request, user, db), duration_months)
+        if duration_error:
+            raise HTTPException(status_code=422, detail=duration_error)
+    if duration_months is not None:
         internship_end_date = compute_internship_end_date(joining_date, duration_months)
 
     # Paid/unpaid + monthly stipend (intern accounts only)
@@ -561,6 +570,8 @@ async def update_user(user_id: int, request: Request, response: Response, db: Db
     if "internship_duration_months" in payload:
         raw_duration = payload.get("internship_duration_months", payload.get("internship_duration"))
         if raw_duration in (None, "", "null", "undefined"):
+            if target.role == UserRole.INTERN:
+                raise HTTPException(status_code=422, detail="Choose an internship duration for this intern.")
             target.internship_duration_months = None
             target.internship_end_date = None
         else:
@@ -671,6 +682,22 @@ async def change_role(user_id: int, request: Request, db: DbSession, data: Admin
         raise HTTPException(status_code=403, detail="Cannot change the role of a superadmin account.")
     old_role = target.role
     target.role = new_role
+    if new_role == UserRole.INTERN:
+        # Interns always have a duration tier; keep a valid one, else use the org default.
+        role_org_id = _resolve_admin_org_id(request, user, db)
+        months, _ = resolve_intern_duration(db, role_org_id, target.internship_duration_months)
+        if months is None:
+            months, duration_error = resolve_intern_duration(db, role_org_id, None)
+            if duration_error:
+                raise HTTPException(status_code=422, detail=duration_error)
+        target.internship_duration_months = months
+        target.internship_end_date = compute_internship_end_date(target.joining_date, months)
+        role_membership = (
+            db.query(OrganizationMembership).filter_by(user_id=target.id, organization_id=role_org_id).first()
+        )
+        if role_membership:
+            role_membership.internship_duration_months = months
+            role_membership.internship_end_date = target.internship_end_date
     push_notification(db, target.id, f"Your role was changed from {old_role} to {new_role} by an admin.")
     record_audit(db, user, "user.role_change", f"changed role of {target.name}", f"{old_role} → {new_role}", affected_user_id=target.id)
     db.commit()
@@ -831,6 +858,22 @@ def _mentor_link_ids_for_user(db: Session, user: User) -> list[int]:
         .all()
     )
     return [row[0] for row in rows]
+
+
+def _org_interns_on_duration(db: Session, org_id: int, months: int) -> list:
+    """(user, membership) pairs of this organization's interns on a duration of ``months``."""
+    return (
+        db.query(User, OrganizationMembership)
+        .join(OrganizationMembership, OrganizationMembership.user_id == User.id)
+        .filter(
+            OrganizationMembership.organization_id == org_id,
+            OrganizationMembership.is_deleted == False,
+            User.role == UserRole.INTERN,
+            User.is_deleted == False,
+            User.internship_duration_months == months,
+        )
+        .all()
+    )
 
 
 def _ensure_active_membership(db: Session, member: User, org_id: int, role: str) -> None:
@@ -995,7 +1038,20 @@ async def review_intern_signup_request(user_id: int, request: Request, db: DbSes
         # The invite link decides which organization the intern joins.
         link = db.get(InternInviteLink, intern.signup_invite_link_id)
         join_org_id = (link.organization_id if link else None) or _resolve_admin_org_id(request, user, db)
+        # The reviewer sets the internship duration (defaults to the org's default tier).
+        duration_months, duration_error = resolve_intern_duration(
+            db, join_org_id, data.get("internship_duration_months")
+        )
+        if duration_error:
+            raise HTTPException(status_code=422, detail=duration_error)
+        intern.internship_duration_months = duration_months
+        intern.internship_end_date = compute_internship_end_date(intern.joining_date, duration_months)
         _ensure_active_membership(db, intern, join_org_id, UserRole.INTERN)
+        db.flush()
+        membership = db.query(OrganizationMembership).filter_by(organization_id=join_org_id, user_id=intern.id).first()
+        if membership:
+            membership.internship_duration_months = duration_months
+            membership.internship_end_date = intern.internship_end_date
         intern.signup_invite_link_id = None
         push_notification(
             db,
@@ -1911,13 +1967,21 @@ async def list_internship_durations(
     if not user:
         raise HTTPException(status_code=401)
 
-    org_id = _resolve_admin_org_id(request, user, db) if user.is_admin else 1
+    # Mentors create interns too, so everyone gets their own organization's tiers.
+    org_id = _resolve_admin_org_id(request, user, db)
     durations = get_or_seed_org_internship_durations(db, org_id)
 
     from sqlalchemy import func
+    # Interns per tier in this organization only.
     intern_counts_rows = (
         db.query(User.internship_duration_months, func.count(User.id))
-        .filter(User.role == UserRole.INTERN, User.is_deleted == False)
+        .join(OrganizationMembership, OrganizationMembership.user_id == User.id)
+        .filter(
+            User.role == UserRole.INTERN,
+            User.is_deleted == False,
+            OrganizationMembership.organization_id == org_id,
+            OrganizationMembership.is_deleted == False,
+        )
         .group_by(User.internship_duration_months)
         .all()
     )
@@ -2114,6 +2178,7 @@ async def update_internship_duration(
             raise HTTPException(status_code=422, detail=f"A duration tier titled '{title}' already exists.")
         master.title = title
 
+    old_months = master.duration_months
     duration_val = payload.get("duration_months") or payload.get("internship_duration")
     if duration_val is not None:
         try:
@@ -2156,7 +2221,23 @@ async def update_internship_duration(
             master.is_default = False
 
     if "is_active" in payload and payload["is_active"] is not None:
-        master.is_active = bool(payload["is_active"])
+        activate = bool(payload["is_active"])
+        if not activate and master.is_active:
+            in_use = len(_org_interns_on_duration(db, org_id, old_months))
+            if in_use:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"{in_use} intern(s) are on this duration. Move them to another duration before turning it off.",
+                )
+        master.is_active = activate
+
+    # Interns follow their tier when its length changes, so their leave quota keeps matching.
+    if master.duration_months != old_months:
+        for intern, membership in _org_interns_on_duration(db, org_id, old_months):
+            intern.internship_duration_months = master.duration_months
+            intern.internship_end_date = compute_internship_end_date(intern.joining_date, master.duration_months)
+            membership.internship_duration_months = master.duration_months
+            membership.internship_end_date = intern.internship_end_date
 
     if "order_index" in payload and payload["order_index"] is not None:
         try:
@@ -2188,6 +2269,13 @@ async def delete_internship_duration(duration_id: int, request: Request, db: DbS
     master = db.query(InternshipDurationMaster).filter_by(id=duration_id, organization_id=org_id).first()
     if not master:
         raise HTTPException(status_code=404, detail="Internship duration tier not found.")
+
+    in_use = len(_org_interns_on_duration(db, org_id, master.duration_months))
+    if in_use:
+        raise HTTPException(
+            status_code=422,
+            detail=f"{in_use} intern(s) are on this duration. Move them to another duration before deleting it.",
+        )
 
     title = master.title
     db.delete(master)

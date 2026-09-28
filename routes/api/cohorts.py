@@ -10,7 +10,7 @@ from database import get_db
 from dependencies import get_optional_user
 from models import Cohort, CohortMember, User, BinEntityType
 from recycle_bin import move_to_bin
-from utils import push_notification, record_audit, isoformat_utc
+from utils import push_notification, record_audit, isoformat_utc, local_today
 from routes.api.schemas import CohortCreatePayload, CohortUpdatePayload, CohortMemberPayload, get_payload
 from app.core.pagination import get_page_params, build_page_response
 
@@ -103,6 +103,22 @@ async def list_cohorts(request: Request, db: DbSession):
                 Cohort.description.ilike(search_pattern),
             )
         )
+
+    # status=active|completed|upcoming, by the cohort's dates (no dates = active).
+    status_filter = request.query_params.get("status", "").strip().lower()
+    if status_filter:
+        today = local_today()
+        if status_filter == "completed":
+            q = q.filter(Cohort.end_date.isnot(None), Cohort.end_date < today)
+        elif status_filter == "upcoming":
+            q = q.filter(Cohort.start_date.isnot(None), Cohort.start_date > today)
+        elif status_filter == "active":
+            q = q.filter(
+                or_(Cohort.start_date.is_(None), Cohort.start_date <= today),
+                or_(Cohort.end_date.is_(None), Cohort.end_date >= today),
+            )
+        else:
+            raise HTTPException(status_code=422, detail="status must be active, completed or upcoming.")
 
     page, page_size = get_page_params(request)
     total = q.count()

@@ -87,6 +87,10 @@ def sync_schema() -> None:
         "migrations.20260927_audit_attendance_org_backfill"
     )
     audit_attendance_migration.upgrade(engine)
+    intern_duration_migration = importlib.import_module(
+        "migrations.20260929_intern_duration_backfill"
+    )
+    intern_duration_migration.upgrade(engine)
     print("[OK] Schema sync complete.")
 
 

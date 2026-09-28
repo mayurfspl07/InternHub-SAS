@@ -389,6 +389,8 @@ def _task_dict(t: Task, *, user: User, db: Session, project: Project) -> dict:
         "status": t.status,
         "priority": t.priority,
         "is_overdue": t.is_overdue,
+        "can_move": _can_move_task(user, project, t, db),
+        "can_edit": _can_edit_task(user, project, t, db),
         "can_delete": _can_delete_task(db, user, project, t),
         "created_at": isoformat_utc(t.created_at),
         "comment_count": len([c for c in t.comments if not c.is_deleted]) if hasattr(t, "comments") and t.comments else 0,
@@ -484,6 +486,13 @@ def _can_move_task(user, project, task, db) -> bool:
     if _can_update_task(user, project, task, db):
         return True
     return user.is_intern and _is_project_member(db, user, project)
+
+
+def _can_edit_task(user, project, task, db) -> bool:
+    """Full edits (title, assignee, dates). Mirrors update_task: other interns may only move status."""
+    if not _can_move_task(user, project, task, db):
+        return False
+    return not user.is_intern or task.assigned_to == user.id or _can_edit(user, project)
 
 
 def _can_delete_task(db, user, project, task) -> bool:
@@ -1184,7 +1193,7 @@ async def update_task(task_id: int, request: Request, db: DbSession, data: TaskU
         raise HTTPException(status_code=403)
     
     payload_dict = await get_payload(request, data)
-    if user.is_intern and task.assigned_to != user.id and not _can_edit(user, project):
+    if not _can_edit_task(user, project, task, db):
         if set(payload_dict.keys()) - {"status"}:
             raise HTTPException(status_code=403, detail="You can only update status on this task.")
 

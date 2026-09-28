@@ -1244,6 +1244,27 @@ def validate_org_internship_duration(db: "Session", org_id: int, duration_months
     return tier, None
 
 
+def resolve_intern_duration(db: "Session", org_id: int, raw) -> tuple[int | None, str | None]:
+    """Duration (months) for an intern account; every intern gets one.
+
+    A supplied value must match one of the org's active tiers; when nothing is
+    supplied the org's default tier is used (or the first active tier). Returns
+    (months, error_detail).
+    """
+    if raw in (None, "", "null", "undefined"):
+        tiers = [t for t in get_or_seed_org_internship_durations(db, org_id) if t.is_active]
+        if not tiers:
+            return None, "This organization has no active internship durations. Add one under Internship durations."
+        default = next((t for t in tiers if t.is_default), tiers[0])
+        return default.duration_months, None
+    try:
+        months = int(raw)
+    except (TypeError, ValueError):
+        return None, "Internship duration must be a whole number of months."
+    tier, error = validate_org_internship_duration(db, org_id, months)
+    return (months, None) if tier else (None, error)
+
+
 def compute_internship_end_date(joining_date, duration_months: int | None):
     """joining_date + duration_months months, clamped to month end."""
     import calendar
