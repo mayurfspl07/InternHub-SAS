@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/api/api_config.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_typography.dart';
 
 class AppAvatar extends StatelessWidget {
   final String? url;
@@ -23,7 +24,7 @@ class AppAvatar extends StatelessWidget {
     final hasUrl = url != null && url!.trim().isNotEmpty;
     final resolved = hasUrl ? ApiConfig.mediaUrl(url!) : null;
 
-    return Container(
+    final avatar = Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
@@ -40,26 +41,26 @@ class AppAvatar extends StatelessWidget {
                 height: size,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => _buildFallback(),
+                loadingBuilder: (context, child, progress) => progress == null ? child : _buildFallback(),
               )
             : _buildFallback(),
       ),
     );
+    final name = fallbackText?.trim() ?? '';
+    return Semantics(image: true, label: name.isEmpty ? 'Profile photo' : name, child: ExcludeSemantics(child: avatar));
   }
 
   Widget _buildFallback() {
+    final initial = fallbackText != null && fallbackText!.trim().isNotEmpty ? fallbackText!.trim()[0].toUpperCase() : null;
     return Container(
       color: AppColors.primarySoft,
       child: Center(
-        child: Text(
-          fallbackText != null && fallbackText!.isNotEmpty
-              ? fallbackText![0].toUpperCase()
-              : '👤',
-          style: TextStyle(
-            fontSize: size * 0.45,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primaryInk,
-          ),
-        ),
+        child: initial == null
+            ? Icon(Icons.person_rounded, size: size * 0.55, color: AppColors.primaryInk)
+            : Text(
+                initial,
+                style: AppTypography.cardTitle.copyWith(fontSize: size * 0.45, color: AppColors.primaryInk),
+              ),
       ),
     );
   }

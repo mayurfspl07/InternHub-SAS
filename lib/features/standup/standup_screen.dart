@@ -9,6 +9,12 @@ import '../../core/state/app_state_provider.dart';
 import '../../shared/models/user_model.dart';
 import 'models/standup_models.dart';
 import 'standup_repository.dart';
+import '../../core/constants/app_typography.dart';
+import '../../shared/widgets/load_error_view.dart';
+import '../../shared/widgets/app_avatar.dart';
+import '../../shared/widgets/pagination_bar.dart';
+import '../../shared/widgets/custom_text_field.dart';
+import '../../core/utils/formatters.dart';
 
 class StandupScreen extends ConsumerStatefulWidget {
   final bool showBackButton;
@@ -41,8 +47,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
   String _searchQuery = '';
   String _selectedMood = 'all'; // all | great | good | okay | bad
   String _activeTab = 'my_standup'; // 'my_standup' | 'team_feed'
-  DateTime _selectedDate = DateTime.now();
-  String _formMood = 'great'; // great, good, okay, bad, terrible
+  String? _formMood; // great | good | okay | tired | stressed; null until picked
 
   @override
   void initState() {
@@ -116,7 +121,8 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
             _didController.text = todayRes.did;
             _planController.text = todayRes.plan;
             _blockersController.text = todayRes.blockers ?? '';
-            _formMood = todayRes.mood.toLowerCase();
+            final mood = todayRes.mood.toLowerCase();
+            _formMood = const ['great', 'good', 'okay', 'tired', 'stressed'].contains(mood) ? mood : null;
           }
         });
       }
@@ -124,7 +130,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = e.toString();
+          _errorMessage = apiErrorMessage(e);
         });
       }
     }
@@ -145,33 +151,40 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
       );
       return;
     }
+    if (_formMood == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pick how your day went'), backgroundColor: AppColors.danger),
+      );
+      return;
+    }
     final blockers = _blockersController.text.trim();
 
     setState(() => _isSubmittingInline = true);
     try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      // Interns can only post today's standup.
+      final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
       if (_todayLog != null) {
         await _repository.updateStandup(
           _todayLog!.id,
           did: did,
           plan: plan,
-          blockers: blockers.isNotEmpty ? blockers : 'No blockers.',
-          mood: _formMood,
+          blockers: blockers,
+          mood: _formMood!,
         );
       } else {
         await _repository.createStandup(
           date: dateStr,
           did: did,
           plan: plan,
-          blockers: blockers.isNotEmpty ? blockers : 'No blockers.',
-          mood: _formMood,
+          blockers: blockers,
+          mood: _formMood!,
         );
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_todayLog != null ? 'Standup updated successfully' : 'Daily standup submitted!'),
+            content: Text(_todayLog != null ? 'Standup updated' : 'Standup posted'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -180,7 +193,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit standup: $e'), backgroundColor: AppColors.danger),
+          SnackBar(content: Text('Failed to submit standup: ${apiErrorMessage(e)}'), backgroundColor: AppColors.danger),
         );
       }
     } finally {
@@ -214,7 +227,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = e.toString();
+          _errorMessage = apiErrorMessage(e);
         });
       }
     }
@@ -227,8 +240,8 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _StandupCreateOrTodayDialog(
-        todayLog: _todayLog,
+      builder: (_) => _StandupFormDialog(
+        log: _todayLog,
         onSuccess: _fetchFeedAndToday,
       ),
     );
@@ -238,7 +251,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _StandupCardEditDialog(
+      builder: (_) => _StandupFormDialog(
         log: log,
         onSuccess: _fetchFeedAndToday,
       ),
@@ -250,12 +263,12 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Delete Standup Entry?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          title: Text('Delete Standup Entry?', style: AppTypography.section.copyWith(fontWeight: FontWeight.w700)),
           content: Text(
             'Are you sure you want to delete this standup entry by ${log.userName ?? "team member"} for ${formatDisplayDate(log.date)}? This action cannot be undone.',
-            style: const TextStyle(fontSize: 14),
+            style: AppTypography.body.copyWith(color: AppColors.ink),
           ),
           actions: [
             TextButton(
@@ -266,7 +279,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
               onPressed: () => Navigator.pop(ctx, true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.danger,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.surface,
               ),
               child: const Text('Delete'),
             ),
@@ -290,7 +303,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to delete: $e'), backgroundColor: AppColors.danger),
+            SnackBar(content: Text('Failed to delete: ${apiErrorMessage(e)}'), backgroundColor: AppColors.danger),
           );
         }
       }
@@ -309,7 +322,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
     final user = state.currentUser;
 
     final bgColor = AppColors.canvas;
-    final cardBg = Colors.white;
+    final cardBg = AppColors.surface;
     final borderColor = AppColors.border;
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
@@ -336,7 +349,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
                         showBack: widget.showBackButton && Navigator.canPop(context),
                         padding: EdgeInsets.zero,
                         actions: [
-                          HeaderAction(icon: Icons.refresh_rounded, onTap: _fetchFeedAndToday),
+                          HeaderAction(icon: Icons.refresh_rounded, tooltip: 'Refresh', onTap: _fetchFeedAndToday),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -380,19 +393,12 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
                                     children: [
                                       Text(
                                         "You've logged today's standup (${formatDisplayDate(_todayLog!.date)})",
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.successInk,
-                                        ),
+                                        style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: AppColors.successInk),
                                       ),
                                       const SizedBox(height: 2),
-                                      const Text(
+                                      Text(
                                         'Need to make adjustments? Switch to My Standup anytime.',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.successInk,
-                                        ),
+                                        style: AppTypography.caption.copyWith(color: AppColors.successInk),
                                       ),
                                     ],
                                   ),
@@ -422,7 +428,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
                                     child: TextField(
                                       controller: _searchController,
                                       onChanged: _onSearchChanged,
-                                      style: TextStyle(fontSize: 13, color: primaryTextColor),
+                                      style: AppTypography.caption.copyWith(color: primaryTextColor),
                                       decoration: InputDecoration(
                                         isDense: true,
                                         contentPadding: EdgeInsets.zero,
@@ -431,7 +437,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
                                         enabledBorder: InputBorder.none,
                                         focusedBorder: InputBorder.none,
                                         hintText: 'Search by team member, accomplishments, plans…',
-                                        hintStyle: TextStyle(fontSize: 13, color: secondaryTextColor),
+                                        hintStyle: AppTypography.caption.copyWith(color: secondaryTextColor),
                                       ),
                                     ),
                                   ),
@@ -503,7 +509,27 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
 
               // If My Standup tab active: show Screen 5 form
               if (_activeTab == 'my_standup')
-                _buildMyStandupForm(cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                if (_isLoading && _todayLog == null)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 60),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  )
+                else if (_errorMessage != null && _todayLog == null)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.p20),
+                      child: LoadErrorView(
+                        title: "Couldn't load your standup",
+                        message: _errorMessage!,
+                        onRetry: _fetchFeedAndToday,
+                        compact: true,
+                      ),
+                    ),
+                  )
+                else
+                  _buildMyStandupForm(cardBg, borderColor, primaryTextColor, secondaryTextColor),
 
               // If Team Feed tab active: show feed slivers
               if (_activeTab == 'team_feed') ...[
@@ -519,25 +545,16 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
               else if (_errorMessage != null)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: AppSpacing.p20),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          const Icon(Icons.error_outline, size: 36, color: AppColors.danger),
-                          const SizedBox(height: 8),
-                          Text(_errorMessage!, style: const TextStyle(color: AppColors.danger)),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _fetchFeedAndToday,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
+                    padding: const EdgeInsets.all(AppSpacing.p20),
+                    child: LoadErrorView(
+                      title: "Couldn't load standups",
+                      message: _errorMessage!,
+                      onRetry: _fetchFeedAndToday,
+                      compact: true,
                     ),
                   ),
                 )
               else if (filtered.isEmpty)
-                // Dashed Card Empty State matching web screenshot
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20, vertical: 12),
@@ -609,40 +626,13 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
               if (_totalPages > 1 && !_isLoading)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 20, AppSpacing.p20, 40),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: _currentPage > 1 ? () => _goToPage(_currentPage - 1) : null,
-                          icon: const Icon(Icons.chevron_left_rounded, size: 18),
-                          label: const Text('Previous'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'Showing page $_currentPage of $_totalPages ($_totalCount total standups)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: secondaryTextColor,
-                            ),
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _currentPage < _totalPages ? () => _goToPage(_currentPage + 1) : null,
-                          icon: const Icon(Icons.chevron_right_rounded, size: 18),
-                          label: const Text('Next'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                        ),
-                      ],
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 12, AppSpacing.p20, 32),
+                    child: PaginationBar(
+                      page: _currentPage,
+                      totalPages: _totalPages,
+                      totalItems: _totalCount,
+                      itemLabel: 'standups',
+                      onPageChanged: _goToPage,
                     ),
                   ),
                 )
@@ -670,7 +660,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
         decoration: BoxDecoration(
           color: isSelected
               ? AppColors.primary
-              : Colors.white,
+              : AppColors.surface,
           borderRadius: BorderRadius.circular(AppSpacing.rPill),
           border: Border.all(
             color: isSelected
@@ -680,11 +670,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? AppColors.onPrimary : AppColors.textSecondary,
-          ),
+          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: isSelected ? AppColors.onPrimary : AppColors.textSecondary),
         ),
       ),
     );
@@ -704,53 +690,24 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
       {'key': 'stressed', 'label': 'Stressed', 'emoji': '😫', 'color': AppColors.danger},
     ];
 
-    final dateFormatted = DateFormat('MMM dd, yyyy').format(_selectedDate);
-
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20, vertical: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. Date Navigator Pill: < Oct 16, 2024 >
+            // The form always edits today's standup (the API accepts today only for interns).
             Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.circular(AppSpacing.rPill),
                   boxShadow: AppShadows.soft,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedDate = _selectedDate.subtract(const Duration(days: 1));
-                        });
-                      },
-                      child: Icon(Icons.chevron_left_rounded, size: 20, color: secondaryTextColor),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      dateFormatted,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: primaryTextColor,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedDate = _selectedDate.add(const Duration(days: 1));
-                        });
-                      },
-                      child: Icon(Icons.chevron_right_rounded, size: 20, color: secondaryTextColor),
-                    ),
-                  ],
+                child: Text(
+                  'Today · ${DateFormat('EEE, d MMM').format(DateTime.now())}',
+                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                 ),
               ),
             ),
@@ -759,11 +716,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
             // 2. "How was your day?" title & Emoji row
             Text(
               'How was your day?',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: primaryTextColor,
-              ),
+              style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
             ),
             const SizedBox(height: 12),
             Row(
@@ -781,7 +734,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
                         height: 52,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: isSelected ? color.withValues(alpha: 0.15) : Colors.white,
+                          color: isSelected ? color.withValues(alpha: 0.15) : AppColors.surface,
                           border: Border.all(
                             color: isSelected ? color : borderColor,
                             width: isSelected ? 2.5 : 1,
@@ -799,18 +752,14 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
                         child: Center(
                           child: Text(
                             m['emoji'] as String,
-                            style: const TextStyle(fontSize: 24),
+                            style: AppTypography.title,
                           ),
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         m['label'] as String,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? color : secondaryTextColor,
-                        ),
+                        style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: isSelected ? color : secondaryTextColor),
                       ),
                     ],
                   ),
@@ -822,11 +771,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
             // 3. "Today's Updates" Section
             Text(
               "Today's Updates",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: primaryTextColor,
-              ),
+              style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
             ),
             const SizedBox(height: 12),
 
@@ -888,11 +833,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
                       )
                     : Text(
                         _todayLog != null ? "Update Standup" : "Submit",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.onPrimary,
-                        ),
+                        style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: AppColors.onPrimary),
                       ),
               ),
             ),
@@ -924,21 +865,17 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: primaryTextColor,
-            ),
+            style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: controller,
             maxLines: 3,
             minLines: 2,
-            style: TextStyle(fontSize: 13, color: primaryTextColor),
+            style: AppTypography.caption.copyWith(color: primaryTextColor),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(fontSize: 13, color: secondaryTextColor.withValues(alpha: 0.6)),
+              hintStyle: AppTypography.caption.copyWith(color: secondaryTextColor.withValues(alpha: 0.6)),
               filled: true,
               fillColor: AppColors.surfaceMuted,
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -983,13 +920,9 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: isSelected
+          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: isSelected
                 ? AppColors.onPrimary
-                : secondaryTextColor,
-          ),
+                : secondaryTextColor),
         ),
       ),
     );
@@ -1017,21 +950,14 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
             const SizedBox(height: 14),
             Text(
               'No standup logs found',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: primaryTextColor,
-              ),
+              style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
             ),
             const SizedBox(height: 6),
             Text(
               hasFilters
                   ? 'Try resetting your search query or mood filter.'
                   : 'No team members have posted standups yet.',
-              style: TextStyle(
-                fontSize: 13,
-                color: secondaryTextColor,
-              ),
+              style: AppTypography.caption.copyWith(color: secondaryTextColor),
               textAlign: TextAlign.center,
             ),
             if (!hasFilters) ...[
@@ -1039,9 +965,9 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
               ElevatedButton.icon(
                 onPressed: onLogFirst,
                 icon: const Icon(Icons.add, size: 16, color: AppColors.ink),
-                label: const Text(
+                label: Text(
                   'Log First Standup',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.ink),
+                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -1070,7 +996,6 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
     required Color secondaryTextColor,
   }) {
     final canManage = canManageLog(log.userId, user);
-    final initial = (log.userName ?? 'T').isNotEmpty ? log.userName![0].toUpperCase() : 'T';
 
     // Mood pill colors
     Color moodBg;
@@ -1082,7 +1007,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
         break;
       case 'good':
         moodBg = AppColors.infoSoft;
-        moodFg = AppColors.info;
+        moodFg = AppColors.infoInk;
         break;
       case 'okay':
         moodBg = AppColors.warningSoft;
@@ -1094,7 +1019,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
         break;
       case 'stressed':
         moodBg = AppColors.dangerSoft;
-        moodFg = AppColors.danger;
+        moodFg = AppColors.dangerInk;
         break;
       default:
         moodBg = AppColors.surfaceMuted;
@@ -1116,34 +1041,12 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
           // Header: User + Mood + Actions
           Row(
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: AppColors.info.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.info.withValues(alpha: 0.25), width: 1),
-                ),
-                child: Center(
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.info,
-                    ),
-                  ),
-                ),
-              ),
+              AppAvatar(size: 34, fallbackText: log.userName ?? ''),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   log.userName ?? 'Team Member',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: primaryTextColor,
-                  ),
+                  style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1159,15 +1062,11 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(getMoodEmoji(log.mood), style: const TextStyle(fontSize: 11)),
+                    Text(getMoodEmoji(log.mood), style: AppTypography.label.copyWith(color: AppColors.ink)),
                     const SizedBox(width: 4),
                     Text(
                       getMoodLabel(log.mood),
-                      style: TextStyle(
-                        color: moodFg,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: AppTypography.label.copyWith(color: moodFg, fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -1175,19 +1074,15 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
               if (canManage) ...[
                 const SizedBox(width: 6),
                 IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 16),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  icon: const Icon(Icons.edit_outlined, size: 18),
                   color: secondaryTextColor,
-                  tooltip: 'Edit Standup',
+                  tooltip: 'Edit standup',
                   onPressed: () => _openEditCardDialog(log),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded, size: 16),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  color: AppColors.danger,
-                  tooltip: 'Delete Standup',
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                  color: AppColors.dangerInk,
+                  tooltip: 'Delete standup',
                   onPressed: () => _confirmDelete(log),
                 ),
               ],
@@ -1198,34 +1093,24 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
           // Accomplished Block
           Text(
             'Accomplished',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: secondaryTextColor,
-              letterSpacing: 0.5,
-            ),
+            style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: secondaryTextColor, letterSpacing: 0.5),
           ),
           const SizedBox(height: 3),
           Text(
             log.did,
-            style: TextStyle(fontSize: 13, color: primaryTextColor),
+            style: AppTypography.caption.copyWith(color: primaryTextColor),
           ),
           const SizedBox(height: 10),
 
           // Plan for Next Block
           Text(
-            'Plan for Next',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: secondaryTextColor,
-              letterSpacing: 0.5,
-            ),
+            'Next',
+            style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: secondaryTextColor, letterSpacing: 0.5),
           ),
           const SizedBox(height: 3),
           Text(
             log.plan,
-            style: TextStyle(fontSize: 13, color: primaryTextColor),
+            style: AppTypography.caption.copyWith(color: primaryTextColor),
           ),
 
           // Blockers Block (only if present and not "None")
@@ -1248,18 +1133,14 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Blockers',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.warningInk,
-                          ),
+                          style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.warningInk),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           log.blockers!,
-                          style: const TextStyle(fontSize: 12, color: AppColors.warningInk),
+                          style: AppTypography.caption.copyWith(color: AppColors.warningInk),
                         ),
                       ],
                     ),
@@ -1280,7 +1161,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
               const SizedBox(width: 5),
               Text(
                 formatDisplayDate(log.date),
-                style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                style: AppTypography.label.copyWith(color: secondaryTextColor),
               ),
               if (log.createdAt.isNotEmpty) ...[
                 const SizedBox(width: 12),
@@ -1288,7 +1169,7 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
                 const SizedBox(width: 5),
                 Text(
                   formatDisplayTime(log.createdAt),
-                  style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                  style: AppTypography.label.copyWith(color: secondaryTextColor),
                 ),
               ],
             ],
@@ -1302,778 +1183,170 @@ class _StandupScreenState extends ConsumerState<StandupScreen> {
 // ============================================================================
 // CREATE OR TODAY STANDUP DIALOG
 // ============================================================================
-class _StandupCreateOrTodayDialog extends StatefulWidget {
-  final StandupLog? todayLog;
+/// Post today's standup, or edit an existing one ([log]).
+/// Validation shows under each field; the dialog is only as tall as its content.
+class _StandupFormDialog extends StatefulWidget {
+  final StandupLog? log;
   final VoidCallback onSuccess;
 
-  const _StandupCreateOrTodayDialog({
-    this.todayLog,
-    required this.onSuccess,
-  });
+  const _StandupFormDialog({this.log, required this.onSuccess});
 
   @override
-  State<_StandupCreateOrTodayDialog> createState() => _StandupCreateOrTodayDialogState();
+  State<_StandupFormDialog> createState() => _StandupFormDialogState();
 }
 
-class _StandupCreateOrTodayDialogState extends State<_StandupCreateOrTodayDialog> {
-  final StandupRepository _repository = StandupRepository();
-  final _formKey = GlobalKey<FormState>();
+class _StandupFormDialogState extends State<_StandupFormDialog> {
+  final _repository = StandupRepository();
+  late final TextEditingController _did;
+  late final TextEditingController _plan;
+  late final TextEditingController _blockers;
+  String? _mood;
+  String? _didError;
+  String? _planError;
+  String? _moodError;
+  String? _serverError;
+  bool _saving = false;
 
-  late TextEditingController _dateController;
-  late TextEditingController _didController;
-  late TextEditingController _planController;
-  late TextEditingController _blockersController;
-  String _selectedMood = 'good';
-
-  bool _isSubmitting = false;
-
-  bool get isUpdate => widget.todayLog != null;
+  bool get _isEdit => widget.log != null;
 
   @override
   void initState() {
     super.initState();
-    final log = widget.todayLog;
-    if (log != null) {
-      _dateController = TextEditingController(text: log.date);
-      _didController = TextEditingController(text: log.did);
-      _planController = TextEditingController(text: log.plan);
-      _blockersController = TextEditingController(text: log.blockers ?? '');
-      _selectedMood = log.mood.toLowerCase();
-    } else {
-      final nowStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      _dateController = TextEditingController(text: nowStr);
-      _didController = TextEditingController();
-      _planController = TextEditingController();
-      _blockersController = TextEditingController();
-      _selectedMood = 'good';
-    }
-
-    _didController.addListener(() => setState(() {}));
-    _planController.addListener(() => setState(() {}));
-    _blockersController.addListener(() => setState(() {}));
+    final log = widget.log;
+    _did = TextEditingController(text: log?.did ?? '');
+    _plan = TextEditingController(text: log?.plan ?? '');
+    final blockers = log?.hasBlockers == true ? log!.blockers! : '';
+    _blockers = TextEditingController(text: blockers);
+    final mood = log?.mood.toLowerCase() ?? '';
+    // Older logs may have no mood (or one no longer offered): start unselected instead of crashing.
+    _mood = standupMoodOptions.any((o) => o.value == mood) ? mood : null;
   }
 
   @override
   void dispose() {
-    _dateController.dispose();
-    _didController.dispose();
-    _planController.dispose();
-    _blockersController.dispose();
+    _did.dispose();
+    _plan.dispose();
+    _blockers.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    final did = _didController.text.trim();
-    if (did.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('What did you accomplish is required'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
-    if (did.length > 1000) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('What did you accomplish cannot exceed 1000 characters'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
+    setState(() {
+      _didError = _did.text.trim().isEmpty ? 'Tell your team what you worked on' : null;
+      _planError = _plan.text.trim().isEmpty ? 'Tell your team what you will work on next' : null;
+      _moodError = _mood == null ? 'Pick how your day went' : null;
+      _serverError = null;
+    });
+    if (_didError != null || _planError != null || _moodError != null) return;
 
-    final plan = _planController.text.trim();
-    if (plan.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('What will you work on is required'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
-    if (plan.length > 1000) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('What will you work on cannot exceed 1000 characters'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
-
-    final blockers = _blockersController.text.trim();
-    if (blockers.length > 1000) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Blockers cannot exceed 1000 characters'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
-
-    setState(() => _isSubmitting = true);
-
+    setState(() => _saving = true);
     try {
-      if (isUpdate) {
+      if (_isEdit) {
         await _repository.updateStandup(
-          widget.todayLog!.id,
-          did: did,
-          plan: plan,
-          blockers: blockers.isNotEmpty ? blockers : 'None',
-          mood: _selectedMood,
+          widget.log!.id,
+          did: _did.text.trim(),
+          plan: _plan.text.trim(),
+          blockers: _blockers.text.trim(),
+          mood: _mood!,
         );
       } else {
         await _repository.createStandup(
-          date: _dateController.text.trim(),
-          did: did,
-          plan: plan,
-          blockers: blockers.isNotEmpty ? blockers : 'None',
-          mood: _selectedMood,
+          date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+          did: _did.text.trim(),
+          plan: _plan.text.trim(),
+          blockers: _blockers.text.trim(),
+          mood: _mood!,
         );
       }
-
-      if (mounted) {
-        Navigator.pop(context);
-        widget.onSuccess();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isUpdate ? 'Standup entry updated' : 'Daily standup logged successfully'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
+      if (!mounted) return;
+      Navigator.pop(context);
+      widget.onSuccess();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_isEdit ? 'Standup updated' : 'Standup posted'), backgroundColor: AppColors.success),
+      );
     } catch (e) {
       if (mounted) {
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
-        );
+        setState(() {
+          _saving = false;
+          _serverError = apiErrorMessage(e);
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = Colors.white;
-    final borderColor = AppColors.border;
-    final primaryTextColor = AppColors.ink;
-    final secondaryTextColor = AppColors.textSecondary;
-
-    return Dialog(
-      backgroundColor: cardBg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Container(
-        width: 540,
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+    final dateLabel = _isEdit ? formatDate(widget.log!.date) : 'Today · ${formatDate(DateTime.now(), withYear: false)}';
+    return AlertDialog(
+      insetPadding: const EdgeInsets.all(16),
+      title: Text(_isEdit ? 'Edit standup' : 'Post standup'),
+      content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 16, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      isUpdate ? "Update Today's Standup" : "Log Daily Standup",
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryTextColor),
-                    ),
+            Text(dateLabel, style: AppTypography.caption),
+            const SizedBox(height: 14),
+            Text('How was your day?', style: AppTypography.bodyStrong),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final m in standupMoodOptions)
+                  ChoiceChip(
+                    label: Text('${m.emoji} ${m.label}'),
+                    selected: _mood == m.value,
+                    onSelected: _saving ? null : (_) => setState(() => _mood = m.value),
                   ),
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceMuted,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close, size: 16),
-                      color: secondaryTextColor,
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
-            const Divider(height: 1),
-
-            // Form Body
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Standup Date * (disabled if todayLog exists)
-                      Text.rich(
-                        TextSpan(
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: secondaryTextColor),
-                          children: const [
-                            TextSpan(text: 'STANDUP DATE '),
-                            TextSpan(text: '*', style: TextStyle(color: AppColors.danger)),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        controller: _dateController,
-                        enabled: !isUpdate,
-                        style: TextStyle(fontSize: 13, color: primaryTextColor),
-                        decoration: InputDecoration(
-                          prefixIcon: Icon(Icons.calendar_today_outlined, size: 16, color: secondaryTextColor),
-                          filled: isUpdate,
-                          fillColor: AppColors.surfaceMuted,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          disabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Accomplished *
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text.rich(
-                            TextSpan(
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: secondaryTextColor),
-                              children: const [
-                                TextSpan(text: 'WHAT DID YOU ACCOMPLISH TODAY? '),
-                                TextSpan(text: '*', style: TextStyle(color: AppColors.danger)),
-                              ],
-                            ),
-                          ),
-                          Text('${_didController.text.length}/1000', style: TextStyle(fontSize: 10, color: secondaryTextColor)),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        controller: _didController,
-                        maxLines: 3,
-                        maxLength: 1000,
-                        buildCounter: (_, {required currentLength, required isFocused, maxLength}) => const SizedBox.shrink(),
-                        style: TextStyle(fontSize: 13, color: primaryTextColor),
-                        decoration: InputDecoration(
-                          hintText: 'Implemented backend API authentication, finished unit tests...',
-                          hintStyle: TextStyle(fontSize: 13, color: secondaryTextColor),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          contentPadding: const EdgeInsets.all(12),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Plan *
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text.rich(
-                            TextSpan(
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: secondaryTextColor),
-                              children: const [
-                                TextSpan(text: 'WHAT WILL YOU WORK ON NEXT? '),
-                                TextSpan(text: '*', style: TextStyle(color: AppColors.danger)),
-                              ],
-                            ),
-                          ),
-                          Text('${_planController.text.length}/1000', style: TextStyle(fontSize: 10, color: secondaryTextColor)),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        controller: _planController,
-                        maxLines: 3,
-                        maxLength: 1000,
-                        buildCounter: (_, {required currentLength, required isFocused, maxLength}) => const SizedBox.shrink(),
-                        style: TextStyle(fontSize: 13, color: primaryTextColor),
-                        decoration: InputDecoration(
-                          hintText: 'Integrate Scalar interactive documentation and verify schemas...',
-                          hintStyle: TextStyle(fontSize: 13, color: secondaryTextColor),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          contentPadding: const EdgeInsets.all(12),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Blockers
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'ANY BLOCKERS OR IMPEDIMENTS? (OPTIONAL)',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: secondaryTextColor),
-                          ),
-                          Text('${_blockersController.text.length}/1000', style: TextStyle(fontSize: 10, color: secondaryTextColor)),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        controller: _blockersController,
-                        maxLines: 2,
-                        maxLength: 1000,
-                        buildCounter: (_, {required currentLength, required isFocused, maxLength}) => const SizedBox.shrink(),
-                        style: TextStyle(fontSize: 13, color: primaryTextColor),
-                        decoration: InputDecoration(
-                          hintText: 'None, or waiting on API schema confirmation...',
-                          hintStyle: TextStyle(fontSize: 13, color: secondaryTextColor),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          contentPadding: const EdgeInsets.all(12),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Mood emoji buttons (Screen 5)
-                      Text(
-                        'HOW WAS YOUR DAY?',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: secondaryTextColor),
-                      ),
-                      const SizedBox(height: 10),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: standupMoodOptions.map((opt) {
-                            final isSelected = _selectedMood == opt.value;
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: GestureDetector(
-                                onTap: () => setState(() => _selectedMood = opt.value),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? AppColors.primary
-                                        : AppColors.surfaceMuted,
-                                    borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? AppColors.primary
-                                          : AppColors.border,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(opt.emoji, style: const TextStyle(fontSize: 15)),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        opt.label,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: isSelected
-                                              ? AppColors.onPrimary
-                                              : AppColors.ink,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            if (_moodError != null) ...[
+              const SizedBox(height: 6),
+              Text(_moodError!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
+            ],
+            const SizedBox(height: 16),
+            CustomTextField(
+              label: 'What did you work on?',
+              controller: _did,
+              maxLines: 3,
+              maxLength: 1000,
+              errorText: _didError,
+              enabled: !_saving,
             ),
-
-            const Divider(height: 1),
-            // Footer Actions
-            Padding(
-              padding: const EdgeInsets.all(18),
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton(
-                    onPressed: _isSubmitting ? null : () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.rPill)),
-                      side: BorderSide(color: AppColors.border),
-                    ),
-                    child: Text(
-                      'Cancel',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    onPressed: _isSubmitting ? null : _submit,
-                    icon: _isSubmitting
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
-                        : const Icon(Icons.near_me_rounded, size: 16, color: AppColors.onPrimary),
-                    label: Text(
-                      _isSubmitting
-                          ? 'Saving…'
-                          : (isUpdate ? 'Update Standup' : 'Submit Standup'),
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.onPrimary),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.onPrimary,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            const SizedBox(height: 12),
+            CustomTextField(
+              label: 'What will you work on next?',
+              controller: _plan,
+              maxLines: 3,
+              maxLength: 1000,
+              errorText: _planError,
+              enabled: !_saving,
             ),
+            const SizedBox(height: 12),
+            CustomTextField(
+              label: 'Anything blocking you? (optional)',
+              controller: _blockers,
+              maxLines: 2,
+              maxLength: 1000,
+              enabled: !_saving,
+            ),
+            if (_serverError != null) ...[
+              const SizedBox(height: 8),
+              Text(_serverError!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
+            ],
           ],
         ),
       ),
-    );
-  }
-}
-
-// ============================================================================
-// EDIT STANDUP DIALOG (FROM CARD)
-// ============================================================================
-class _StandupCardEditDialog extends StatefulWidget {
-  final StandupLog log;
-  final VoidCallback onSuccess;
-
-  const _StandupCardEditDialog({
-    required this.log,
-    required this.onSuccess,
-  });
-
-  @override
-  State<_StandupCardEditDialog> createState() => _StandupCardEditDialogState();
-}
-
-class _StandupCardEditDialogState extends State<_StandupCardEditDialog> {
-  final StandupRepository _repository = StandupRepository();
-  final _formKey = GlobalKey<FormState>();
-
-  late TextEditingController _didController;
-  late TextEditingController _planController;
-  late TextEditingController _blockersController;
-  late String _selectedMood;
-
-  bool _isSubmitting = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _didController = TextEditingController(text: widget.log.did);
-    _planController = TextEditingController(text: widget.log.plan);
-    _blockersController = TextEditingController(text: widget.log.blockers ?? '');
-    _selectedMood = widget.log.mood.toLowerCase();
-
-    _didController.addListener(() => setState(() {}));
-    _planController.addListener(() => setState(() {}));
-    _blockersController.addListener(() => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _didController.dispose();
-    _planController.dispose();
-    _blockersController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    final did = _didController.text.trim();
-    if (did.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('What did you accomplish is required'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
-    if (did.length > 1000) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('What did you accomplish cannot exceed 1000 characters'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
-
-    final plan = _planController.text.trim();
-    if (plan.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('What will you work on is required'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
-    if (plan.length > 1000) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('What will you work on cannot exceed 1000 characters'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
-
-    final blockers = _blockersController.text.trim();
-    if (blockers.length > 1000) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Blockers cannot exceed 1000 characters'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
-
-    setState(() => _isSubmitting = true);
-
-    try {
-      await _repository.updateStandup(
-        widget.log.id,
-        did: did,
-        plan: plan,
-        blockers: blockers.isNotEmpty ? blockers : 'None',
-        mood: _selectedMood,
-      );
-
-      if (mounted) {
-        Navigator.pop(context);
-        widget.onSuccess();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Standup entry updated'), backgroundColor: AppColors.success),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cardBg = Colors.white;
-    final borderColor = AppColors.border;
-    final primaryTextColor = AppColors.ink;
-    final secondaryTextColor = AppColors.textSecondary;
-
-    return Dialog(
-      backgroundColor: cardBg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Container(
-        width: 540,
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 16, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Edit Standup Entry',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryTextColor),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${widget.log.userName ?? "Team Member"} • ${formatDisplayDate(widget.log.date)}',
-                          style: TextStyle(fontSize: 12, color: secondaryTextColor),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceMuted,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close, size: 16),
-                      color: secondaryTextColor,
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-
-            // Form Body
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Accomplished *
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text.rich(
-                            TextSpan(
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: secondaryTextColor),
-                              children: const [
-                                TextSpan(text: 'WHAT DID YOU ACCOMPLISH TODAY? '),
-                                TextSpan(text: '*', style: TextStyle(color: AppColors.danger)),
-                              ],
-                            ),
-                          ),
-                          Text('${_didController.text.length}/1000', style: TextStyle(fontSize: 10, color: secondaryTextColor)),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        controller: _didController,
-                        maxLines: 3,
-                        maxLength: 1000,
-                        buildCounter: (_, {required currentLength, required isFocused, maxLength}) => const SizedBox.shrink(),
-                        style: TextStyle(fontSize: 13, color: primaryTextColor),
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          contentPadding: const EdgeInsets.all(12),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Plan *
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text.rich(
-                            TextSpan(
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: secondaryTextColor),
-                              children: const [
-                                TextSpan(text: 'WHAT WILL YOU WORK ON NEXT? '),
-                                TextSpan(text: '*', style: TextStyle(color: AppColors.danger)),
-                              ],
-                            ),
-                          ),
-                          Text('${_planController.text.length}/1000', style: TextStyle(fontSize: 10, color: secondaryTextColor)),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        controller: _planController,
-                        maxLines: 3,
-                        maxLength: 1000,
-                        buildCounter: (_, {required currentLength, required isFocused, maxLength}) => const SizedBox.shrink(),
-                        style: TextStyle(fontSize: 13, color: primaryTextColor),
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          contentPadding: const EdgeInsets.all(12),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Blockers
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'ANY BLOCKERS OR IMPEDIMENTS? (OPTIONAL)',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: secondaryTextColor),
-                          ),
-                          Text('${_blockersController.text.length}/1000', style: TextStyle(fontSize: 10, color: secondaryTextColor)),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      TextFormField(
-                        controller: _blockersController,
-                        maxLines: 2,
-                        maxLength: 1000,
-                        buildCounter: (_, {required currentLength, required isFocused, maxLength}) => const SizedBox.shrink(),
-                        style: TextStyle(fontSize: 13, color: primaryTextColor),
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
-                          contentPadding: const EdgeInsets.all(12),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Mood dropdown
-                      Text(
-                        'CURRENT MOOD / ENERGY',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: secondaryTextColor),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: borderColor),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedMood,
-                            isExpanded: true,
-                            dropdownColor: cardBg,
-                            icon: Icon(Icons.keyboard_arrow_down_rounded, color: secondaryTextColor),
-                            style: TextStyle(fontSize: 13, color: primaryTextColor),
-                            onChanged: (val) {
-                              if (val != null) setState(() => _selectedMood = val);
-                            },
-                            items: standupMoodOptions.map((opt) {
-                              return DropdownMenuItem<String>(
-                                value: opt.value,
-                                child: Row(
-                                  children: [
-                                    Text(opt.emoji, style: const TextStyle(fontSize: 14)),
-                                    const SizedBox(width: 8),
-                                    Text(opt.label, style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            const Divider(height: 1),
-            // Footer Actions
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton(
-                    onPressed: _isSubmitting ? null : () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.ink,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: AppColors.warning, width: 1),
-                      ),
-                    ),
-                    child: _isSubmitting
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.ink))
-                        : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.ink)),
-                  ),
-                ],
-              ),
-            ),
-          ],
+      actions: [
+        TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: _saving ? null : _submit,
+          child: _saving
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : Text(_isEdit ? 'Save' : 'Post'),
         ),
-      ),
+      ],
     );
   }
 }

@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../shared/widgets/capsule_bar_chart.dart';
+import '../../../core/utils/formatters.dart';
 
 // ==========================================
 // TOKENS & PALETTE
@@ -39,13 +40,13 @@ class DashboardAttendanceChart extends StatelessWidget {
   const DashboardAttendanceChart({
     super.key,
     required this.points,
-    this.title = 'Attendance & Hours Trend',
-    this.subtitle = 'Hours logged over recent sessions',
+    this.title = 'Hours',
+    this.subtitle = 'Hours worked each day',
   });
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = Colors.white;
+    final cardBg = AppColors.surface;
     final borderColor = AppColors.border;
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
@@ -74,16 +75,12 @@ class DashboardAttendanceChart extends StatelessWidget {
                     title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: primaryTextColor,
-                    ),
+                    style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                    style: AppTypography.caption.copyWith(color: secondaryTextColor),
                   ),
                 ],
               ),
@@ -109,11 +106,7 @@ class DashboardAttendanceChart extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(
                       'Hours',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primaryInk,
-                      ),
+                      style: AppTypography.label.copyWith(color: AppColors.primaryInk),
                     ),
                   ],
                 ),
@@ -132,14 +125,16 @@ class DashboardAttendanceChart extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       'No attendance logged yet',
-                      style: TextStyle(fontSize: 13, color: secondaryTextColor),
+                      style: AppTypography.caption.copyWith(color: secondaryTextColor),
                     ),
                   ],
                 ),
               ),
             )
           else
-            SizedBox(
+            Semantics(
+              label: _summary(validPoints),
+              child: SizedBox(
               height: 180,
               child: CustomPaint(
                 size: const Size(double.infinity, 180),
@@ -151,9 +146,18 @@ class DashboardAttendanceChart extends StatelessWidget {
                 ),
               ),
             ),
+            ),
         ],
       ),
     );
+  }
+
+  /// Screen-reader summary of the chart.
+  String _summary(List<DashboardAttendancePoint> pts) {
+    final total = pts.fold<double>(0, (s, p) => s + p.hours);
+    final peak = pts.reduce((a, b) => b.hours > a.hours ? b : a);
+    return 'Hours chart, ${plural(pts.length, 'day')}, ${formatHours(double.parse(total.toStringAsFixed(1)))} in total. '
+        'Busiest day ${formatDate(peak.date, withYear: false)} with ${formatHours(peak.hours)}.';
   }
 }
 
@@ -213,6 +217,8 @@ class _AttendanceAreaChartPainter extends CustomPainter {
 
     final count = points.length;
     final dx = count > 1 ? chartWidth / (count - 1) : chartWidth / 2;
+    // Label every nth point so "28 Sep" labels (about 40px wide) never overlap.
+    final labelEvery = count > 1 ? (44 / dx).ceil().clamp(1, count) : 1;
 
     final linePath = Path();
     final fillPath = Path();
@@ -238,24 +244,16 @@ class _AttendanceAreaChartPainter extends CustomPainter {
         fillPath.cubicTo(midX, prev.dy, midX, y, x, y);
       }
 
-      // X-axis label
-      String label = p.date;
-      if (label.length >= 5) {
-        // e.g. "2026-09-16" -> "09/16" or "Wed"
-        final parts = label.split('-');
-        if (parts.length >= 3) {
-          label = '${parts[1]}/${parts[2]}';
-        }
+      // X-axis label, counted back from the latest day so today is always labelled.
+      if ((count - 1 - i) % labelEvery == 0) {
+        textPainter.text = TextSpan(
+          text: formatDate(p.date, withYear: false),
+          style: AppTypography.label.copyWith(color: textColor, fontSize: 10, fontWeight: FontWeight.w500),
+        );
+        textPainter.layout();
+        final lx = (x - textPainter.width / 2).clamp(0.0, size.width - textPainter.width);
+        textPainter.paint(canvas, Offset(lx, size.height - bottomPadding + 6));
       }
-      textPainter.text = TextSpan(
-        text: label,
-        style: AppTypography.label.copyWith(color: textColor, fontSize: 10, fontWeight: FontWeight.w500),
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(x - textPainter.width / 2, size.height - bottomPadding + 6),
-      );
     }
 
     // Complete fill path
@@ -286,11 +284,14 @@ class _AttendanceAreaChartPainter extends CustomPainter {
 
     // Draw point circles
     final pointPaint = Paint()..color = accentColor;
-    final innerPaint = Paint()..color = Colors.white;
+    final innerPaint = Paint()..color = AppColors.surface;
 
-    for (final pt in pointOffsets) {
-      canvas.drawCircle(pt, 5.0, pointPaint);
-      canvas.drawCircle(pt, 2.5, innerPaint);
+    // Dots only while they have room; a month of points reads better as a line.
+    if (dx >= 14) {
+      for (final pt in pointOffsets) {
+        canvas.drawCircle(pt, 5.0, pointPaint);
+        canvas.drawCircle(pt, 2.5, innerPaint);
+      }
     }
   }
 
@@ -310,12 +311,12 @@ class DashboardStatusDistributionBar extends StatelessWidget {
     required this.title,
     required this.statusCounts,
     required this.colorMap,
-    this.emptyLabel = 'No items found',
+    this.emptyLabel = 'Nothing to show yet',
   });
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = Colors.white;
+    final cardBg = AppColors.surface;
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
 
@@ -334,23 +335,19 @@ class DashboardStatusDistributionBar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: primaryTextColor,
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
-                '$total Total',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: secondaryTextColor,
-                ),
+                '$total total',
+                style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: secondaryTextColor),
               ),
             ],
           ),
@@ -360,12 +357,14 @@ class DashboardStatusDistributionBar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 emptyLabel,
-                style: TextStyle(fontSize: 13, color: secondaryTextColor),
+                style: AppTypography.caption.copyWith(color: secondaryTextColor),
               ),
             )
           else ...[
             // Progress Bar
-            ClipRRect(
+            Semantics(
+              label: entries.map((e) => '${_formatStatusLabel(e.key)} ${e.value}').join(', '),
+              child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: SizedBox(
                 height: 12,
@@ -380,6 +379,7 @@ class DashboardStatusDistributionBar extends StatelessWidget {
                   }).toList(),
                 ),
               ),
+            ),
             ),
             const SizedBox(height: 14),
             // Legend
@@ -403,15 +403,11 @@ class DashboardStatusDistributionBar extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(
                       '$displayName: ',
-                      style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                      style: AppTypography.caption.copyWith(color: secondaryTextColor),
                     ),
                     Text(
                       '${entry.value}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: primaryTextColor,
-                      ),
+                      style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                     ),
                   ],
                 );
@@ -425,28 +421,19 @@ class DashboardStatusDistributionBar extends StatelessWidget {
 
   String _formatStatusLabel(String raw) {
     switch (raw.toLowerCase()) {
-      case 'in_progress':
       case 'inprogress':
       case 'doing':
-        return 'In Progress';
+        return 'In progress';
       case 'done':
-      case 'completed':
-        return 'Completed';
+        return 'Done';
       case 'todo':
-      case 'pending':
-        return 'To Do';
+        return 'To do';
       case 'testing':
-      case 'review':
-        return 'In Review';
-      case 'on_hold':
+        return 'In review';
       case 'onhold':
-        return 'On Hold';
-      case 'planning':
-        return 'Planning';
-      case 'active':
-        return 'Active';
+        return 'On hold';
       default:
-        return raw.substring(0, 1).toUpperCase() + (raw.length > 1 ? raw.substring(1) : '');
+        return humanize(raw);
     }
   }
 }
@@ -507,21 +494,27 @@ class DashboardTaskCapsules extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final done = taskStatus['done'] ?? taskStatus['completed'] ?? 0;
-    final doing = taskStatus['in_progress'] ?? taskStatus['doing'] ?? 0;
-    final todo = taskStatus['todo'] ?? taskStatus['pending'] ?? 0;
-    final review = taskStatus['testing'] ?? taskStatus['review'] ?? 0;
-    final total = done + doing + todo + review;
+    int sum(List<String> keys) => keys.fold(0, (s, k) => s + (taskStatus[k] ?? 0));
+    final done = sum(['done', 'completed']);
+    final doing = sum(['in_progress', 'doing']);
+    final todo = sum(['todo', 'pending']);
+    final review = sum(['testing', 'review', 'in_review']);
+    // Organizations can add their own statuses; count those instead of dropping them.
+    final all = taskStatus.values.fold<int>(0, (s, v) => s + v);
+    final other = all - done - doing - todo - review;
+    final total = all;
     double share(int n) => total == 0 ? 0 : n / total;
 
     return CapsuleBarChart(
       title: title,
-      subtitle: subtitle ?? (total == 0 ? 'No tasks assigned yet' : '$total tasks in total'),
+      subtitle: subtitle ?? (total == 0 ? 'No tasks assigned yet' : '${plural(total, 'task')} in total'),
       data: [
         CapsuleBarDatum(label: 'Done', fraction: share(done), valueLabel: '$done', color: DashboardChartColors.taskDone),
         CapsuleBarDatum(label: 'Doing', fraction: share(doing), valueLabel: '$doing', color: DashboardChartColors.taskInProgress),
         CapsuleBarDatum(label: 'To do', fraction: share(todo), valueLabel: '$todo', color: DashboardChartColors.taskTodo),
         CapsuleBarDatum(label: 'Review', fraction: share(review), valueLabel: '$review', color: DashboardChartColors.taskTesting),
+        if (other > 0)
+          CapsuleBarDatum(label: 'Other', fraction: share(other), valueLabel: '$other', color: AppColors.textTertiary),
         if (overdue > 0)
           CapsuleBarDatum(label: 'Overdue', fraction: share(overdue).clamp(0, 1), valueLabel: '$overdue', color: DashboardChartColors.taskOverdue),
       ],

@@ -28,8 +28,8 @@ class StandupLog {
 
   bool get hasBlockers {
     if (blockers == null) return false;
-    final b = blockers!.trim();
-    return b.isNotEmpty && b.toLowerCase() != 'none';
+    final b = blockers!.trim().toLowerCase().replaceAll('.', '');
+    return b.isNotEmpty && b != 'none' && b != 'no blockers';
   }
 
   factory StandupLog.fromJson(Map<String, dynamic> json) {

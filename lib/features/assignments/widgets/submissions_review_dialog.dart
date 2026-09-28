@@ -5,6 +5,8 @@ import '../../../shared/models/assignment_model.dart';
 import '../assignments_repository.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/file_export_service.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
 
 class SubmissionsReviewDialog extends StatefulWidget {
   final AssignmentItem assignment;
@@ -43,7 +45,9 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
 
   // Track which submission is currently being graded
   int? _gradingSubmissionId;
-  String _gradeStatus = 'approved';
+  // No decision until the reviewer picks one; nothing is pre-approved.
+  String? _gradeStatus;
+  String? _gradeError;
   final TextEditingController _scoreController = TextEditingController();
   final TextEditingController _feedbackController = TextEditingController();
   bool _isSavingReview = false;
@@ -82,7 +86,7 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = e.toString();
+          _errorMessage = apiErrorMessage(e);
         });
       }
     }
@@ -91,11 +95,12 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
   void _openGradingForm(AssignmentSubmission sub) {
     setState(() {
       _gradingSubmissionId = sub.id;
-      _gradeStatus = (sub.status.toLowerCase() == 'submitted' || sub.status.toLowerCase() == 'resubmitted')
-          ? 'approved'
-          : sub.status.toLowerCase();
-      final defaultScore = sub.score ?? widget.assignment.maxScore ?? 100.0;
-      _scoreController.text = defaultScore % 1 == 0 ? defaultScore.toInt().toString() : defaultScore.toString();
+      final current = sub.status.toLowerCase();
+      // Keep an earlier decision; a fresh (re)submission starts undecided.
+      _gradeStatus = const ['approved', 'under_review', 'rejected'].contains(current) ? current : null;
+      _gradeError = null;
+      final score = sub.score;
+      _scoreController.text = score == null ? '' : (score % 1 == 0 ? score.toInt().toString() : score.toString());
       _feedbackController.text = sub.feedback ?? '';
     });
   }
@@ -112,42 +117,40 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
     final scoreVal = double.tryParse(_scoreController.text.trim());
     final maxScore = widget.assignment.maxScore ?? 100.0;
 
-    if (scoreVal != null && (scoreVal < 0 || scoreVal > maxScore)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Score must be between 0 and $maxScore')),
-      );
+    // Problems show in the form; a snackbar would be hidden behind this sheet.
+    String? problem;
+    if (_gradeStatus == null) {
+      problem = 'Choose a decision';
+    } else if (scoreVal != null && (scoreVal < 0 || scoreVal > maxScore)) {
+      problem = 'Score must be between 0 and ${maxScore % 1 == 0 ? maxScore.toInt() : maxScore}';
+    }
+    if (problem != null) {
+      setState(() => _gradeError = problem);
       return;
     }
 
-    setState(() => _isSavingReview = true);
+    setState(() {
+      _isSavingReview = true;
+      _gradeError = null;
+    });
 
     try {
       await AssignmentsRepository().reviewSubmission(
         submissionId,
-        status: _gradeStatus,
+        status: _gradeStatus!,
         score: scoreVal,
         feedback: _feedbackController.text.trim(),
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Review submitted successfully!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Review saved')));
         _cancelGrading();
         await _fetchSubmissions();
         widget.onDataChanged();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to submit review: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
+        setState(() => _gradeError = apiErrorMessage(e));
       }
     } finally {
       if (mounted) {
@@ -158,14 +161,14 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
 
   Future<void> _launchUrl(String url) async {
     final uri = Uri.tryParse(url);
-    if (uri != null && await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open link: $url')),
-        );
-      }
+    var opened = false;
+    try {
+      opened = uri != null && await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      opened = false;
+    }
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Couldn't open $url")));
     }
   }
 
@@ -188,13 +191,12 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
       case 'under_review':
         bg = AppColors.lavender;
         fg = AppColors.lavenderInk;
-        label = 'Under Review';
+        label = 'Under review';
         break;
       case 'resubmitted':
-      case 'needs_revision':
         bg = AppColors.warningSoft;
         fg = AppColors.warningInk;
-        label = 'Needs Revision';
+        label = 'Resubmitted';
         break;
       case 'submitted':
       default:
@@ -212,14 +214,14 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
       ),
       child: Text(
         label,
-        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w700),
+        style: AppTypography.label.copyWith(color: fg, fontWeight: FontWeight.w700),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final surfaceColor = Colors.white;
+    final surfaceColor = AppColors.surface;
     final cardBg = AppColors.surfaceMuted;
     final borderColor = AppColors.border;
     final primaryTextColor = AppColors.ink;
@@ -235,7 +237,7 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
             color: surfaceColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             boxShadow: const [
-              BoxShadow(color: Colors.black26, blurRadius: 20, spreadRadius: 2),
+              BoxShadow(color: Color(0x14000000), blurRadius: 20, spreadRadius: 2),
             ],
           ),
           child: Column(
@@ -275,18 +277,14 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                         children: [
                           Text(
                             'Submissions (${_submissions.length})',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: primaryTextColor,
-                            ),
+                            style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             widget.assignment.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 13, color: secondaryTextColor),
+                            style: AppTypography.caption.copyWith(color: secondaryTextColor),
                           ),
                         ],
                       ),
@@ -315,7 +313,7 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                 const SizedBox(height: 8),
                                 Text('Failed to load submissions', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
                                 const SizedBox(height: 4),
-                                Text(_errorMessage!, style: TextStyle(color: secondaryTextColor, fontSize: 12)),
+                                Text(_errorMessage!, style: AppTypography.caption.copyWith(color: secondaryTextColor)),
                                 const SizedBox(height: 12),
                                 ElevatedButton(onPressed: _fetchSubmissions, child: const Text('Retry')),
                               ],
@@ -332,13 +330,13 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                       const SizedBox(height: 12),
                                       Text(
                                         'No submissions yet',
-                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryTextColor),
+                                        style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         'Enrolled interns have not submitted solutions for this assignment yet.',
                                         textAlign: TextAlign.center,
-                                        style: TextStyle(fontSize: 13, color: secondaryTextColor),
+                                        style: AppTypography.caption.copyWith(color: secondaryTextColor),
                                       ),
                                     ],
                                   ),
@@ -374,7 +372,7 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                               backgroundColor: AppColors.warningSoft,
                                               child: Text(
                                                 sub.displayName.isNotEmpty ? sub.displayName[0].toUpperCase() : 'I',
-                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.warningInk),
+                                                style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.warningInk),
                                               ),
                                             ),
                                             const SizedBox(width: 12),
@@ -384,17 +382,13 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                                 children: [
                                                   Text(
                                                     sub.displayName,
-                                                    style: TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: primaryTextColor,
-                                                    ),
+                                                    style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                                                   ),
                                                   if (sub.userEmail?.isNotEmpty == true) ...[
                                                     const SizedBox(height: 1),
                                                     Text(
                                                       sub.userEmail!,
-                                                      style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                                                      style: AppTypography.caption.copyWith(color: secondaryTextColor),
                                                     ),
                                                   ],
                                                 ],
@@ -412,7 +406,7 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                             const SizedBox(width: 5),
                                             Text(
                                               sub.formattedSubmittedAt,
-                                              style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                                              style: AppTypography.caption.copyWith(color: secondaryTextColor),
                                             ),
                                             if (sub.score != null) ...[
                                               const SizedBox(width: 12),
@@ -423,12 +417,8 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                                   borderRadius: BorderRadius.circular(8),
                                                 ),
                                                 child: Text(
-                                                  'Grade: ${sub.score! % 1 == 0 ? sub.score!.toInt() : sub.score} / ${widget.assignment.maxScore?.toInt() ?? 100}',
-                                                  style: const TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: AppColors.successInk,
-                                                  ),
+                                                  'Score ${sub.score! % 1 == 0 ? sub.score!.toInt() : sub.score} / ${widget.assignment.maxScore?.toInt() ?? 100}',
+                                                  style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.successInk),
                                                 ),
                                               ),
                                             ],
@@ -442,13 +432,13 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                             width: double.infinity,
                                             padding: const EdgeInsets.all(12),
                                             decoration: BoxDecoration(
-                                              color: Colors.white,
+                                              color: AppColors.surface,
                                               borderRadius: BorderRadius.circular(12),
                                               border: Border.all(color: borderColor),
                                             ),
                                             child: Text(
                                               sub.submissionText!.trim(),
-                                              style: TextStyle(fontSize: 13, color: primaryTextColor, height: 1.4),
+                                              style: AppTypography.caption.copyWith(color: primaryTextColor, height: 1.4),
                                             ),
                                           ),
                                         ],
@@ -477,7 +467,7 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                                         const SizedBox(width: 6),
                                                         Text(
                                                           'View Repository',
-                                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: primaryTextColor),
+                                                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: primaryTextColor),
                                                         ),
                                                       ],
                                                     ),
@@ -504,7 +494,7 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                                         const SizedBox(width: 6),
                                                         Text(
                                                           sub.fileName ?? 'Download Solution',
-                                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: primaryTextColor),
+                                                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: primaryTextColor),
                                                         ),
                                                       ],
                                                     ),
@@ -533,11 +523,7 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                                 Expanded(
                                                   child: Text(
                                                     sub.feedback!.trim(),
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: AppColors.warningInk,
-                                                      height: 1.35,
-                                                    ),
+                                                    style: AppTypography.caption.copyWith(color: AppColors.warningInk, height: 1.35),
                                                   ),
                                                 ),
                                               ],
@@ -550,10 +536,7 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                           const SizedBox(height: 14),
                                           Divider(height: 1, color: borderColor),
                                           const SizedBox(height: 12),
-                                          Text(
-                                            'GRADE & REVIEW',
-                                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: primaryTextColor),
-                                          ),
+                                          Text('Your review', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
                                           const SizedBox(height: 8),
                                           Row(
                                             children: [
@@ -563,25 +546,32 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                                 child: DropdownButtonFormField<String>(
                                                   key: ValueKey('grade_${sub.id}_$_gradeStatus'),
                                                   initialValue: _gradeStatus,
-                                                  style: TextStyle(color: primaryTextColor, fontSize: 13),
+                                                  isExpanded: true,
+                                                  hint: const Text('Choose'),
+                                                  style: AppTypography.caption.copyWith(color: primaryTextColor),
                                                   dropdownColor: surfaceColor,
                                                   decoration: InputDecoration(
                                                     labelText: 'Decision',
-                                                    labelStyle: TextStyle(fontSize: 12, color: secondaryTextColor),
+                                                    labelStyle: AppTypography.caption.copyWith(color: secondaryTextColor),
                                                     filled: true,
-                                                    fillColor: Colors.white,
+                                                    fillColor: AppColors.surface,
                                                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                                                     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                                                   ),
+                                                  // "resubmitted" is set by the server when the intern hands in again, so it isn't a reviewer choice.
                                                   items: const [
-                                                    DropdownMenuItem(value: 'approved', child: Text('Approved')),
-                                                    DropdownMenuItem(value: 'under_review', child: Text('Under Review')),
-                                                    DropdownMenuItem(value: 'resubmitted', child: Text('Needs Revision')),
-                                                    DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                                                    DropdownMenuItem(value: 'approved', child: Text('Approve')),
+                                                    DropdownMenuItem(value: 'under_review', child: Text('Still reviewing')),
+                                                    DropdownMenuItem(value: 'rejected', child: Text('Reject (ask to redo)')),
                                                   ],
                                                   onChanged: (val) {
-                                                    if (val != null) setState(() => _gradeStatus = val);
+                                                    if (val != null) {
+                                                      setState(() {
+                                                        _gradeStatus = val;
+                                                        _gradeError = null;
+                                                      });
+                                                    }
                                                   },
                                                 ),
                                               ),
@@ -595,12 +585,13 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                                   inputFormatters: [
                                                     FilteringTextInputFormatter.allow(RegExp(r'^\d{0,10}(\.\d{0,2})?')),
                                                   ],
-                                                  style: TextStyle(color: primaryTextColor, fontSize: 13),
+                                                  style: AppTypography.caption.copyWith(color: primaryTextColor),
                                                   decoration: InputDecoration(
-                                                    labelText: 'Score (Max ${widget.assignment.maxScore?.toInt() ?? 100})',
-                                                    labelStyle: TextStyle(fontSize: 12, color: secondaryTextColor),
+                                                    labelText: 'Score / ${widget.assignment.maxScore?.toInt() ?? 100}',
+                                                    hintText: 'Optional',
+                                                    labelStyle: AppTypography.caption.copyWith(color: secondaryTextColor),
                                                     filled: true,
-                                                    fillColor: Colors.white,
+                                                    fillColor: AppColors.surface,
                                                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                                                     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
@@ -614,21 +605,24 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                             controller: _feedbackController,
                                             maxLines: 3,
                                             minLines: 2,
-                                            style: TextStyle(color: primaryTextColor, fontSize: 13),
+                                            style: AppTypography.caption.copyWith(color: primaryTextColor),
                                             decoration: InputDecoration(
-                                              hintText: 'Constructive feedback or revision instructions for intern...',
-                                              hintStyle: TextStyle(color: secondaryTextColor, fontSize: 12),
+                                              hintText: 'Feedback for the intern (what to keep, what to change)',
+                                              hintStyle: AppTypography.caption.copyWith(color: secondaryTextColor),
                                               filled: true,
-                                              fillColor: Colors.white,
+                                              fillColor: AppColors.surface,
                                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                                               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                                             ),
                                           ),
+                                          if (_gradeError != null) ...[
+                                            const SizedBox(height: 8),
+                                            Text(_gradeError!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
+                                          ],
                                           const SizedBox(height: 12),
-                                          Wrap(
-                                            alignment: WrapAlignment.end,
-                                            runSpacing: 8,
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.end,
                                             children: [
                                               TextButton(
                                                 onPressed: _isSavingReview ? null : _cancelGrading,
@@ -639,14 +633,14 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                                 onPressed: _isSavingReview ? null : () => _submitReview(sub.id),
                                                 style: ElevatedButton.styleFrom(
                                                   backgroundColor: AppColors.primary,
-                                                  foregroundColor: AppColors.ink,
+                                                  foregroundColor: AppColors.onPrimary,
                                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                                   elevation: 0,
-                                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                                  minimumSize: const Size(0, 44),
                                                 ),
                                                 child: _isSavingReview
-                                                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.ink))
-                                                    : const Text('Save Review', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
+                                                    : const Text('Save review'),
                                               ),
                                             ],
                                           ),
@@ -658,16 +652,15 @@ class _SubmissionsReviewDialogState extends State<SubmissionsReviewDialog> {
                                               onPressed: () => _openGradingForm(sub),
                                               icon: const Icon(Icons.rate_review_outlined, size: 15),
                                               label: Text(
-                                                sub.score != null ? 'Edit Grade' : 'Grade Submission',
-                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                                sub.score != null || const ['approved', 'rejected', 'under_review'].contains(sub.status.toLowerCase()) ? 'Change review' : 'Review',
+                                                style: AppTypography.caption.copyWith(color: AppColors.ink, fontWeight: FontWeight.w600),
                                               ),
                                               style: OutlinedButton.styleFrom(
                                                 foregroundColor: primaryTextColor,
                                                 side: BorderSide(color: borderColor),
-                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                padding: const EdgeInsets.symmetric(horizontal: 12),
                                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                                minimumSize: Size.zero,
-                                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                minimumSize: const Size(0, 44),
                                               ),
                                             ),
                                           ),

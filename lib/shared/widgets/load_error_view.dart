@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
+import '../../core/constants/app_typography.dart';
 
 /// Human-readable message for a failed API call.
 String apiErrorMessage(Object error, {String fallback = 'Something went wrong. Please try again.'}) {
   if (error is ApiException) {
-    if (error.isNetworkError) return 'Could not reach the server. Check your connection and try again.';
-    return error.message;
+    return error.message; // already user-facing, including the offline and timeout messages
   }
   return fallback;
 }
@@ -33,7 +33,7 @@ class LoadErrorView extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.all(compact ? 16 : 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: AppShadows.soft,
       ),
@@ -45,13 +45,13 @@ class LoadErrorView extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: compact ? 15 : 18, fontWeight: FontWeight.w700, color: AppColors.ink),
+            style: compact ? AppTypography.cardTitle : AppTypography.section,
           ),
           const SizedBox(height: 6),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: AppTypography.caption,
           ),
           SizedBox(height: compact ? 12 : 18),
           ElevatedButton.icon(
@@ -61,7 +61,8 @@ class LoadErrorView extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.onPrimary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: const StadiumBorder(),
+              minimumSize: const Size(0, 44),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),
           ),

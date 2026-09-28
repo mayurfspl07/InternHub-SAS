@@ -7,6 +7,8 @@ import '../../shared/models/project_model.dart';
 import 'user_360_profile_dialog.dart';
 import 'app_avatar.dart';
 import 'load_error_view.dart';
+import '../../core/constants/app_typography.dart';
+import '../../core/utils/formatters.dart';
 
 class GlobalSearchModal extends StatefulWidget {
   const GlobalSearchModal({super.key});
@@ -27,6 +29,8 @@ class GlobalSearchModal extends StatefulWidget {
 class _GlobalSearchModalState extends State<GlobalSearchModal> {
   final _searchController = TextEditingController();
   Timer? _debounce;
+  // The latest query sent; older responses that arrive late are ignored.
+  String _activeQuery = '';
   bool _isLoading = false;
   String? _error;
 
@@ -44,7 +48,9 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
   void _onSearchChanged(String query) {
     _debounce?.cancel();
     if (query.trim().isEmpty) {
+      _activeQuery = '';
       setState(() {
+        _error = null;
         _users = [];
         _projects = [];
         _tasks = [];
@@ -59,6 +65,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
   }
 
   Future<void> _executeSearch(String query) async {
+    _activeQuery = query;
     setState(() {
       _isLoading = true;
       _error = null;
@@ -70,7 +77,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
       List<Map<String, dynamic>> listOf(String key) =>
           results[key] is List ? (results[key] as List).whereType<Map<String, dynamic>>().toList() : const [];
 
-      if (mounted) {
+      if (mounted && query == _activeQuery) {
         setState(() {
           _users = listOf('users').map(UserModel.fromJson).toList();
           _projects = listOf('projects').map(ProjectModel.fromJson).toList();
@@ -79,7 +86,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && query == _activeQuery) {
         setState(() {
           _isLoading = false;
           _error = apiErrorMessage(e);
@@ -88,14 +95,51 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
     }
   }
 
+  void _openProject(String id) {
+    final projectId = int.tryParse(id);
+    if (projectId == null) return;
+    final navigator = Navigator.of(context);
+    navigator.pop();
+    navigator.pushNamed('/projects/$projectId');
+  }
+
+  Widget _sectionLabel(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(text, style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
+      );
+
+  Widget _emptyState() {
+    if (_error != null) {
+      return LoadErrorView(
+        title: "Search didn't work",
+        message: _error!,
+        compact: true,
+        onRetry: () => _executeSearch(_searchController.text.trim()),
+      );
+    }
+    final text = _searchController.text.isEmpty
+        ? 'Search people, projects and tasks'
+        : (_isLoading ? 'Searching…' : 'No matches for "${_searchController.text.trim()}"');
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(text, textAlign: TextAlign.center, style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.80,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+    final media = MediaQuery.of(context);
+    // Stay clear of the keyboard: shrink the sheet by the keyboard height.
+    return Padding(
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+      child: Container(
+      height: (media.size.height * 0.80 - media.viewInsets.bottom).clamp(240.0, media.size.height),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
         children: [
@@ -117,8 +161,13 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
               controller: _searchController,
               autofocus: true,
               onChanged: _onSearchChanged,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (q) {
+                _debounce?.cancel();
+                if (q.trim().isNotEmpty) _executeSearch(q.trim());
+              },
               decoration: InputDecoration(
-                hintText: 'Search users, projects, tasks...',
+                hintText: 'Search people, projects, tasks',
                 prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primaryInk),
                 suffixIcon: _isLoading
                     ? const Padding(
@@ -127,6 +176,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
                       )
                     : (_searchController.text.isNotEmpty
                         ? IconButton(
+                            tooltip: 'Clear',
                             icon: const Icon(Icons.clear_rounded),
                             onPressed: () {
                               _searchController.clear();
@@ -148,37 +198,24 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
 
           // Search results
           Expanded(
-            child: (_users.isEmpty && _projects.isEmpty && _tasks.isEmpty)
-                ? Center(
-                    child: Text(
-                      _error ??
-                          (_searchController.text.isEmpty
-                              ? 'Type to search across InternHub'
-                              : (_isLoading ? 'Searching…' : 'No results found')),
-                      style: TextStyle(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  )
+            child: (_users.isEmpty && _projects.isEmpty && _tasks.isEmpty) || _error != null
+                ? _emptyState()
                 : ListView(
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     children: [
                       // Users
                       if (_users.isNotEmpty) ...[
-                        Text(
-                          'USERS (${_users.length})',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
+                        _sectionLabel('People (${_users.length})'),
                         ..._users.map((u) => ListTile(
                               contentPadding: EdgeInsets.zero,
                               leading: AppAvatar(url: u.avatarUrl, size: 40, fallbackText: u.name),
-                              title: Text(u.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text('${u.roleTitle} • ${u.department ?? ''}'),
+                              title: Text(u.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.bodyStrong),
+                              subtitle: Text(
+                                [u.roleTitle, if ((u.department ?? '').isNotEmpty) u.department!].join(' · '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                               trailing: const Icon(Icons.chevron_right_rounded),
                               onTap: () {
                                 Navigator.pop(context);
@@ -190,15 +227,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
 
                       // Projects
                       if (_projects.isNotEmpty) ...[
-                        Text(
-                          'PROJECTS (${_projects.length})',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
+                        _sectionLabel('Projects (${_projects.length})'),
                         ..._projects.map((p) => ListTile(
                               contentPadding: EdgeInsets.zero,
                               leading: Container(
@@ -210,50 +239,43 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
                                 ),
                                 child: const Icon(Icons.folder_outlined, color: AppColors.primaryInk),
                               ),
-                              title: Text(p.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text('${(p.progress * 100).toInt()}% progress • ${p.status}'),
+                              title: Text(p.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.bodyStrong),
+                              subtitle: Text(humanize(p.status), maxLines: 1),
                               trailing: const Icon(Icons.chevron_right_rounded),
-                              onTap: () {
-                                Navigator.pop(context);
-                              },
+                              onTap: () => _openProject(p.id),
                             )),
                         const SizedBox(height: 16),
                       ],
 
                       // Tasks
                       if (_tasks.isNotEmpty) ...[
-                        Text(
-                          'TASKS (${_tasks.length})',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
+                        _sectionLabel('Tasks (${_tasks.length})'),
                         ..._tasks.map((t) => ListTile(
                               contentPadding: EdgeInsets.zero,
                               leading: Container(
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: AppColors.cocoa.withValues(alpha: 0.15),
+                                  color: AppColors.surfaceMuted,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: const Icon(Icons.assignment_outlined, color: AppColors.cocoa),
+                                child: const Icon(Icons.assignment_outlined, color: AppColors.ink),
                               ),
-                              title: Text(t.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text('${t.projectName} • ${t.status.label}'),
+                              title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.bodyStrong),
+                              subtitle: Text(
+                                [if (t.projectName.isNotEmpty) t.projectName, humanize(t.rawStatus)].join(' · '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                               trailing: const Icon(Icons.chevron_right_rounded),
-                              onTap: () {
-                                Navigator.pop(context);
-                              },
+                              onTap: () => _openProject(t.projectId),
                             )),
                       ],
                     ],
                   ),
           ),
         ],
+      ),
       ),
     );
   }

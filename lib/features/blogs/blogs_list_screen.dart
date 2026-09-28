@@ -9,6 +9,13 @@ import 'blog_detail_screen.dart';
 import 'blog_repository.dart';
 import 'models/blog_models.dart';
 import 'widgets/blog_editor_dialog.dart';
+import '../../core/constants/app_typography.dart';
+import '../../shared/widgets/load_error_view.dart';
+import '../../core/utils/formatters.dart';
+import '../../shared/widgets/pagination_bar.dart';
+import '../../shared/widgets/app_avatar.dart';
+import '../../shared/widgets/status_chip.dart';
+import '../../core/api/api_config.dart';
 
 class BlogsListScreen extends ConsumerStatefulWidget {
   final bool showBackButton;
@@ -125,7 +132,7 @@ class _BlogsListScreenState extends ConsumerState<BlogsListScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = e.toString();
+          _errorMessage = apiErrorMessage(e);
         });
       }
     }
@@ -158,12 +165,10 @@ class _BlogsListScreenState extends ConsumerState<BlogsListScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Move article to Recycle Bin?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          title: Text('Delete this article?', style: AppTypography.section.copyWith(fontWeight: FontWeight.w700)),
           content: Text(
-            'Are you sure you want to delete "${post.title}"? You can restore it later from the Recycle Bin.',
-            style: const TextStyle(fontSize: 14),
+            '"${post.title}" moves to the recycle bin. You can restore it from there.',
+            style: AppTypography.body.copyWith(color: AppColors.ink),
           ),
           actions: [
             TextButton(
@@ -174,9 +179,9 @@ class _BlogsListScreenState extends ConsumerState<BlogsListScreen> {
               onPressed: () => Navigator.pop(ctx, true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.danger,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.surface,
               ),
-              child: const Text('Move to Bin'),
+              child: const Text('Delete'),
             ),
           ],
         );
@@ -188,17 +193,14 @@ class _BlogsListScreenState extends ConsumerState<BlogsListScreen> {
         await _repository.deleteBlog(post.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Article moved to Recycle Bin'),
-              backgroundColor: AppColors.success,
-            ),
+            const SnackBar(content: Text('Article moved to the recycle bin')),
           );
           _fetchBlogs();
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to delete: $e'), backgroundColor: AppColors.danger),
+            SnackBar(content: Text("Couldn't delete: ${apiErrorMessage(e)}")),
           );
         }
       }
@@ -229,340 +231,259 @@ class _BlogsListScreenState extends ConsumerState<BlogsListScreen> {
     final user = state.currentUser;
     final canManage = canManageBlogs(user);
 
-    final bgColor = AppColors.canvas;
-    final cardBg = Colors.white;
-    final borderColor = AppColors.border;
-    final primaryTextColor = AppColors.ink;
-    final secondaryTextColor = AppColors.textSecondary;
 
     final totalPages = (_totalCount / _perPage).ceil().clamp(1, 999999);
 
+    // The "All & drafts" list comes from an admin endpoint that doesn't filter by tag.
+    final showTags = !(canManage && _viewMode == 'admin_all');
+    final tagIndex = popularTags.indexWhere((tag) =>
+        tag == 'All' ? (_selectedTag == 'all' || _selectedTag.isEmpty) : _selectedTag == tag.toLowerCase());
+
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _fetchBlogs,
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              // Header Section
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 16, AppSpacing.p20, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      PageHeader(
-                        title: 'Blogs',
-                        subtitle: 'Guides, product notes and stories',
-                        showBack: widget.showBackButton && Navigator.canPop(context),
-                        padding: const EdgeInsets.only(bottom: 14),
-                        actions: [
-                          if (canManage)
-                            CircularIconButton(
-                              icon: Icons.add_rounded,
-                              backgroundColor: AppColors.primary,
-                              iconColor: AppColors.onPrimary,
-                              onTap: () => _openEditorDialog(),
+        child: Column(
+          children: [
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _fetchBlogs,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 16, AppSpacing.p20, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            PageHeader(
+                              title: 'Blogs',
+                              subtitle: 'Guides, product notes and stories',
+                              showBack: widget.showBackButton && Navigator.canPop(context),
+                              padding: const EdgeInsets.only(bottom: 14),
+                              actions: [
+                                if (canManage) HeaderAction(icon: Icons.add_rounded, tooltip: 'New article', onTap: () => _openEditorDialog()),
+                              ],
                             ),
-                        ],
-                      ),
-
-                      // Controls Bar (Search Form + Admin Tabs)
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isWide = constraints.maxWidth > 700;
-
-                          final searchBar = Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  height: 42,
-                                  decoration: BoxDecoration(
-                                    color: cardBg,
-                                    borderRadius: BorderRadius.circular(24),
-        boxShadow: AppShadows.soft,
-      ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.search, size: 18, color: secondaryTextColor),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: TextField(
-                                          controller: _searchController,
-                                          onSubmitted: (_) => _onSearchSubmit(),
-                                          style: TextStyle(fontSize: 13, color: primaryTextColor),
-                                          decoration: InputDecoration(
-                                            isDense: true,
-                                            contentPadding: EdgeInsets.zero,
-                                            border: InputBorder.none,
-                                            filled: false,
-                                            enabledBorder: InputBorder.none,
-                                            focusedBorder: InputBorder.none,
-                                            hintText: 'Search articles by title, topic, or content...',
-                                            hintStyle: TextStyle(fontSize: 13, color: secondaryTextColor),
-                                          ),
-                                        ),
-                                      ),
-                                      if (_searchController.text.isNotEmpty)
-                                        GestureDetector(
-                                          onTap: () {
-                                            _searchController.clear();
-                                            _onSearchSubmit();
-                                          },
-                                          child: Icon(Icons.close, size: 16, color: secondaryTextColor),
-                                        ),
-                                    ],
-                                  ),
-                                ),
+                            TextField(
+                              controller: _searchController,
+                              onSubmitted: (_) => _onSearchSubmit(),
+                              onChanged: (_) => setState(() {}),
+                              textInputAction: TextInputAction.search,
+                              decoration: InputDecoration(
+                                hintText: 'Search articles',
+                                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                                suffixIcon: _searchController.text.isNotEmpty
+                                    ? IconButton(
+                                        tooltip: 'Clear search',
+                                        icon: const Icon(Icons.clear_rounded, size: 18),
+                                        onPressed: () {
+                                          _searchController.clear();
+                                          _onSearchSubmit();
+                                        },
+                                      )
+                                    : null,
                               ),
-                              const SizedBox(width: 8),
-                              ElevatedButton(
-                                onPressed: _onSearchSubmit,
-                                style: ElevatedButton.styleFrom(
-                                  minimumSize: const Size(0, 42),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                ),
-                                child: const Text('Search', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                            ),
+                            if (canManage) ...[
+                              const SizedBox(height: 12),
+                              PillFilter(
+                                options: const ['Published', 'All & drafts'],
+                                selectedIndex: _viewMode == 'admin_all' ? 1 : 0,
+                                onSelected: (i) => _onViewModeChanged(i == 1 ? 'admin_all' : 'published'),
                               ),
                             ],
-                          );
-
-                          final adminTabs = canManage
-                              ? Container(
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    color: cardBg,
-                                    borderRadius: BorderRadius.circular(20),
-        boxShadow: AppShadows.soft,
-      ),
-                                  padding: const EdgeInsets.all(3),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      _buildViewTab('published', 'Published'),
-                                      _buildViewTab('admin_all', 'All & Drafts'),
-                                    ],
-                                  ),
-                                )
-                              : const SizedBox.shrink();
-
-                          if (isWide) {
-                            return Row(
-                              children: [
-                                Expanded(child: searchBar),
-                                if (canManage) ...[
-                                  const SizedBox(width: 14),
-                                  adminTabs,
-                                ],
-                              ],
-                            );
-                          } else {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                searchBar,
-                                if (canManage) ...[
-                                  const SizedBox(height: 12),
-                                  adminTabs,
-                                ],
-                              ],
-                            );
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Popular Tag Pills
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: popularTags.map((tag) {
-                            final isAll = tag == 'All';
-                            final isSelected = isAll
-                                ? (_selectedTag == 'all' || _selectedTag.isEmpty)
-                                : (_selectedTag == tag.toLowerCase());
-
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8.0),
-                              child: GestureDetector(
-                                onTap: () => _onTagSelected(isAll ? 'all' : tag),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: isSelected ? AppColors.primary : cardBg,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: isSelected ? Colors.transparent : borderColor,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    tag,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: isSelected ? AppColors.onPrimary : secondaryTextColor,
-                                    ),
-                                  ),
-                                ),
+                            if (showTags) ...[
+                              const SizedBox(height: 12),
+                              PillFilter(
+                                options: popularTags,
+                                selectedIndex: tagIndex,
+                                onSelected: (i) => _onTagSelected(popularTags[i] == 'All' ? 'all' : popularTags[i]),
                               ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Content / Cards Grid
-              if (_isLoading)
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 80),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                )
-              else if (_errorMessage != null)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: AppSpacing.p20),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          const Icon(Icons.error_outline, size: 36, color: AppColors.danger),
-                          const SizedBox(height: 8),
-                          Text(_errorMessage!, style: const TextStyle(color: AppColors.danger)),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _fetchBlogs,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                )
-              else if (_posts.isEmpty)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20, vertical: 30),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-                      decoration: BoxDecoration(
-                        color: cardBg,
-                        borderRadius: BorderRadius.circular(20),
-        boxShadow: AppShadows.soft,
-      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.menu_book_rounded, size: 48, color: secondaryTextColor.withValues(alpha: 0.4)),
-                            const SizedBox(height: 14),
-                            Text(
-                              'No articles found',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryTextColor),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _searchQuery.isNotEmpty || _selectedTag != 'all'
-                                  ? 'Try adjusting your search terms or selecting another tag.'
-                                  : 'No articles have been published yet.',
-                              style: TextStyle(fontSize: 13, color: secondaryTextColor),
-                              textAlign: TextAlign.center,
-                            ),
+                            ],
                           ],
                         ),
                       ),
                     ),
-                  ),
-                )
-              else
-                // 3-Column Responsive Grid
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20, vertical: 8),
-                  sliver: SliverLayoutBuilder(
-                    builder: (context, constraints) {
-                      final width = constraints.crossAxisExtent;
-                      int crossAxisCount = 1;
-                      if (width > 1050) {
-                        crossAxisCount = 3;
-                      } else if (width > 680) {
-                        crossAxisCount = 2;
-                      }
-
-                      return SliverGrid(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          mainAxisExtent: 440,
+                    if (_isLoading && _posts.isEmpty)
+                      const SliverFillRemaining(hasScrollBody: false, child: Center(child: CircularProgressIndicator()))
+                    else if (_errorMessage != null && _posts.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: LoadErrorView(title: "Couldn't load articles", message: _errorMessage!, onRetry: _fetchBlogs),
+                      )
+                    else if (_posts.isEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20, vertical: 32),
+                          child: Column(
+                            children: [
+                              const Icon(Icons.menu_book_rounded, size: 48, color: AppColors.textTertiary),
+                              const SizedBox(height: 14),
+                              Text('No articles found', style: AppTypography.section.copyWith(fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 6),
+                              Text(
+                                _searchQuery.isNotEmpty || (showTags && _selectedTag != 'all')
+                                    ? 'Try another search or tag.'
+                                    : 'Articles appear here once they are published.',
+                                style: AppTypography.caption,
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
                         ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final post = _posts[index];
-                            return _buildBlogCard(
-                              post: post,
-                              canManage: canManage,
-                              cardBg: cardBg,
-                              borderColor: borderColor,
-                              primaryTextColor: primaryTextColor,
-                              secondaryTextColor: secondaryTextColor,
-                            );
-                          },
-                          childCount: _posts.length,
+                      )
+                    else ...[
+                      if (_isLoading) const SliverToBoxAdapter(child: LinearProgressIndicator(minHeight: 2)),
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 8, AppSpacing.p20, 24),
+                        sliver: SliverList.separated(
+                          itemCount: _posts.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 16),
+                          itemBuilder: (context, index) => _buildBlogCard(post: _posts[index], canManage: canManage),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    ],
+                  ],
                 ),
+              ),
+            ),
+            PaginationBar(
+              page: _currentPage,
+              totalPages: totalPages,
+              totalItems: _totalCount,
+              itemLabel: 'articles',
+              isLoading: _isLoading,
+              onPageChanged: _goToPage,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-              // Pagination Footer
-              if (totalPages > 1 && !_isLoading)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 20, AppSpacing.p20, 40),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: _currentPage > 1 ? () => _goToPage(_currentPage - 1) : null,
-                          icon: const Icon(Icons.chevron_left_rounded, size: 18),
-                          label: const Text('Previous'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  Widget _buildBlogCard({required BlogPost post, required bool canManage}) {
+    final readTime = calculateReadingTime(post.content ?? post.excerpt);
+    final displayDate = formatShortDate(post.publishedAt ?? post.createdAt);
+    final cover = post.coverImageUrl?.trim();
+
+    return Container(
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(AppSpacing.r24), boxShadow: AppShadows.soft),
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.r24),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _navigateToDetail(post),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Container(
+                      color: AppColors.surfaceMuted,
+                      child: (cover != null && cover.isNotEmpty)
+                          ? Image.network(
+                              ApiConfig.mediaUrl(cover),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => _buildCardPlaceholder(),
+                            )
+                          : _buildCardPlaceholder(),
+                    ),
+                    if (post.isDraft)
+                      const Positioned(
+                        top: 10,
+                        left: 10,
+                        child: StatusChip(label: 'Draft', statusType: StatusType.warning),
+                      ),
+                    Positioned(
+                      bottom: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: AppColors.ink.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(8)),
+                        child: Text(readTime, style: AppTypography.label.copyWith(color: AppColors.surface)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 6, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(humanize(post.primaryTag), style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.infoInk)),
+                          const SizedBox(height: 6),
+                          Text(
+                            post.title,
+                            style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, height: 1.3),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'Page $_currentPage of $totalPages',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: secondaryTextColor,
+                          if (post.excerpt != null && post.excerpt!.trim().isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              post.excerpt!.trim(),
+                              style: AppTypography.caption.copyWith(height: 1.4),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
                             ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        AppAvatar(fallbackText: post.authorName, size: 28),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${post.authorName} · $displayDate',
+                            style: AppTypography.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        OutlinedButton.icon(
-                          onPressed: _currentPage < totalPages ? () => _goToPage(_currentPage + 1) : null,
-                          icon: const Icon(Icons.chevron_right_rounded, size: 18),
-                          label: const Text('Next'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        if (canManage)
+                          PopupMenuButton<String>(
+                            tooltip: 'Actions for this article',
+                            icon: const Icon(Icons.more_vert_rounded, size: 20, color: AppColors.textSecondary),
+                            onSelected: (v) => v == 'edit' ? _openEditorDialog(post: post) : _confirmDelete(post),
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(
+                                value: 'edit',
+                                child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Edit'), contentPadding: EdgeInsets.zero),
+                              ),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: ListTile(
+                                  leading: Icon(Icons.delete_outline_rounded, color: AppColors.dangerInk),
+                                  title: Text('Delete', style: TextStyle(color: AppColors.dangerInk)),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          const Padding(
+                            padding: EdgeInsets.only(right: 10),
+                            child: Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
                           ),
-                        ),
                       ],
                     ),
-                  ),
-                )
-              else
-                const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -570,278 +491,7 @@ class _BlogsListScreenState extends ConsumerState<BlogsListScreen> {
     );
   }
 
-  Widget _buildViewTab(String mode, String label) {
-    final isSelected = _viewMode == mode;
-    return GestureDetector(
-      onTap: () => _onViewModeChanged(mode),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppSpacing.rPill),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: isSelected
-                ? AppColors.onPrimary
-                : AppColors.textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBlogCard({
-    required BlogPost post,
-    required bool canManage,
-    required Color cardBg,
-    required Color borderColor,
-    required Color primaryTextColor,
-    required Color secondaryTextColor,
-  }) {
-    final readTime = calculateReadingTime(post.content ?? post.excerpt);
-    final displayDate = formatShortDate(post.publishedAt ?? post.createdAt);
-    final initials = getInitials(post.authorName);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(AppSpacing.r24),
-        boxShadow: AppShadows.soft,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Cover Image with Draft & Tag Badges
-          InkWell(
-            onTap: () => _navigateToDetail(post),
-            borderRadius: const BorderRadius.only(topLeft: Radius.circular(18), topRight: Radius.circular(18)),
-            child: Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(18), topRight: Radius.circular(18)),
-                  child: Container(
-                    height: 180,
-                    width: double.infinity,
-                    color: AppColors.surfaceMuted,
-                    child: (post.coverImageUrl != null && post.coverImageUrl!.trim().isNotEmpty)
-                        ? Image.network(
-                            post.coverImageUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => _buildCardPlaceholder(secondaryTextColor),
-                          )
-                        : _buildCardPlaceholder(secondaryTextColor),
-                  ),
-                ),
-
-                // Draft badge
-                if (post.isDraft)
-                  Positioned(
-                    top: 10,
-                    left: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.warningSoft,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.primarySoft),
-                      ),
-                      child: const Text(
-                        'DRAFT',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.5,
-                          color: AppColors.warningInk,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // Read time badge
-                Positioned(
-                  bottom: 10,
-                  right: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      readTime,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Content Area
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // First tag
-                  Text(
-                    post.primaryTag.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                      color: AppColors.info,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-
-                  // Title
-                  InkWell(
-                    onTap: () => _navigateToDetail(post),
-                    child: Text(
-                      post.title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: primaryTextColor,
-                        height: 1.3,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-
-                  // Excerpt (3 lines clamp)
-                  if (post.excerpt != null && post.excerpt!.trim().isNotEmpty)
-                    Expanded(
-                      child: Text(
-                        post.excerpt!,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          height: 1.4,
-                          color: secondaryTextColor,
-                        ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    )
-                  else
-                    const Spacer(),
-
-                  const SizedBox(height: 10),
-                  const Divider(height: 1),
-                  const SizedBox(height: 10),
-
-                  // Footer: Author info + Actions or "Read →"
-                  Row(
-                    children: [
-                      Container(
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          color: AppColors.info.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            initials,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.info,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              post.authorName,
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: primaryTextColor),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              displayDate,
-                              style: TextStyle(fontSize: 10, color: secondaryTextColor),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (canManage) ...[
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined, size: 16),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          color: secondaryTextColor,
-                          tooltip: 'Edit Article',
-                          onPressed: () => _openEditorDialog(post: post),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded, size: 16),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          color: AppColors.danger,
-                          tooltip: 'Move to Bin',
-                          onPressed: () => _confirmDelete(post),
-                        ),
-                      ] else ...[
-                        InkWell(
-                          onTap: () => _navigateToDetail(post),
-                          child: const Row(
-                            children: [
-                              Text(
-                                'Read',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.info,
-                                ),
-                              ),
-                              SizedBox(width: 2),
-                              Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.info),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCardPlaceholder(Color secondaryTextColor) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.menu_book_rounded, size: 36, color: secondaryTextColor.withValues(alpha: 0.3)),
-          const SizedBox(height: 4),
-          Text(
-            'InternHub Blog',
-            style: TextStyle(fontSize: 11, color: secondaryTextColor.withValues(alpha: 0.6)),
-          ),
-        ],
-      ),
-    );
+  Widget _buildCardPlaceholder() {
+    return const Center(child: Icon(Icons.menu_book_rounded, size: 36, color: AppColors.textTertiary));
   }
 }

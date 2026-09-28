@@ -4,6 +4,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/app_colors.dart';
 import '../leave_repository.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
 
 class LeaveAttachmentViewer {
   static Future<void> openAttachment(
@@ -12,32 +14,34 @@ class LeaveAttachmentViewer {
     String? filename,
   }) async {
 
-    // Show loading indicator dialog
+    // Loading dialog; tracked so an error later can't pop the page underneath instead.
+    var loaderOpen = true;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => Center(
-        child: Container(
+      builder: (_) => Dialog(
+        backgroundColor: AppColors.surface,
+        child: Padding(
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Column(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(strokeWidth: 2.5),
-              SizedBox(height: 14),
-              Text('Fetching attachment...', style: TextStyle(fontSize: 13)),
+              const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
+              const SizedBox(width: 14),
+              Text('Opening attachment…', style: AppTypography.body.copyWith(color: AppColors.ink)),
             ],
           ),
         ),
       ),
     );
+    void closeLoader() {
+      if (loaderOpen && context.mounted) Navigator.pop(context);
+      loaderOpen = false;
+    }
 
     try {
       final bytes = await LeaveRepository().getAttachmentBytes(leaveId);
-      if (context.mounted) Navigator.pop(context); // close loader
+      closeLoader();
 
       if (bytes.isEmpty) {
         if (context.mounted) {
@@ -74,7 +78,9 @@ class LeaveAttachmentViewer {
                   top: 10,
                   right: 10,
                   child: IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                    tooltip: 'Close',
+                    style: IconButton.styleFrom(backgroundColor: AppColors.ink.withValues(alpha: 0.7)),
+                    icon: const Icon(Icons.close_rounded, color: AppColors.surface, size: 24),
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ),
@@ -83,11 +89,11 @@ class LeaveAttachmentViewer {
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.ink,
-                      foregroundColor: Colors.white,
+                      foregroundColor: AppColors.surface,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     ),
                     icon: const Icon(Icons.share_rounded, size: 16),
-                    label: const Text('Share / Save'),
+                    label: const Text('Share or save'),
                     onPressed: () async {
                       final tempDir = await getTemporaryDirectory();
                       final safeName = filename ?? 'leave_attachment_$leaveId.jpg';
@@ -107,18 +113,11 @@ class LeaveAttachmentViewer {
         final safeName = filename ?? 'leave_attachment_$leaveId.bin';
         final file = File('${tempDir.path}/$safeName');
         await file.writeAsBytes(bytes);
-        await Share.shareXFiles([XFile(file.path)], text: 'Leave Attachment: $safeName');
+        await Share.shareXFiles([XFile(file.path)], text: 'Leave attachment: $safeName');
       }
     } catch (e) {
-      if (context.mounted) {
-        Navigator.pop(context); // close loader
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load attachment: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
-      }
+      closeLoader();
+      if (context.mounted) showApiError(context, e, prefix: "Couldn't open the attachment");
     }
   }
 }

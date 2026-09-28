@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/api/api_client.dart';
 import '../../shared/widgets/load_error_view.dart';
-import '../../core/api/api_exception.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/project_model.dart';
 import '../../shared/models/user_model.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_typography.dart';
 
 class ProjectFormDialog extends ConsumerStatefulWidget {
   final ProjectModel? projectToEdit;
@@ -44,6 +44,8 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
   bool _isLoading = true;
   String? _loadError;
   bool _isSubmitting = false;
+  // Errors show only after the first Save attempt, then update live.
+  bool _attempted = false;
 
   String? _nameError;
   String? _descError;
@@ -212,21 +214,26 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
 
       // Mentors validation
       if (_selectedMentorIds.isEmpty) {
-        _mentorsError = 'At least 1 mentor is required';
+        _mentorsError = 'Pick at least one mentor';
       } else {
         _mentorsError = null;
       }
 
       // Interns validation
       if (_selectedInternIds.isEmpty) {
-        _internsError = 'At least 1 intern is required';
+        _internsError = 'Pick at least one intern';
       } else {
         _internsError = null;
+      }
+
+      if (!_attempted) {
+        _nameError = _descError = _dateError = _mentorsError = _internsError = null;
       }
     });
   }
 
   Future<void> _submit() async {
+    _attempted = true;
     _validate();
     if (_nameError != null || _descError != null || _dateError != null || _mentorsError != null || _internsError != null) {
       return;
@@ -279,7 +286,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e is ApiException ? e.message : 'Failed to save project: $e'),
+            content: Text(apiErrorMessage(e)),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -306,7 +313,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
     }).toList();
 
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
@@ -336,24 +343,21 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              isEdit ? 'Edit Project' : 'Create New Project',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.ink,
-                              ),
+                              isEdit ? 'Edit project' : 'New project',
+                              style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Configure project details, mentors, sprint timelines, and assigned interns.',
-                              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                              'Name, dates, mentors and interns.',
+                              style: AppTypography.label.copyWith(color: AppColors.textSecondary),
                             ),
                           ],
                         ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close, size: 20),
-                        onPressed: () => Navigator.pop(context),
+                        tooltip: 'Close',
+                        onPressed: _isSubmitting ? null : () => Navigator.pop(context),
                       ),
                     ],
                   ),
@@ -366,11 +370,12 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Project Name
-                          _buildLabel('PROJECT NAME *'),
+                          _buildLabel('Project name'),
                           TextField(
                             controller: _nameController,
+                            textCapitalization: TextCapitalization.words,
                             onChanged: (_) => _validate(),
-                            style: TextStyle(fontSize: 13, color: AppColors.ink),
+                            style: AppTypography.caption.copyWith(color: AppColors.ink),
                             decoration: _inputDecoration(
                               hint: 'e.g. Intern Operations Portal',
                               errorText: _nameError,
@@ -379,12 +384,12 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                           const SizedBox(height: 14),
 
                           // Description
-                          _buildLabel('DESCRIPTION'),
+                          _buildLabel('Description (optional)'),
                           TextField(
                             controller: _descController,
                             maxLines: 2,
                             onChanged: (_) => _validate(),
-                            style: TextStyle(fontSize: 13, color: AppColors.ink),
+                            style: AppTypography.caption.copyWith(color: AppColors.ink),
                             decoration: _inputDecoration(
                               hint: 'Brief summary of objectives and deliverables...',
                               errorText: _descError,
@@ -393,7 +398,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                           const SizedBox(height: 14),
 
                           // Status
-                          _buildLabel('STATUS *'),
+                          _buildLabel('Status'),
                           Container(
                             height: 46,
                             padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -408,7 +413,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                     ? _selectedStatus
                                     : (_projectStatuses.isNotEmpty ? _projectStatuses.first : null),
                                 isExpanded: true,
-                                dropdownColor: Colors.white,
+                                dropdownColor: AppColors.surface,
                                 items: _projectStatuses.map((s) {
                                   return DropdownMenuItem(
                                     value: s,
@@ -425,7 +430,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                         const SizedBox(width: 8),
                                         Text(
                                           s[0].toUpperCase() + s.substring(1).replaceAll('_', ' '),
-                                          style: TextStyle(fontSize: 13, color: AppColors.ink),
+                                          style: AppTypography.caption.copyWith(color: AppColors.ink),
                                         ),
                                       ],
                                     ),
@@ -440,7 +445,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                           const SizedBox(height: 14),
 
                           // Mentors (Multi-select)
-                          _buildLabel('MENTORS *'),
+                          _buildLabel('Mentors'),
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
@@ -454,18 +459,25 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                             ),
                             child: Column(
                               children: [
+                                _selectedChips(_selectedMentorIds, _mentors, (id) {
+                                  final me = ref.read(appStateProvider).currentUser;
+                                  // A mentor can't take themselves off their own project.
+                                  if (me.role == UserRole.mentor && id == me.id) return;
+                                  setState(() => _selectedMentorIds.remove(id));
+                                  _validate();
+                                }),
                                 SizedBox(
                                   height: 36,
                                   child: TextField(
                                     controller: _mentorSearchController,
                                     onChanged: (_) => setState(() {}),
-                                    style: TextStyle(fontSize: 12, color: AppColors.ink),
+                                    style: AppTypography.caption.copyWith(color: AppColors.ink),
                                     decoration: InputDecoration(
-                                      hintText: 'Search mentors by name or email...',
-                                      hintStyle: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                                      hintText: 'Search mentors',
+                                      hintStyle: AppTypography.label.copyWith(color: AppColors.textTertiary),
                                       prefixIcon: const Icon(Icons.search, size: 16, color: AppColors.textTertiary),
                                       filled: true,
-                                      fillColor: Colors.white,
+                                      fillColor: AppColors.surface,
                                       contentPadding: EdgeInsets.zero,
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -480,8 +492,8 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                   child: filteredMentors.isEmpty
                                       ? Center(
                                           child: Text(
-                                            _mentors.isEmpty ? 'Loading mentors...' : 'No mentors match search',
-                                            style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                                            _mentors.isEmpty ? 'No mentors in your organization yet' : 'No mentors match that search',
+                                            style: AppTypography.label.copyWith(color: AppColors.textTertiary),
                                           ),
                                         )
                                       : ListView.builder(
@@ -498,11 +510,11 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                               visualDensity: VisualDensity.compact,
                                               title: Text(
                                                 m['name']?.toString() ?? 'Mentor',
-                                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.ink),
+                                                style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
                                               ),
                                               subtitle: Text(
                                                 m['email']?.toString() ?? '',
-                                                style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                                                style: AppTypography.label.copyWith(color: AppColors.textSecondary),
                                               ),
                                               value: isSelected,
                                               onChanged: isSelfMentor
@@ -527,7 +539,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                           if (_mentorsError != null)
                             Padding(
                                padding: const EdgeInsets.only(top: 4, left: 4),
-                               child: Text(_mentorsError!, style: const TextStyle(fontSize: 11, color: AppColors.danger)),
+                               child: Text(_mentorsError!, style: AppTypography.label.copyWith(color: AppColors.danger)),
                             ),
                           const SizedBox(height: 14),
 
@@ -538,7 +550,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildLabel('START DATE *'),
+                                    _buildLabel('Start date'),
                                     InkWell(
                                       onTap: () async {
                                         final picked = await showDatePicker(
@@ -567,10 +579,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                           children: [
                                             Text(
                                               _startDate != null ? DateFormat('dd/MM/yyyy').format(_startDate!) : 'dd/mm/yyyy',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: _startDate != null ? AppColors.ink : AppColors.textTertiary,
-                                              ),
+                                              style: AppTypography.caption.copyWith(color: _startDate != null ? AppColors.ink : AppColors.textTertiary),
                                             ),
                                             const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textSecondary),
                                           ],
@@ -585,7 +594,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildLabel('END DATE *'),
+                                    _buildLabel('End date'),
                                     InkWell(
                                       onTap: () async {
                                         final picked = await showDatePicker(
@@ -614,10 +623,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                           children: [
                                             Text(
                                               _endDate != null ? DateFormat('dd/MM/yyyy').format(_endDate!) : 'dd/mm/yyyy',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: _endDate != null ? AppColors.ink : AppColors.textTertiary,
-                                              ),
+                                              style: AppTypography.caption.copyWith(color: _endDate != null ? AppColors.ink : AppColors.textTertiary),
                                             ),
                                             const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textSecondary),
                                           ],
@@ -632,12 +638,12 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                           if (_dateError != null)
                             Padding(
                               padding: const EdgeInsets.only(top: 4, left: 4),
-                              child: Text(_dateError!, style: const TextStyle(fontSize: 11, color: AppColors.danger)),
+                              child: Text(_dateError!, style: AppTypography.label.copyWith(color: AppColors.danger)),
                             ),
                           const SizedBox(height: 14),
 
                           // Assign Interns (Multi-select)
-                          _buildLabel('ASSIGN INTERNS *'),
+                          _buildLabel('Interns'),
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
@@ -651,18 +657,22 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                             ),
                             child: Column(
                               children: [
+                                _selectedChips(_selectedInternIds, _interns, (id) {
+                                  setState(() => _selectedInternIds.remove(id));
+                                  _validate();
+                                }),
                                 SizedBox(
                                   height: 36,
                                   child: TextField(
                                     controller: _internSearchController,
                                     onChanged: (_) => setState(() {}),
-                                    style: TextStyle(fontSize: 12, color: AppColors.ink),
+                                    style: AppTypography.caption.copyWith(color: AppColors.ink),
                                     decoration: InputDecoration(
-                                      hintText: 'Search interns by name or email...',
-                                      hintStyle: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                                      hintText: 'Search interns',
+                                      hintStyle: AppTypography.label.copyWith(color: AppColors.textTertiary),
                                       prefixIcon: const Icon(Icons.search, size: 16, color: AppColors.textTertiary),
                                       filled: true,
-                                      fillColor: Colors.white,
+                                      fillColor: AppColors.surface,
                                       contentPadding: EdgeInsets.zero,
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -677,8 +687,8 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                   child: filteredInterns.isEmpty
                                       ? Center(
                                           child: Text(
-                                            _interns.isEmpty ? 'Loading interns...' : 'No interns match search',
-                                            style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                                            _interns.isEmpty ? 'No interns in your organization yet' : 'No interns match that search',
+                                            style: AppTypography.label.copyWith(color: AppColors.textTertiary),
                                           ),
                                         )
                                       : ListView.builder(
@@ -694,11 +704,11 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                                               visualDensity: VisualDensity.compact,
                                               title: Text(
                                                 intern['name']?.toString() ?? 'Intern',
-                                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.ink),
+                                                style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
                                               ),
                                               subtitle: Text(
                                                 intern['email']?.toString() ?? '',
-                                                style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                                                style: AppTypography.label.copyWith(color: AppColors.textSecondary),
                                               ),
                                               value: isSelected,
                                               onChanged: (checked) {
@@ -721,7 +731,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                           if (_internsError != null)
                             Padding(
                               padding: const EdgeInsets.only(top: 4, left: 4),
-                              child: Text(_internsError!, style: const TextStyle(fontSize: 11, color: AppColors.danger)),
+                              child: Text(_internsError!, style: AppTypography.label.copyWith(color: AppColors.danger)),
                             ),
                           const SizedBox(height: 20),
                         ],
@@ -750,7 +760,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                       ElevatedButton(
                         onPressed: _isSubmitting ? null : _submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.warning,
+                          backgroundColor: AppColors.primary,
                           foregroundColor: AppColors.onPrimary,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
@@ -767,17 +777,38 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
     );
   }
 
+  /// The people already picked, so they stay visible while the list below is filtered or scrolled.
+  Widget _selectedChips(Set<String> ids, List<Map<String, dynamic>> people, ValueChanged<String> onRemove) {
+    if (ids.isEmpty) return const SizedBox.shrink();
+    String nameFor(String id) =>
+        people.firstWhere((p) => p['id']?.toString() == id, orElse: () => const {})['name']?.toString() ?? 'Selected';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final id in ids)
+              InputChip(
+                label: Text(nameFor(id), overflow: TextOverflow.ellipsis),
+                onDeleted: _isSubmitting ? null : () => onRemove(id),
+                deleteButtonTooltipMessage: 'Remove',
+                visualDensity: VisualDensity.compact,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-          color: AppColors.textSecondary,
-        ),
+        style: AppTypography.bodyStrong.copyWith(fontSize: 13),
       ),
     );
   }
@@ -786,7 +817,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
     return InputDecoration(
       hintText: hint,
       errorText: errorText,
-      hintStyle: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+      hintStyle: AppTypography.caption.copyWith(color: AppColors.textTertiary),
       filled: true,
       fillColor: AppColors.surfaceMuted,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -800,7 +831,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.warning, width: 1.5),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),

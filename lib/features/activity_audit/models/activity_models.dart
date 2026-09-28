@@ -264,25 +264,6 @@ List<AuditLogEntry> mergeAuditLogsWithAnnouncements({
 }
 
 // Relative time formatting
-String formatRelative(String? dateTimeStr, [DateTime? now]) {
-  if (dateTimeStr == null || dateTimeStr.isEmpty) return 'Unknown time';
-  final dt = DateTime.tryParse(dateTimeStr);
-  if (dt == null) return 'Unknown time';
-
-  final current = now ?? DateTime.now();
-  final diff = current.difference(dt.toLocal());
-
-  if (diff.isNegative) return 'just now';
-  final minutes = diff.inMinutes;
-  final hours = diff.inHours;
-  final days = diff.inDays;
-
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return '${minutes}m ago';
-  if (hours < 24) return '${hours}h ago';
-  return '${days}d ago';
-}
-
 // Exact API datetime formatting
 String formatApiDateTime(String? dateTimeStr) {
   if (dateTimeStr == null || dateTimeStr.isEmpty) return '—';

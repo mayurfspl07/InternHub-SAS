@@ -136,7 +136,7 @@ class Cohort {
       return 'Completed';
     }
 
-    return 'Active Batch';
+    return 'Active';
   }
 
   /// Dates: "Start → End" or "Ongoing batch" if no dates

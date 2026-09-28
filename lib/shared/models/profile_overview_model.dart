@@ -23,7 +23,6 @@ class ProfileOverviewProject {
 
   // Backward compatibility getters
   String get title => name;
-  int get totalTasks => internCount ?? 0;
 
   factory ProfileOverviewProject.fromJson(Map<String, dynamic> json) {
     int toInt(dynamic v, [int fallback = 0]) {
@@ -107,7 +106,7 @@ class ProfileOverviewAttendance {
 
   String get locationAddress => checkIn != null
       ? 'In: $checkIn${checkOut != null ? " • Out: $checkOut" : ""}'
-      : 'Office / Remote';
+      : 'No check-in';
 
   factory ProfileOverviewAttendance.fromJson(Map<String, dynamic> json) {
     double? toDouble(dynamic v) {

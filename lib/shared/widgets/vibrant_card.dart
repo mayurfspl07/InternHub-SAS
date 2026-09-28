@@ -43,8 +43,8 @@ class VibrantCard extends StatelessWidget {
     final resolvedBg = backgroundColor ?? AppColors.surface;
     // Determine text colors based on background luminance if custom color provided
     final isCardLight = resolvedBg.computeLuminance() > 0.5;
-    final textColor = isCardLight ? AppColors.ink : Colors.white;
-    final subtextColor = isCardLight ? AppColors.textSecondary : Colors.white70;
+    final textColor = isCardLight ? AppColors.ink : AppColors.surface;
+    final subtextColor = isCardLight ? AppColors.textSecondary : AppColors.surface.withValues(alpha: 0.7);
 
     return Container(
       decoration: BoxDecoration(
@@ -77,17 +77,15 @@ class VibrantCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
                               color: badgeColor ??
-                                  (isCardLight ? AppColors.primarySoft : Colors.white.withValues(alpha: 0.18)),
+                                  (isCardLight ? AppColors.primarySoft : AppColors.surface.withValues(alpha: 0.18)),
                               borderRadius: BorderRadius.circular(AppSpacing.rPill),
                             ),
                             child: Text(
                               badgeText!,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: badgeColor != null ? Colors.white : (isCardLight ? AppColors.primaryInk : Colors.white),
-                              ),
+                              style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: badgeColor != null
+                                    ? (ThemeData.estimateBrightnessForColor(badgeColor!) == Brightness.dark ? AppColors.surface : AppColors.ink)
+                                    : (isCardLight ? AppColors.primaryInk : AppColors.surface)),
                             ),
                           ),
                         )
@@ -100,13 +98,13 @@ class VibrantCard extends StatelessWidget {
                           width: 36,
                           height: 36,
                           decoration: BoxDecoration(
-                            color: isCardLight ? AppColors.surface : Colors.white.withValues(alpha: 0.2),
+                            color: isCardLight ? AppColors.surface : AppColors.surface.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             Icons.arrow_forward_rounded,
                             size: 18,
-                            color: isCardLight ? AppColors.ink : Colors.white,
+                            color: isCardLight ? AppColors.ink : AppColors.surface,
                           ),
                         ),
                     ],
@@ -117,6 +115,8 @@ class VibrantCard extends StatelessWidget {
                 // Title & Subtitle
                 Text(
                   title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: AppTypography.section.copyWith(
                     color: textColor,
                     fontSize: 18,
@@ -126,6 +126,8 @@ class VibrantCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     subtitle!,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                     style: AppTypography.body.copyWith(
                       color: subtextColor,
                       fontSize: 13,
@@ -153,22 +155,13 @@ class VibrantCard extends StatelessWidget {
                               Text(
                                 metricValue!,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                  color: textColor,
-                                  letterSpacing: -0.5,
-                                ),
+                                style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, color: textColor, letterSpacing: -0.5),
                               ),
                               if (metricLabel != null)
                                 Text(
                                   metricLabel!,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: subtextColor,
-                                  ),
+                                  style: AppTypography.caption.copyWith(color: subtextColor),
                                 ),
                             ],
                           ),

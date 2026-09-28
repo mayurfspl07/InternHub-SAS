@@ -4,8 +4,8 @@ import '../../core/api/auth_storage.dart';
 import '../../core/api/api_config.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/constants/app_colors.dart';
-import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/custom_text_field.dart';
+import '../../core/constants/app_typography.dart';
 
 class ChangePasswordDialog extends StatefulWidget {
   const ChangePasswordDialog({super.key});
@@ -13,6 +13,7 @@ class ChangePasswordDialog extends StatefulWidget {
   static Future<void> show(BuildContext context) {
     return showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (_) => const ChangePasswordDialog(),
     );
   }
@@ -61,10 +62,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password changed successfully!'),
-            backgroundColor: AppColors.success,
-          ),
+          const SnackBar(content: Text('Password changed')),
         );
       }
     } on ApiException catch (e) {
@@ -77,7 +75,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Failed to update password. Please check your current password.';
+          _errorMessage = "Couldn't change your password. Check your current password and try again.";
           _isLoading = false;
         });
       }
@@ -87,8 +85,12 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
   @override
   Widget build(BuildContext context) {
 
-    return AlertDialog(
-      backgroundColor: Colors.white,
+    return PopScope(
+      // Back can't close the dialog mid-request.
+      canPop: !_isLoading,
+      child: AlertDialog(
+      backgroundColor: AppColors.surface,
+      insetPadding: const EdgeInsets.all(16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       title: Row(
         children: [
@@ -102,12 +104,10 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
             child: const Icon(Icons.lock_reset_rounded, color: AppColors.primaryInk, size: 22),
           ),
           const SizedBox(width: 12),
-          Text(
-            'Change Password',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.ink,
+          Expanded(
+            child: Text(
+              'Change password',
+              style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
             ),
           ),
         ],
@@ -122,13 +122,12 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.danger.withValues(alpha: 0.12),
+                    color: AppColors.dangerSoft,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.danger.withValues(alpha: 0.4)),
                   ),
                   child: Text(
                     _errorMessage!,
-                    style: const TextStyle(color: AppColors.danger, fontSize: 12),
+                    style: AppTypography.caption.copyWith(color: AppColors.dangerInk),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -136,33 +135,40 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
 
               // Current Password
               CustomTextField(
-                label: 'Current Password',
-                hintText: 'Enter current password',
+                label: 'Current password',
                 prefixIcon: Icons.lock_outline_rounded,
                 controller: _currentPasswordController,
                 obscureText: _obscureCurrent,
+                autofillHints: const [AutofillHints.password],
+                textInputAction: TextInputAction.next,
+                enabled: !_isLoading,
                 suffixIcon: IconButton(
+                  tooltip: _obscureCurrent ? 'Show password' : 'Hide password',
                   icon: Icon(_obscureCurrent ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 18),
                   onPressed: () => setState(() => _obscureCurrent = !_obscureCurrent),
                 ),
-                validator: (val) => (val == null || val.isEmpty) ? 'Required' : null,
+                validator: (val) => (val == null || val.isEmpty) ? 'Enter your current password' : null,
               ),
               const SizedBox(height: 12),
 
               // New Password
               CustomTextField(
-                label: 'New Password',
-                hintText: 'Min 8 characters',
+                label: 'New password',
+                helperText: ApiConfig.passwordRule,
                 prefixIcon: Icons.vpn_key_outlined,
                 controller: _newPasswordController,
                 obscureText: _obscureNew,
+                autofillHints: const [AutofillHints.newPassword],
+                textInputAction: TextInputAction.next,
+                enabled: !_isLoading,
                 suffixIcon: IconButton(
+                  tooltip: _obscureNew ? 'Show password' : 'Hide password',
                   icon: Icon(_obscureNew ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 18),
                   onPressed: () => setState(() => _obscureNew = !_obscureNew),
                 ),
                 validator: (val) {
-                  if (val == null || val.length < ApiConfig.passwordMin) {
-                    return 'Password must be at least 8 characters';
+                  if (val == null || !ApiConfig.isValidPassword(val)) {
+                    return ApiConfig.passwordRule;
                   }
                   return null;
                 },
@@ -171,14 +177,17 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
 
               // Confirm Password
               CustomTextField(
-                label: 'Confirm New Password',
-                hintText: 'Re-enter new password',
+                label: 'Confirm new password',
                 prefixIcon: Icons.lock_outline_rounded,
                 controller: _confirmPasswordController,
                 obscureText: _obscureNew,
+                autofillHints: const [AutofillHints.newPassword],
+                textInputAction: TextInputAction.done,
+                enabled: !_isLoading,
+                onFieldSubmitted: (_) => _handleSubmit(),
                 validator: (val) {
                   if (val != _newPasswordController.text) {
-                    return 'Passwords do not match';
+                    return "Passwords don't match";
                   }
                   return null;
                 },
@@ -192,12 +201,21 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
           onPressed: _isLoading ? null : () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        CustomButton(
-          text: 'Update Password',
-          isLoading: _isLoading,
-          onPressed: _handleSubmit,
+        ElevatedButton(
+          onPressed: _isLoading ? null : _handleSubmit,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.onPrimary,
+            minimumSize: const Size(0, 44),
+            elevation: 0,
+            shape: const StadiumBorder(),
+          ),
+          child: _isLoading
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
+              : const Text('Change password'),
         ),
       ],
+      ),
     );
   }
 }

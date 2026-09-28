@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/metric_header.dart';
-import '../../core/constants/app_spacing.dart';
-import '../attendance/attendance_home_screen.dart';
-import '../projects_tasks/projects_list_screen.dart';
+import '../../core/utils/formatters.dart';
+import '../projects_tasks/project_detail_screen.dart';
+import '../projects_tasks/project_form_dialog.dart';
 import '../activity_audit/activity_timeline_screen.dart';
 import 'dashboard_repository.dart';
+import 'main_navigation_wrapper.dart';
 import 'models/dashboard_models.dart';
 import 'widgets/dashboard_charts.dart';
 import 'widgets/dashboard_shared.dart';
+import 'widgets/dashboard_tiles.dart';
+import '../../core/constants/app_typography.dart';
+import '../../shared/widgets/app_avatar.dart';
+import '../../shared/widgets/load_error_view.dart';
+import '../../shared/widgets/status_chip.dart';
 
 class MentorDashboardView extends ConsumerStatefulWidget {
   const MentorDashboardView({super.key});
@@ -32,67 +38,84 @@ class _MentorDashboardViewState extends ConsumerState<MentorDashboardView> {
     _loadDashboard();
   }
 
-  Future<void> _loadDashboard() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  /// [silent] keeps the current content on screen while refreshing.
+  Future<void> _loadDashboard({bool silent = false}) async {
+    if (!silent || _dashboardData == null) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final data = await _repository.getMentorDashboard();
       if (mounted) {
         setState(() {
           _dashboardData = data;
+          _errorMessage = null;
           _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (!mounted) return;
+      if (silent && _dashboardData != null) {
+        showApiError(context, e, prefix: "Couldn't refresh");
+      } else {
         setState(() {
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _errorMessage = apiErrorMessage(e);
           _isLoading = false;
         });
       }
     }
   }
 
-  Future<void> _handleLeaveReview(int id, String decision) async {
-    if (_processingLeaveIds.contains(id)) return;
+  void _goToTab(int tab) => ref.read(mainTabProvider.notifier).state = tab;
 
-    setState(() {
-      _processingLeaveIds.add(id);
-    });
+  Future<void> _push(Route<dynamic> route) async {
+    await Navigator.of(context).push(route);
+    if (mounted) await _loadDashboard(silent: true);
+  }
 
+  void _openProject(int id) => _push(MaterialPageRoute(builder: (_) => ProjectDetailScreen(projectId: id)));
+
+  void _openInternAttendance(MentorDashboardIntern intern) async {
+    await Navigator.of(context).pushNamed('/attendance/${intern.userId}');
+    if (mounted) await _loadDashboard(silent: true);
+  }
+
+  void _createProject() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => ProjectFormDialog(onSuccess: () => _loadDashboard(silent: true)),
+    );
+  }
+
+  Future<void> _handleLeaveReview(MentorDashboardLeaveRequest leave, String decision) async {
+    if (_processingLeaveIds.contains(leave.id)) return;
+
+    String? comment;
+    if (decision == 'rejected') {
+      comment = await askRejectReason(context, leave.userName);
+      if (comment == null || !mounted) return;
+    }
+
+    setState(() => _processingLeaveIds.add(leave.id));
     try {
-      await _repository.reviewLeave(id, decision: decision);
+      await _repository.reviewLeave(leave.id, decision: decision, comment: comment);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              decision == 'approved' ? 'Leave request approved' : 'Leave request rejected',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            backgroundColor: decision == 'approved' ? AppColors.success : AppColors.danger,
+            content: Text(decision == 'approved' ? 'Leave approved' : 'Leave rejected'),
             behavior: SnackBarBehavior.floating,
           ),
         );
-        _loadDashboard();
+        await _loadDashboard(silent: true);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update leave: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
-      }
+      if (mounted) showApiError(context, e, prefix: "Couldn't update the leave request");
     } finally {
-      if (mounted) {
-        setState(() {
-          _processingLeaveIds.remove(id);
-        });
-      }
+      if (mounted) setState(() => _processingLeaveIds.remove(leave.id));
     }
   }
 
@@ -108,7 +131,7 @@ class _MentorDashboardViewState extends ConsumerState<MentorDashboardView> {
       return Scaffold(
         body: SafeArea(
           child: DashboardErrorState(
-            message: _errorMessage ?? 'Failed to load mentor dashboard',
+            message: _errorMessage ?? "Couldn't load your dashboard",
             onRetry: _loadDashboard,
           ),
         ),
@@ -116,16 +139,12 @@ class _MentorDashboardViewState extends ConsumerState<MentorDashboardView> {
     }
 
     final data = _dashboardData!;
-    final cardBg = Colors.white;
-    final borderColor = AppColors.border;
-    final primaryTextColor = AppColors.ink;
-    final secondaryTextColor = AppColors.textSecondary;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _loadDashboard,
+          onRefresh: () => _loadDashboard(silent: true),
           color: AppColors.primary,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -133,12 +152,14 @@ class _MentorDashboardViewState extends ConsumerState<MentorDashboardView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1) HEADLINE METRIC
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
                   child: Column(
                     children: [
-                      MetricHeader(value: '${data.stats.presentToday}', subtitle: 'of ${data.stats.assignedInternsCount} interns checked in today'),
+                      MetricHeader(
+                        value: '${data.stats.presentToday}',
+                        subtitle: 'of ${plural(data.stats.assignedInternsCount, 'intern')} checked in today',
+                      ),
                       const SizedBox(height: 16),
                       Wrap(
                         alignment: WrapAlignment.center,
@@ -146,31 +167,25 @@ class _MentorDashboardViewState extends ConsumerState<MentorDashboardView> {
                         runSpacing: 8,
                         children: [
                           OutlinedButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const AttendanceHomeScreen()),
-                              );
-                            },
+                            onPressed: () => _goToTab(MainTab.attendance),
                             icon: const Icon(Icons.co_present_outlined, size: 16),
                             label: const Text('Attendance'),
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              minimumSize: const Size(0, 44),
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              shape: const StadiumBorder(),
                             ),
                           ),
                           ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const ProjectsListScreen()),
-                              );
-                            },
+                            onPressed: _createProject,
                             icon: const Icon(Icons.add_rounded, size: 16),
-                            label: const Text('New Project'),
+                            label: const Text('New project'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: AppColors.onPrimary,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              minimumSize: const Size(0, 44),
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              shape: const StadiumBorder(),
                               elevation: 0,
                             ),
                           ),
@@ -181,102 +196,81 @@ class _MentorDashboardViewState extends ConsumerState<MentorDashboardView> {
                 ),
                 const SizedBox(height: 22),
 
-                // 2) HERO PRESENCE & KPIS
-                _buildHeroPresenceStrip(data.stats, cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                _buildHeroPresenceStrip(data.stats),
                 const SizedBox(height: 20),
 
-                // 3) CHARTS
                 _buildChartsSection(data),
                 const SizedBox(height: 20),
 
-                // 4) ASSIGNED INTERNS GRID
                 DashboardSectionTitle(
-                  title: 'Assigned Interns',
+                  title: 'My interns',
                   count: data.assignedInterns.length,
-                  actionLabel: 'All Attendance →',
-                  onAction: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AttendanceHomeScreen()),
-                    );
-                  },
+                  actionLabel: 'See all',
+                  onAction: () => _goToTab(MainTab.attendance),
                 ),
                 if (data.assignedInterns.isEmpty)
                   DashboardEmptyCard(
                     icon: Icons.people_outline_rounded,
                     title: 'No interns assigned',
-                    subtitle: 'Interns assigned to your cohorts will appear here.',
+                    subtitle: 'Interns in your cohorts will appear here.',
                   )
                 else
-                  _buildInternsGrid(data.assignedInterns, cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                  _buildInternsGrid(data.assignedInterns),
                 const SizedBox(height: 20),
 
-                // 5) ACTIVE PROJECTS
                 DashboardSectionTitle(
-                  title: 'Active Projects',
+                  title: 'Active projects',
                   count: data.activeProjects.length,
-                  actionLabel: 'Manage All →',
-                  onAction: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ProjectsListScreen()),
-                    );
-                  },
+                  actionLabel: 'See all',
+                  onAction: () => _goToTab(MainTab.projects),
                 ),
                 if (data.activeProjects.isEmpty)
                   DashboardEmptyCard(
                     icon: Icons.folder_open_rounded,
                     title: 'No active projects',
-                    subtitle: 'Create a new sprint project to get started.',
-                    actionLabel: 'Create Project',
-                    onAction: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const ProjectsListScreen()),
-                      );
-                    },
+                    subtitle: 'Create a project to start assigning tasks.',
+                    actionLabel: 'New project',
+                    onAction: _createProject,
                   )
                 else
-                  _buildProjectsList(data.activeProjects, cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                  _buildProjectsList(data.activeProjects),
                 const SizedBox(height: 20),
 
-                // 6) OPEN & OVERDUE TASKS
                 DashboardSectionTitle(
-                  title: 'Team Open Tasks',
+                  title: 'Open tasks',
                   count: data.openTasks.length,
                 ),
                 if (data.openTasks.isEmpty)
                   DashboardEmptyCard(
                     icon: Icons.task_alt_rounded,
                     title: 'No open tasks',
-                    subtitle: 'All assigned tasks have been completed.',
+                    subtitle: 'Every assigned task is done.',
                   )
                 else
-                  _buildTasksList(data.openTasks, cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                  _buildTasksList(data.openTasks),
                 const SizedBox(height: 20),
 
-                // 7) PENDING LEAVE REQUESTS
                 DashboardSectionTitle(
-                  title: 'Pending Leave Approvals',
+                  title: 'Leave to review',
                   count: data.pendingLeaveRequests.length,
+                  actionLabel: 'See all',
+                  onAction: () => _goToTab(MainTab.leave),
                 ),
                 if (data.pendingLeaveRequests.isEmpty)
                   DashboardEmptyCard(
                     icon: Icons.event_available_rounded,
-                    title: 'No pending leave requests',
-                    subtitle: 'All leave requests from your interns are processed.',
+                    title: 'Nothing to review',
+                    subtitle: "New leave requests from your interns show up here.",
                   )
                 else
-                  _buildPendingLeavesList(data.pendingLeaveRequests, cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                  _buildPendingLeavesList(data.pendingLeaveRequests),
                 const SizedBox(height: 20),
 
-                // 8) RECENT ACTIVITY
                 DashboardSectionTitle(
-                  title: 'Recent Activity',
+                  title: 'Recent activity',
                   count: data.recentActivity.length,
-                  actionLabel: 'View Full Timeline →',
-                  onAction: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ActivityTimelineScreen()),
-                    );
-                  },
+                  actionLabel: 'See all',
+                  onAction: () => _push(MaterialPageRoute(builder: (_) => const ActivityTimelineScreen())),
                 ),
                 DashboardActivityTimeline(
                   activities: data.recentActivity,
@@ -291,29 +285,17 @@ class _MentorDashboardViewState extends ConsumerState<MentorDashboardView> {
     );
   }
 
-  // ==========================================
-  // SECTION BUILDERS
-  // ==========================================
-
-  Widget _buildHeroPresenceStrip(
-    MentorDashboardStats stats,
-    Color cardBg,
-    Color borderColor,
-    Color primaryTextColor,
-    Color secondaryTextColor,
-  ) {
-
+  Widget _buildHeroPresenceStrip(MentorDashboardStats stats) {
     return Column(
       children: [
         DashboardPresenceCapsules(
-          title: "Today's Attendance",
-          subtitle: 'Real-time check-in presence overview',
+          title: "Today's attendance",
+          subtitle: 'Your interns right now',
           present: stats.presentToday,
           absent: stats.absentToday,
-          onLeave: stats.pendingLeave,
+          onLeave: stats.onLeaveToday,
         ),
         const SizedBox(height: 12),
-        // KPI Strip
         LayoutBuilder(
           builder: (context, constraints) {
             int crossAxisCount = 2;
@@ -325,37 +307,37 @@ class _MentorDashboardViewState extends ConsumerState<MentorDashboardView> {
 
             final items = [
               DashboardKpiCard(
-                title: 'Assigned Interns',
+                title: 'Interns',
                 value: '${stats.assignedInternsCount}',
-                subtitle: 'Active cohort roster',
+                subtitle: 'In your cohorts',
                 icon: Icons.people_alt_rounded,
-                iconColor: AppColors.primary,
+                iconColor: AppColors.primaryInk,
               ),
               DashboardKpiCard(
-                title: 'Active Projects',
+                title: 'Active projects',
                 value: '${stats.activeProjects}/${stats.totalProjects}',
-                subtitle: 'In sprint progress',
+                subtitle: 'Active of total',
                 icon: Icons.folder_special_rounded,
-                iconColor: AppColors.info,
+                iconColor: AppColors.infoInk,
               ),
               DashboardKpiCard(
-                title: 'Open Tasks',
+                title: 'Open tasks',
                 value: '${stats.openTasks}',
-                subtitle: stats.overdueTasks > 0 ? '⚠️ ${stats.overdueTasks} overdue' : 'On schedule',
-                icon: Icons.assignment_turned_in_rounded,
-                iconColor: stats.overdueTasks > 0 ? AppColors.danger : AppColors.success,
+                subtitle: stats.overdueTasks > 0 ? '${stats.overdueTasks} overdue' : 'None overdue',
+                icon: stats.overdueTasks > 0 ? Icons.warning_amber_rounded : Icons.assignment_turned_in_rounded,
+                iconColor: stats.overdueTasks > 0 ? AppColors.dangerInk : AppColors.successInk,
               ),
               DashboardKpiCard(
-                title: 'Total Hours',
-                value: '${stats.totalHours.toStringAsFixed(1)}h',
-                subtitle: 'Logged across team',
+                title: 'Hours logged',
+                value: formatHours(stats.totalHours),
+                subtitle: 'Last 30 days',
                 icon: Icons.timer_outlined,
-                iconColor: AppColors.warning,
+                iconColor: AppColors.warningInk,
               ),
               DashboardKpiCard(
-                title: 'Pending Leaves',
+                title: 'Leave to review',
                 value: '${stats.pendingLeave}',
-                subtitle: 'Awaiting your approval',
+                subtitle: 'Waiting for you',
                 icon: Icons.event_note_rounded,
                 iconColor: AppColors.peachInk,
               ),
@@ -369,10 +351,6 @@ class _MentorDashboardViewState extends ConsumerState<MentorDashboardView> {
   }
 
   Widget _buildChartsSection(MentorDashboardData data) {
-    final taskMap = data.taskStatus;
-    final overdueCount = data.stats.overdueTasks;
-
-
     const projectColors = {
       'planning': DashboardChartColors.projectPlanning,
       'active': DashboardChartColors.projectActive,
@@ -385,339 +363,57 @@ class _MentorDashboardViewState extends ConsumerState<MentorDashboardView> {
       children: [
         DashboardAttendanceChart(
           points: data.attendanceChart,
-          title: 'Intern Attendance Hours',
-          subtitle: 'Daily cumulative team hours worked',
+          title: 'Intern hours',
+          subtitle: 'Hours your interns worked each day, last 30 days',
         ),
         const SizedBox(height: 16),
         DashboardStatusDistributionBar(
-          title: 'Projects by Status',
+          title: 'Projects by status',
           statusCounts: data.projectStatus,
           colorMap: projectColors,
         ),
         const SizedBox(height: 16),
         DashboardTaskCapsules(
-          title: 'Intern Tasks',
-          taskStatus: taskMap,
-          overdue: overdueCount,
+          title: 'Intern tasks',
+          taskStatus: data.taskStatus,
+          overdue: data.stats.overdueTasks,
         ),
       ],
     );
   }
 
-  Widget _buildInternsGrid(
-    List<MentorDashboardIntern> interns,
-    Color cardBg,
-    Color borderColor,
-    Color primaryTextColor,
-    Color secondaryTextColor,
-  ) {
+  Widget _buildInternsGrid(List<MentorDashboardIntern> interns) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        int cols = 1;
-        if (constraints.maxWidth >= 900) {
-          cols = 3;
-        } else if (constraints.maxWidth >= 600) {
-          cols = 2;
-        }
+        final cols = constraints.maxWidth >= 900 ? 3 : (constraints.maxWidth >= 600 ? 2 : 1);
+        const gap = 12.0;
+        final width = (constraints.maxWidth - gap * (cols - 1)) / cols;
 
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: interns.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: cols,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: cols == 1 ? 2.6 : 1.6,
-          ),
-          itemBuilder: (context, index) {
-            final intern = interns[index];
-            final bool isPresent = intern.isPresent;
-            final Color statusColor = isPresent ? AppColors.success : AppColors.textTertiary;
-
-            return Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(AppSpacing.rTile),
-        boxShadow: AppShadows.soft,
-      ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          if (intern.checkInPhotoUrl != null) {
-                            showPhotoModal(context, intern.checkInPhotoUrl, '${intern.name} Check-in Photo');
-                          }
-                        },
-                        child: Stack(
-                          children: [
-                            Container(
-                              width: 42,
-                              height: 42,
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceMuted,
-                                shape: BoxShape.circle,
-                              ),
-                              child: (intern.checkInPhotoUrl != null && intern.checkInPhotoUrl!.trim().isNotEmpty)
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(21),
-                                      child: Image.network(
-                                        intern.checkInPhotoUrl!,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) => Center(
-                                          child: Text(
-                                            getInitials(intern.name),
-                                            style: TextStyle(fontWeight: FontWeight.w700),
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                  : Center(
-                                      child: Text(
-                                        getInitials(intern.name),
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.textSecondary,
-                                        ),
-                                      ),
-                                    ),
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: statusColor,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: cardBg, width: 2),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              intern.name,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: primaryTextColor,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              intern.department ?? intern.email,
-                              style: TextStyle(fontSize: 11, color: secondaryTextColor),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          intern.todayStatus.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: statusColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Metrics footer
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        intern.checkIn != null ? 'In: ${intern.checkIn}' : 'Not logged',
-                        style: TextStyle(fontSize: 11, color: secondaryTextColor),
-                      ),
-                      Text(
-                        '${intern.hoursWorked.toStringAsFixed(1)}h worked',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: primaryTextColor,
-                        ),
-                      ),
-                      if (intern.streak > 0)
-                        Text(
-                          '🔥 ${intern.streak}d',
-                          style: const TextStyle(fontSize: 11, color: AppColors.warning),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
+        // Wrap instead of a fixed-ratio grid so cards grow with larger text.
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [for (final intern in interns) SizedBox(width: width, child: _internCard(intern))],
         );
       },
     );
   }
 
-  Widget _buildProjectsList(
-    List<MentorDashboardProject> projects,
-    Color cardBg,
-    Color borderColor,
-    Color primaryTextColor,
-    Color secondaryTextColor,
-  ) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: projects.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final p = projects[index];
-        final pct = (p.progress * 100).round();
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(AppSpacing.rTile),
-        boxShadow: AppShadows.soft,
-      ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _internCard(MentorDashboardIntern intern) {
+    final checkIn = formatTime(intern.checkIn);
+    final status = intern.todayStatus.toLowerCase();
+    return DashboardTile(
+      onTap: () => _openInternAttendance(intern),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      p.name,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: primaryTextColor,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      p.status.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.success,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (p.description != null && p.description!.trim().isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  p.description!,
-                  style: TextStyle(fontSize: 12, color: secondaryTextColor),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Members: ${p.membersCount} · Tasks: ${p.completedTasksCount}/${p.tasksCount}',
-                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
-                  ),
-                  Text(
-                    '$pct%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: primaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: p.progress,
-                  minHeight: 6,
-                  backgroundColor: AppColors.border,
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTasksList(
-    List<MentorDashboardTask> tasks,
-    Color cardBg,
-    Color borderColor,
-    Color primaryTextColor,
-    Color secondaryTextColor,
-  ) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: tasks.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final t = tasks[index];
-
-        Color priorityColor = AppColors.textSecondary;
-        if (t.priority.toLowerCase() == 'high' || t.priority.toLowerCase() == 'urgent') {
-          priorityColor = AppColors.danger;
-        } else if (t.priority.toLowerCase() == 'medium') {
-          priorityColor = AppColors.warning;
-        }
-
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(AppSpacing.rTile),
-        boxShadow: AppShadows.soft,
-      ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: priorityColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.assignment_outlined, size: 20, color: priorityColor),
+              GestureDetector(
+                onTap: intern.checkInPhotoUrl == null
+                    ? null
+                    : () => showPhotoModal(context, intern.checkInPhotoUrl, '${intern.name} · check-in photo'),
+                child: AppAvatar(url: intern.checkInPhotoUrl, fallbackText: getInitials(intern.name), size: 42),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -725,179 +421,96 @@ class _MentorDashboardViewState extends ConsumerState<MentorDashboardView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      t.title,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: primaryTextColor,
-                      ),
+                      intern.name,
+                      style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${t.projectName ?? 'General'} · Assigned to: ${t.assignedUserName ?? 'Unassigned'}',
-                      style: TextStyle(fontSize: 12, color: secondaryTextColor),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: priorityColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            t.priority.toUpperCase(),
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: priorityColor),
-                          ),
-                        ),
-                        if (t.deadline != null)
-                          Text(
-                            formatShortDate(t.deadline),
-                            style: TextStyle(fontSize: 11, color: secondaryTextColor),
-                          ),
-                        if (t.isOverdue)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.danger.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              'OVERDUE',
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.danger),
-                            ),
-                          ),
-                      ],
+                      intern.department ?? intern.email,
+                      style: AppTypography.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              StatusChip.fromString(status),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            children: [
+              Text(checkIn.isEmpty ? 'No check-in yet' : 'In at $checkIn', style: AppTypography.label),
+              Text('${formatHours(intern.hoursWorked)} today', style: AppTypography.label.copyWith(color: AppColors.ink)),
+              if (intern.openTasksCount > 0) Text(plural(intern.openTasksCount, 'open task'), style: AppTypography.label),
+              if (intern.streak > 0)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.local_fire_department_rounded, size: 14, color: AppColors.warningInk),
+                    const SizedBox(width: 2),
+                    Text('${plural(intern.streak, 'day')} streak', style: AppTypography.label.copyWith(color: AppColors.warningInk)),
+                  ],
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildPendingLeavesList(
-    List<MentorDashboardLeaveRequest> leaves,
-    Color cardBg,
-    Color borderColor,
-    Color primaryTextColor,
-    Color secondaryTextColor,
-  ) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: leaves.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final l = leaves[index];
-        final isProcessing = _processingLeaveIds.contains(l.id);
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(AppSpacing.rTile),
-        boxShadow: AppShadows.soft,
-      ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      l.userName,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: primaryTextColor,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.warning.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${l.leaveType.toUpperCase()} (${l.days}d)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.warning,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${formatShortDate(l.startDate)} → ${formatShortDate(l.endDate)}',
-                style: TextStyle(fontSize: 12, color: secondaryTextColor),
-              ),
-              if (l.reason != null && l.reason!.trim().isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  '"${l.reason}"',
-                  style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: secondaryTextColor),
-                ),
-              ],
-              const SizedBox(height: 14),
-              // Action Buttons
-              if (isProcessing)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
-                    ),
-                  ),
-                )
-              else
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _handleLeaveReview(l.id, 'rejected'),
-                        icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.danger),
-                        label: const Text('Reject', style: TextStyle(color: AppColors.danger)),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.danger),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _handleLeaveReview(l.id, 'approved'),
-                        icon: const Icon(Icons.check_rounded, size: 16),
-                        label: const Text('Approve'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.success,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          elevation: 0,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-            ],
+  Widget _buildProjectsList(List<MentorDashboardProject> projects) {
+    return Column(
+      children: [
+        for (final p in projects) ...[
+          DashboardProjectTile(
+            name: p.name,
+            status: p.status,
+            subtitle: p.description,
+            membersCount: p.membersCount,
+            completedTasks: p.completedTasksCount,
+            totalTasks: p.tasksCount,
+            progress: p.progress,
+            onTap: () => _openProject(p.id),
           ),
-        );
-      },
+          const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildTasksList(List<MentorDashboardTask> tasks) {
+    return Column(
+      children: [
+        for (final t in tasks) ...[
+          DashboardTaskTile(
+            task: t,
+            onTap: t.projectId == null ? null : () => _openProject(t.projectId!),
+          ),
+          const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPendingLeavesList(List<MentorDashboardLeaveRequest> leaves) {
+    return Column(
+      children: [
+        for (final l in leaves) ...[
+          DashboardLeaveReviewCard(
+            leave: l,
+            busy: _processingLeaveIds.contains(l.id),
+            onApprove: () => _handleLeaveReview(l, 'approved'),
+            onReject: () => _handleLeaveReview(l, 'rejected'),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ],
     );
   }
 }

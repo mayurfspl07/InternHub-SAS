@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/page_header.dart';
-import '../../shared/widgets/reference_components.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/performance_review_model.dart';
@@ -12,6 +11,9 @@ import 'performance_repository.dart';
 import 'widgets/delete_review_dialog.dart';
 import 'widgets/performance_review_dialog.dart';
 import 'widgets/review_detail_modal.dart';
+import '../../core/constants/app_typography.dart';
+import '../../shared/widgets/load_error_view.dart';
+import '../../shared/widgets/pagination_bar.dart';
 
 // Exports for backward compatibility
 export '../../shared/models/performance_review_model.dart';
@@ -150,7 +152,7 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = e.toString().replaceAll('Exception:', '').trim();
+          _errorMessage = apiErrorMessage(e);
         });
       }
     }
@@ -212,7 +214,7 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
           onRefresh: _fetchReviews,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -225,34 +227,7 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
                 const SizedBox(height: 18),
 
                 // Error Message banner if any
-                if (_errorMessage != null)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.danger.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(color: AppColors.danger, fontSize: 13),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.refresh_rounded, size: 18, color: AppColors.danger),
-                          onPressed: _fetchReviews,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Content Section: Loading / Empty / List
+                // Content Section: Loading / Error / Empty / List (never an error and an empty state together)
                 if (_isLoading && _response == null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 80),
@@ -262,6 +237,8 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
                       ),
                     ),
                   )
+                else if (_errorMessage != null && items.isEmpty)
+                  LoadErrorView(title: "Couldn't load reviews", message: _errorMessage!, onRetry: _fetchReviews, compact: true)
                 else if (items.isEmpty)
                   _buildEmptyState(canCreate)
                 else ...[
@@ -271,16 +248,17 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: items.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 14),
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      final serialIndex = ((_currentPage - 1) * _pageSize) + index + 1;
-                      return _buildReviewCard(context, item, serialIndex, currentUser);
-                    },
+                    itemBuilder: (context, index) => _buildReviewCard(context, items[index], currentUser),
                   ),
-                  const SizedBox(height: 16),
-
-                  // Pagination Controls
-                  _buildPaginationControls(totalPages, totalCount),
+                  const SizedBox(height: 8),
+                  PaginationBar(
+                    page: _currentPage,
+                    totalPages: totalPages,
+                    totalItems: totalCount,
+                    itemLabel: 'reviews',
+                    isLoading: _isLoading,
+                    onPageChanged: _goToPage,
+                  ),
                 ],
               ],
             ),
@@ -294,17 +272,12 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
   Widget _buildHeaderRow(BuildContext context, bool canCreate) {
     return PageHeader(
       title: 'Reviews',
-      subtitle: 'Performance evaluations',
+      subtitle: 'Feedback on interns\' work',
       showBack: widget.showBackButton ? null : false,
       padding: EdgeInsets.zero,
       actions: [
         if (canCreate)
-          CircularIconButton(
-            icon: Icons.add_rounded,
-            backgroundColor: AppColors.primary,
-            iconColor: AppColors.onPrimary,
-            onTap: _openCreateDialog,
-          ),
+          HeaderAction(icon: Icons.add_rounded, tooltip: 'New review', onTap: _openCreateDialog),
       ],
     );
   }
@@ -339,10 +312,7 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
             if (hasActiveFilter) ...[
               const SizedBox(width: 8),
               IconButton(
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                tooltip: 'Reset Filters',
+                tooltip: 'Clear filters',
                 icon: const Icon(Icons.filter_alt_off_rounded, size: 20),
                 color: AppColors.textSecondary,
                 onPressed: _resetFilters,
@@ -358,23 +328,17 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
   Widget _buildSearchBar() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: AppShadows.soft,
       ),
       child: TextField(
         controller: _searchController,
         onChanged: _onSearchChanged,
-        style: TextStyle(
-          fontSize: 14,
-          color: AppColors.ink,
-        ),
+        style: AppTypography.body.copyWith(color: AppColors.ink),
         decoration: InputDecoration(
           hintText: 'Search by intern, reviewer, project, period..',
-          hintStyle: TextStyle(
-            fontSize: 13.5,
-            color: AppColors.textSecondary.withValues(alpha: 0.8),
-          ),
+          hintStyle: AppTypography.caption.copyWith(color: AppColors.textSecondary.withValues(alpha: 0.8)),
           prefixIcon: Icon(
             Icons.search_rounded,
             size: 20,
@@ -407,15 +371,15 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: _selectedRating != null ? AppColors.warning : borderColor,
+          color: _selectedRating != null ? AppColors.primary : borderColor,
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: AppColors.ink.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -426,22 +390,15 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
           value: _selectedRating,
           isExpanded: true,
           icon: const Icon(Icons.arrow_drop_down_rounded),
-          dropdownColor: Colors.white,
+          dropdownColor: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: _selectedRating != null ? FontWeight.w700 : FontWeight.w500,
-            color: AppColors.ink,
-          ),
+          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
           hint: Text(
             ratingLabel,
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.ink,
-            ),
+            style: AppTypography.caption.copyWith(color: AppColors.ink),
           ),
           items: const [
-            DropdownMenuItem<int?>(value: null, child: Text('All Ratings')),
+            DropdownMenuItem<int?>(value: null, child: Text('All ratings')),
             DropdownMenuItem<int?>(value: 5, child: Text('⭐ 5 Stars')),
             DropdownMenuItem<int?>(value: 4, child: Text('⭐ 4 Stars')),
             DropdownMenuItem<int?>(value: 3, child: Text('⭐ 3 Stars')),
@@ -461,15 +418,15 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: _selectedProjectId != null ? AppColors.info : borderColor,
+          color: _selectedProjectId != null ? AppColors.primary : borderColor,
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: AppColors.ink.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -480,20 +437,13 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
           value: _selectedProjectId,
           isExpanded: true,
           icon: const Icon(Icons.arrow_drop_down_rounded),
-          dropdownColor: Colors.white,
+          dropdownColor: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: _selectedProjectId != null ? FontWeight.w700 : FontWeight.w500,
-            color: AppColors.ink,
-          ),
+          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
           hint: Text(
             _selectedProjectTitle ?? 'All Projects',
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.ink,
-            ),
+            style: AppTypography.caption.copyWith(color: AppColors.ink),
           ),
           items: [
             const DropdownMenuItem<int?>(
@@ -502,7 +452,7 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
                 children: [
                   Icon(Icons.folder_outlined, size: 16),
                   SizedBox(width: 8),
-                  Expanded(child: Text('All Projects', overflow: TextOverflow.ellipsis)),
+                  Expanded(child: Text('All projects', overflow: TextOverflow.ellipsis)),
                 ],
               ),
             ),
@@ -511,7 +461,7 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
                 value: p.id,
                 child: Row(
                   children: [
-                    const Icon(Icons.folder_outlined, size: 16, color: AppColors.info),
+                    const Icon(Icons.folder_outlined, size: 16, color: AppColors.infoInk),
                     const SizedBox(width: 8),
                     Expanded(child: Text(p.label, overflow: TextOverflow.ellipsis)),
                   ],
@@ -541,7 +491,7 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: AppShadows.soft,
       ),
@@ -559,39 +509,29 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
               child: Icon(
                 Icons.star_outline_rounded,
                 size: 38,
-                color: AppColors.warning,
+                color: AppColors.warningInk,
               ),
             ),
           ),
           const SizedBox(height: 18),
           Text(
-            hasActiveFilter ? 'No matching reviews' : 'No performance reviews found',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AppColors.ink,
-            ),
+            hasActiveFilter ? 'No matching reviews' : 'No reviews yet',
+            style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
           ),
           const SizedBox(height: 6),
           Text(
             hasActiveFilter
-                ? 'No evaluations match your search or filter criteria.'
-                : 'No performance evaluations have been published yet.',
+                ? 'Try another search or clear the filters.'
+                : (canCreate ? 'Reviews you write for interns show up here.' : 'Reviews from your mentors show up here.'),
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-            ),
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 20),
           if (hasActiveFilter)
             OutlinedButton.icon(
               onPressed: _resetFilters,
               icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: Text(
-                'Reset Filters',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-              ),
+              label: const Text('Clear filters'),
               style: OutlinedButton.styleFrom(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 side: BorderSide(color: AppColors.border),
@@ -602,13 +542,7 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
             ElevatedButton.icon(
               onPressed: _openCreateDialog,
               icon: const Icon(Icons.add_rounded, size: 18),
-              label: Text(
-                'Submit First Review',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              label: const Text('New review'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.onPrimary,
@@ -626,11 +560,10 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
   Widget _buildReviewCard(
     BuildContext context,
     PerformanceReview item,
-    int serialIndex,
     UserModel currentUser,
   ) {
     final canManage = canManageReview(item, currentUser);
-    final cardBg = Colors.white;
+    final cardBg = AppColors.surface;
 
     return Material(
       color: Colors.transparent,
@@ -660,11 +593,7 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
                     backgroundColor: AppColors.primary,
                     child: Text(
                       item.internInitials,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
-                      ),
+                      style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.onPrimary),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -673,52 +602,23 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                item.internDisplayName,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.3,
-                                  color: AppColors.ink,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceMuted,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '#$serialIndex',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ),
-                          ],
+                        Text(
+                          item.internDisplayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.3, color: AppColors.ink),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Reviewed by ${item.reviewerDisplayName} • ${item.formattedCreatedAt}',
+                          'By ${item.reviewerDisplayName} · ${item.formattedCreatedAt}',
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
+                          style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                         ),
                       ],
                     ),
                   ),
 
-                  // Rating Badge (e.g. ⭐ 5/5)
+                  const SizedBox(width: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(
@@ -728,48 +628,37 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.star_rounded, size: 14, color: Colors.black),
+                        const Icon(Icons.star_rounded, size: 14, color: AppColors.onPrimary),
                         const SizedBox(width: 4),
                         Text(
                           '${item.rating}/5',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
-                          ),
+                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.onPrimary),
                         ),
                       ],
                     ),
                   ),
 
-                  // Edit & Delete buttons if canManage
-                  if (canManage) ...[
-                    const SizedBox(width: 4),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      icon: Icon(
-                        Icons.edit_outlined,
-                        size: 18,
-                        color: AppColors.textSecondary,
-                      ),
-                      tooltip: 'Edit Review',
-                      onPressed: () => _openEditDialog(item),
+                  // Edit and delete live in one menu so the header row has room at 360px.
+                  if (canManage)
+                    PopupMenuButton<String>(
+                      tooltip: 'Actions for this review',
+                      icon: const Icon(Icons.more_vert_rounded, size: 20, color: AppColors.textSecondary),
+                      onSelected: (v) => v == 'edit' ? _openEditDialog(item) : _openDeleteDialog(item),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Edit'), contentPadding: EdgeInsets.zero),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: ListTile(
+                            leading: Icon(Icons.delete_outline_rounded, color: AppColors.dangerInk),
+                            title: Text('Delete', style: TextStyle(color: AppColors.dangerInk)),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      icon: const Icon(
-                        Icons.delete_outline_rounded,
-                        size: 18,
-                        color: AppColors.danger,
-                      ),
-                      tooltip: 'Delete Review',
-                      onPressed: () => _openDeleteDialog(item),
-                    ),
-                  ],
                 ],
               ),
               const SizedBox(height: 10),
@@ -794,14 +683,13 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.calendar_today_rounded, size: 11, color: AppColors.warning),
+                            const Icon(Icons.calendar_today_rounded, size: 11, color: AppColors.warningInk),
                             const SizedBox(width: 4),
-                            Text(
-                              item.period!,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.warning,
+                            Flexible(
+                              child: Text(
+                                item.period!,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.label.copyWith(color: AppColors.warningInk),
                               ),
                             ),
                           ],
@@ -820,18 +708,13 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.folder_outlined,
-                              size: 11,
-                              color: AppColors.info,
-                            ),
+                            const Icon(Icons.folder_outlined, size: 11, color: AppColors.infoInk),
                             const SizedBox(width: 4),
-                            Text(
-                              item.projectName!,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.info,
+                            Flexible(
+                              child: Text(
+                                item.projectName!,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.label.copyWith(color: AppColors.infoInk),
                               ),
                             ),
                           ],
@@ -873,35 +756,11 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
                   item.feedback!,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    height: 1.45,
-                    color: AppColors.textSecondary,
-                  ),
+                  style: AppTypography.caption.copyWith(height: 1.45, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 6),
               ],
 
-              // Bottom row: "View Details" hint
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    'View Details',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primaryInk,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 16,
-                    color: AppColors.primaryInk,
-                  ),
-                ],
-              ),
             ],
           ),
         ),
@@ -915,96 +774,15 @@ class _PerformanceDashboardScreenState extends ConsumerState<PerformanceDashboar
       children: [
         Text(
           '$title: ',
-          style: TextStyle(
-            fontSize: 11,
-            color: AppColors.textSecondary,
-          ),
+          style: AppTypography.label.copyWith(color: AppColors.textSecondary),
         ),
-        const Icon(Icons.star_rounded, size: 12, color: AppColors.warning),
+        const Icon(Icons.star_rounded, size: 12, color: AppColors.warningInk),
         const SizedBox(width: 2),
         Text(
           '$score/5',
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w700,
-            color: AppColors.ink,
-          ),
+          style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
         ),
       ],
-    );
-  }
-
-  /// Pagination Controls matching announcements pattern
-  Widget _buildPaginationControls(int totalPages, int total) {
-    final canPrev = _currentPage > 1;
-    final canNext = _currentPage < totalPages;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Total items count
-          Flexible(
-            child: Text(
-              'Showing ${((_currentPage - 1) * _pageSize) + 1}–${(_currentPage * _pageSize).clamp(0, total)} of $total',
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Previous and Next compact buttons
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                onPressed: canPrev ? () => _goToPage(_currentPage - 1) : null,
-                icon: Icon(
-                  Icons.chevron_left_rounded,
-                  size: 22,
-                  color: canPrev
-                      ? AppColors.ink
-                      : Colors.black26,
-                ),
-                tooltip: 'Previous',
-              ),
-              const SizedBox(width: 4),
-
-              Text(
-                '$_currentPage / $totalPages',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
-                ),
-              ),
-              const SizedBox(width: 4),
-
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                onPressed: canNext ? () => _goToPage(_currentPage + 1) : null,
-                icon: Icon(
-                  Icons.chevron_right_rounded,
-                  size: 22,
-                  color: canNext
-                      ? AppColors.ink
-                      : Colors.black26,
-                ),
-                tooltip: 'Next',
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }

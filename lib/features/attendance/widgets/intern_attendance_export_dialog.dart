@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../attendance_repository.dart';
+import '../../../core/constants/app_typography.dart';
 
 class InternAttendanceExportDialog extends StatefulWidget {
   const InternAttendanceExportDialog({super.key});
@@ -41,7 +42,7 @@ class _InternAttendanceExportDialogState extends State<InternAttendanceExportDia
       context: context,
       initialDate: initial,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      lastDate: DateTime.now(),
     );
     if (picked != null && mounted) {
       setState(() {
@@ -104,7 +105,8 @@ class _InternAttendanceExportDialogState extends State<InternAttendanceExportDia
     final dateFormat = DateFormat('dd/MM/yyyy');
 
     return Dialog(
-      backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.all(16),
+      backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppSpacing.r24),
         side: BorderSide(
@@ -122,33 +124,23 @@ class _InternAttendanceExportDialogState extends State<InternAttendanceExportDia
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Export Attendance (CSV)',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink,
+                  Expanded(
+                    child: Text(
+                      'Export attendance',
+                      style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                     ),
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: Icon(
-                      Icons.close,
-                      size: 20,
-                      color: AppColors.textSecondary,
-                    ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    tooltip: 'Close',
+                    icon: const Icon(Icons.close, size: 20, color: AppColors.textSecondary),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
               Text(
-                'Select a date range to export your attendance record.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
+                'Pick a date range. The file is saved as CSV.',
+                style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 20),
 
@@ -159,12 +151,8 @@ class _InternAttendanceExportDialogState extends State<InternAttendanceExportDia
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'FROM',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textSecondary,
-                          ),
+                          'From',
+                          style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                         ),
                         const SizedBox(height: 6),
                         InkWell(
@@ -173,7 +161,7 @@ class _InternAttendanceExportDialogState extends State<InternAttendanceExportDia
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppColors.surface,
                               borderRadius: BorderRadius.circular(AppSpacing.r12),
                               border: Border.all(
                                 color: AppColors.border,
@@ -184,11 +172,7 @@ class _InternAttendanceExportDialogState extends State<InternAttendanceExportDia
                               children: [
                                 Text(
                                   dateFormat.format(_fromDate),
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.ink,
-                                  ),
+                                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
                                 ),
                                 Icon(
                                   Icons.calendar_today_outlined,
@@ -208,12 +192,8 @@ class _InternAttendanceExportDialogState extends State<InternAttendanceExportDia
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'TO',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textSecondary,
-                          ),
+                          'To',
+                          style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                         ),
                         const SizedBox(height: 6),
                         InkWell(
@@ -222,7 +202,7 @@ class _InternAttendanceExportDialogState extends State<InternAttendanceExportDia
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppColors.surface,
                               borderRadius: BorderRadius.circular(AppSpacing.r12),
                               border: Border.all(
                                 color: AppColors.border,
@@ -233,11 +213,7 @@ class _InternAttendanceExportDialogState extends State<InternAttendanceExportDia
                               children: [
                                 Text(
                                   dateFormat.format(_toDate),
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.ink,
-                                  ),
+                                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
                                 ),
                                 Icon(
                                   Icons.calendar_today_outlined,
@@ -258,11 +234,7 @@ class _InternAttendanceExportDialogState extends State<InternAttendanceExportDia
                 const SizedBox(height: 12),
                 Text(
                   _errorMessage!,
-                  style: const TextStyle(
-                    color: AppColors.danger,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: AppTypography.caption.copyWith(color: AppColors.danger),
                 ),
               ],
               const SizedBox(height: 24),

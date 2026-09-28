@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../shared/models/profile_overview_model.dart';
 import '../../../shared/models/user_model.dart';
+import '../../../shared/widgets/custom_text_field.dart';
 import '../profile_repository.dart';
+import '../../../core/api/api_config.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
 
 class EditProfileDialog extends StatefulWidget {
   final UserModel user;
@@ -37,15 +42,23 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
   late final TextEditingController _phoneController;
   late final TextEditingController _skillsController;
   late final TextEditingController _bioController;
+  late final String _initialPhone;
+  late final String _initialSkills;
+  late final String _initialBio;
 
   bool _isSaving = false;
+  String? _phoneError;
+  String? _saveError;
 
   @override
   void initState() {
     super.initState();
-    _phoneController = TextEditingController(text: nationalPhoneDigits(widget.user.phone));
-    _skillsController = TextEditingController(text: formatSkills(widget.user.skills));
-    _bioController = TextEditingController(text: widget.user.bio ?? '');
+    _initialPhone = nationalPhoneDigits(widget.user.phone);
+    _initialSkills = formatSkills(widget.user.skills);
+    _initialBio = widget.user.bio ?? '';
+    _phoneController = TextEditingController(text: _initialPhone);
+    _skillsController = TextEditingController(text: _initialSkills);
+    _bioController = TextEditingController(text: _initialBio);
   }
 
   @override
@@ -56,12 +69,28 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     super.dispose();
   }
 
-  List<String> get _liveSkills {
-    return skillList(_skillsController.text);
+  bool get _isDirty =>
+      _phoneController.text != _initialPhone ||
+      _skillsController.text != _initialSkills ||
+      _bioController.text != _initialBio;
+
+  String? _validatePhone(String value) {
+    final digits = value.trim();
+    if (digits.isEmpty) return null; // phone is optional
+    if (!ApiConfig.isValidPhone(digits)) return 'Enter a valid 10-digit mobile number';
+    return null;
   }
 
   Future<void> _save() async {
-    setState(() => _isSaving = true);
+    final phoneError = _validatePhone(_phoneController.text);
+    if (phoneError != null) {
+      setState(() => _phoneError = phoneError);
+      return;
+    }
+    setState(() {
+      _isSaving = true;
+      _saveError = null;
+    });
 
     try {
       final updated = await ProfileRepository().updateProfile(
@@ -74,303 +103,178 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
         Navigator.of(context).pop();
         widget.onSuccess(updated);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile updated successfully'),
-            backgroundColor: AppColors.success,
-          ),
+          const SnackBar(content: Text('Profile updated')),
         );
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update profile: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
+        setState(() {
+          _isSaving = false;
+          _saveError = apiErrorMessage(e);
+        });
       }
     }
   }
 
+  /// Leaving with unsaved edits asks first.
+  Future<void> _close() async {
+    if (_isSaving) return;
+    if (!_isDirty) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard changes?'),
+        content: const Text("Your edits haven't been saved."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep editing')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.dangerInk),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    if (discard == true && mounted) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final dialogBg = Colors.white;
-    final borderColor = AppColors.border;
-    final fieldBg = Colors.white;
-    final primaryTextColor = AppColors.ink;
-    final secondaryTextColor = AppColors.textSecondary;
+    final liveSkills = skillList(_skillsController.text);
 
-    const coralColor = AppColors.primary;
-
-    return Dialog(
-      backgroundColor: dialogBg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header with Title, Sparkle Icon, & Close button
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primarySoft,
-                      borderRadius: BorderRadius.circular(12),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _close();
+      },
+      child: Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        insetPadding: const EdgeInsets.all(16),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 12, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Edit profile', style: AppTypography.section.copyWith(fontWeight: FontWeight.w700)),
                     ),
-                    child: const Icon(
-                      Icons.auto_awesome_rounded,
-                      size: 20,
-                      color: AppColors.primaryInk,
+                    IconButton(
+                      tooltip: 'Close',
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: _isSaving ? null : _close,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Edit Profile Details',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: primaryTextColor,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Update your contact details, skill competencies, and personal summary.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: secondaryTextColor,
-                            height: 1.3,
-                          ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Your name, email and role are managed by your admin.',
+                        style: AppTypography.caption,
+                      ),
+                      const SizedBox(height: 20),
+                      CustomTextField(
+                        label: 'Mobile number (optional)',
+                        hintText: '98765 43210',
+                        prefixIcon: Icons.phone_outlined,
+                        prefixText: '+91 ',
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.telephoneNumberNational],
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                        errorText: _phoneError,
+                        enabled: !_isSaving,
+                        onChanged: (v) => setState(() => _phoneError = null),
+                      ),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        label: 'Skills',
+                        hintText: 'e.g. Flutter, Python, Figma',
+                        helperText: 'Separate skills with commas',
+                        prefixIcon: Icons.auto_awesome_outlined,
+                        controller: _skillsController,
+                        textInputAction: TextInputAction.next,
+                        enabled: !_isSaving,
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      if (liveSkills.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final skill in liveSkills)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceMuted,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                child: Text(skill, style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink)),
+                              ),
+                          ],
                         ),
                       ],
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () => Navigator.of(context).pop(),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: borderColor),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        label: 'About',
+                        hintText: 'Your background and what you work on',
+                        controller: _bioController,
+                        maxLines: 4,
+                        textCapitalization: TextCapitalization.sentences,
+                        enabled: !_isSaving,
+                        onChanged: (_) => setState(() {}),
                       ),
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: 18,
-                        color: secondaryTextColor,
+                      if (_saveError != null) ...[
+                        const SizedBox(height: 12),
+                        Text(_saveError!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
+                      ],
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(onPressed: _isSaving ? null : _close, child: const Text('Cancel')),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: _isSaving || !_isDirty ? null : _save,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.onPrimary,
+                              minimumSize: const Size(96, 44),
+                              elevation: 0,
+                              shape: const StadiumBorder(),
+                            ),
+                            child: _isSaving
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary),
+                                  )
+                                : const Text('Save'),
+                          ),
+                        ],
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // PHONE NUMBER
-              Row(
-                children: [
-                  const Icon(Icons.phone_outlined, size: 16, color: AppColors.primaryInk),
-                  const SizedBox(width: 6),
-                  Text(
-                    'PHONE NUMBER',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                      color: primaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                style: TextStyle(color: primaryTextColor, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: '+91 9876543210',
-                  hintStyle: TextStyle(color: secondaryTextColor, fontSize: 14),
-                  filled: true,
-                  fillColor: fieldBg,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: borderColor),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: borderColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: coralColor, width: 1.5),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Primary mobile contact number.',
-                style: TextStyle(fontSize: 11, color: secondaryTextColor),
-              ),
-              const SizedBox(height: 20),
-
-              // SKILLS (COMMA SEPARATED)
-              Row(
-                children: [
-                  const Icon(Icons.auto_awesome_outlined, size: 16, color: AppColors.primaryInk),
-                  const SizedBox(width: 6),
-                  Text(
-                    'SKILLS (COMMA SEPARATED)',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                      color: primaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _skillsController,
-                onChanged: (_) => setState(() {}),
-                style: TextStyle(color: primaryTextColor, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'e.g. ReactJS, Python, Flutter, Docker',
-                  hintStyle: TextStyle(color: secondaryTextColor, fontSize: 14),
-                  filled: true,
-                  fillColor: fieldBg,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: borderColor),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: borderColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: coralColor, width: 1.5),
-                  ),
-                ),
-              ),
-
-              // Live chip preview
-              if (_liveSkills.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _liveSkills.map((skill) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceMuted,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: borderColor),
-                      ),
-                      child: Text(
-                        skill,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: primaryTextColor,
-                        ),
-                      ),
-                    );
-                  }).toList(),
                 ),
               ],
-              const SizedBox(height: 20),
-
-              // BIO / SUMMARY
-              Row(
-                children: [
-                  const Icon(Icons.description_outlined, size: 16, color: AppColors.primaryInk),
-                  const SizedBox(width: 6),
-                  Text(
-                    'BIO / SUMMARY',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                      color: primaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _bioController,
-                maxLines: 4,
-                minLines: 3,
-                style: TextStyle(color: primaryTextColor, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Tell us about yourself, background, or goals...',
-                  hintStyle: TextStyle(color: secondaryTextColor, fontSize: 14),
-                  filled: true,
-                  fillColor: fieldBg,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: borderColor),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: borderColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: coralColor, width: 1.5),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 28),
-
-              // Submit Button
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton.icon(
-                  onPressed: _isSaving ? null : _save,
-                  icon: _isSaving
-                      ? const SizedBox.shrink()
-                      : const Icon(Icons.check_rounded, size: 18),
-                  label: _isSaving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary),
-                        )
-                      : const Text(
-                          'Save Changes',
-                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                        ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: coralColor,
-                    foregroundColor: AppColors.onPrimary,
-                    disabledBackgroundColor: coralColor.withValues(alpha: 0.6),
-                    disabledForegroundColor: AppColors.textSecondary,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

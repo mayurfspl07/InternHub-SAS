@@ -24,7 +24,7 @@ Future<void> showLogoutConfirmDialog(BuildContext context, WidgetRef ref) {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.danger,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.surface,
             minimumSize: const Size(0, 44),
           ),
           onPressed: () async {

@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
+import '../../core/utils/formatters.dart';
 import '../../shared/models/profile_overview_model.dart';
 import '../../shared/models/user_model.dart';
+import 'load_error_view.dart';
 import 'status_chip.dart';
 import 'reference_components.dart';
+import '../../core/constants/app_typography.dart';
 
 class User360ProfileDialog extends ConsumerStatefulWidget {
   final String userId;
@@ -39,6 +42,7 @@ class User360ProfileDialog extends ConsumerStatefulWidget {
 class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> with SingleTickerProviderStateMixin {
   UserProfileOverview? _overview;
   bool _isLoading = true;
+  String? _error;
   late TabController _tabController;
 
   @override
@@ -55,30 +59,201 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
   }
 
   Future<void> _loadOverview() async {
-    final overview = await ref.read(appStateProvider.notifier).fetchUserOverview(widget.userId);
-    if (mounted) {
-      setState(() {
-        _overview = overview;
-        _isLoading = false;
-      });
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final overview = await ref.read(appStateProvider.notifier).fetchUserOverview(widget.userId);
+      if (mounted) {
+        setState(() {
+          _overview = overview;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = apiErrorMessage(e);
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  Widget _empty(String text) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(text, textAlign: TextAlign.center, style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
+        ),
+      );
+
+  Widget _row({required String title, String? subtitle, Widget? trailing}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.rTile),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.bodyStrong),
+                if (subtitle != null && subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.caption),
+                ],
+              ],
+            ),
+          ),
+          if (trailing != null) ...[const SizedBox(width: 8), trailing],
+        ],
+      ),
+    );
+  }
+
+  Widget _overviewTab(UserModel? user) {
+    final stats = _overview?.stats ?? const {};
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        CustomerHeroHeader(
+          name: user?.name ?? 'Member',
+          subtitle: [
+            if (user?.roleTitle != null && user!.roleTitle.isNotEmpty) user.roleTitle,
+            if (user?.department != null && user!.department!.isNotEmpty) user.department!,
+          ].join(' · '),
+          avatarUrl: user?.avatarUrl,
+        ),
+        const SizedBox(height: 24),
+        Text('Details', style: AppTypography.section.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 14),
+        _buildDetailRow('Email', user?.email ?? '—'),
+        _buildDetailRow('Department', user?.department ?? '—'),
+        _buildDetailRow('Phone', user?.phone ?? '—'),
+        _buildDetailRow('Joined', formatDate(user?.joiningDate, fallback: '—')),
+        if (user?.role == UserRole.intern) _buildDetailRow('Mentor', user?.mentorName ?? 'Not assigned'),
+        if (user?.skills.isNotEmpty ?? false) _buildDetailRow('Skills', user!.skills.join(', ')),
+        if (user?.bio != null && user!.bio!.isNotEmpty) _buildDetailRow('About', user.bio!),
+        if (stats.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text('At a glance', style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final e in stats.entries)
+                if (e.value is num || e.value is String)
+                  Container(
+                    constraints: const BoxConstraints(minWidth: 96),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceMuted,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(e.value.toString(), style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text(humanize(e.key).replaceAll(' 30d', ' (30 days)'), style: AppTypography.label),
+                      ],
+                    ),
+                  ),
+            ],
+          ),
+        ],
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final user = _overview?.user ?? widget.fallbackUser;
+    final ov = _overview;
+
+    Widget content;
+    if (_isLoading) {
+      content = const Center(child: CircularProgressIndicator());
+    } else if (_error != null) {
+      content = LoadErrorView(title: "Couldn't load this profile", message: _error!, onRetry: _loadOverview);
+    } else {
+      content = TabBarView(
+        controller: _tabController,
+        children: [
+          _overviewTab(user),
+          (ov?.projects.isEmpty ?? true)
+              ? _empty('Not on any projects')
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    for (final p in ov!.projects)
+                      _row(
+                        title: p.name,
+                        subtitle: [
+                          '${p.progress.round()}% done',
+                          if (p.internCount != null) plural(p.internCount!, 'intern'),
+                          if (p.endDate != null) 'Due ${formatDate(p.endDate)}',
+                        ].join(' · '),
+                        trailing: StatusChip.fromString(p.status),
+                      ),
+                  ],
+                ),
+          (ov?.tasks.isEmpty ?? true)
+              ? _empty('No tasks assigned')
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    for (final t in ov!.tasks)
+                      _row(
+                        title: t.title,
+                        subtitle: [
+                          t.projectName ?? 'Project #${t.projectId}',
+                          if (t.dueDate != null) 'Due ${formatDate(t.dueDate)}',
+                        ].join(' · '),
+                        trailing: StatusChip.fromString(t.status),
+                      ),
+                  ],
+                ),
+          (ov?.attendance.isEmpty ?? true)
+              ? _empty('No attendance recorded yet')
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    for (final a in ov!.attendance)
+                      _row(
+                        title: formatDate(a.date),
+                        subtitle: a.checkIn == null
+                            ? 'No check-in'
+                            : [
+                                'In ${formatTime(a.checkIn, fallback: a.checkIn!)}',
+                                if (a.checkOut != null) 'Out ${formatTime(a.checkOut, fallback: a.checkOut!)}',
+                                if (a.hours != null && a.hours! > 0) formatHours(a.hours),
+                              ].join(' · '),
+                        trailing: StatusChip.fromString(a.status),
+                      ),
+                  ],
+                ),
+        ],
+      );
+    }
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
         children: [
-          // Drag handle
           Container(
-            margin: const EdgeInsets.only(top: 12, bottom: 8),
+            margin: const EdgeInsets.only(top: 12, bottom: 4),
             width: 44,
             height: 4,
             decoration: BoxDecoration(
@@ -86,63 +261,27 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-
-          // Header
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.fromLTRB(20, 4, 8, 4),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.border,
-                      ),
-                    ),
-                    child: Icon(
-                      Icons.arrow_back_rounded,
-                      size: 18,
-                      color: AppColors.ink,
-                    ),
+                Expanded(
+                  child: Text(
+                    user?.name ?? 'Profile',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.section.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
-                Text(
-                  'Member Profile',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.border,
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.star_border_rounded,
-                    size: 20,
-                    color: AppColors.ink,
-                  ),
+                IconButton(
+                  tooltip: 'Close',
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
           ),
           const Divider(height: 1),
-
-          // Tabs
           Container(
             margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             padding: const EdgeInsets.all(4),
@@ -154,213 +293,29 @@ class _User360ProfileDialogState extends ConsumerState<User360ProfileDialog> wit
               controller: _tabController,
               isScrollable: true,
               tabAlignment: TabAlignment.start,
-              tabs: const [
-                Tab(height: 34, text: 'Overview'),
-                Tab(height: 34, text: 'Projects'),
-                Tab(height: 34, text: 'Tasks'),
-                Tab(height: 34, text: 'Attendance'),
+              tabs: [
+                const Tab(height: 40, text: 'Overview'),
+                Tab(height: 40, text: 'Projects${ov == null ? '' : ' (${ov.projects.length})'}'),
+                Tab(height: 40, text: 'Tasks${ov == null ? '' : ' (${ov.tasks.length})'}'),
+                const Tab(height: 40, text: 'Attendance'),
               ],
             ),
           ),
-
-          // Tab content
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : TabBarView(
-                    controller: _tabController,
-                    children: [
-                      // Overview Tab
-                      ListView(
-                        padding: const EdgeInsets.all(20),
-                        children: [
-                          CustomerHeroHeader(
-                            name: user?.name ?? 'Member',
-                            subtitle: [
-                              if (user?.roleTitle != null && user!.roleTitle.isNotEmpty) user.roleTitle,
-                              if (user?.department != null && user!.department!.isNotEmpty) user.department!,
-                            ].join(' · '),
-                            avatarUrl: user?.avatarUrl,
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Detailed Information Header
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Detailed Information',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.ink,
-                                ),
-                              ),
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.surfaceMuted,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(Icons.edit_outlined, size: 16, color: AppColors.ink),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.surfaceMuted,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(Icons.arrow_outward_rounded, size: 16, color: AppColors.ink),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-
-                          _buildDetailRow(context, 'Role Title', user?.roleTitle ?? 'N/A'),
-                          _buildDetailRow(context, 'Department', user?.department ?? 'N/A'),
-                          _buildDetailRow(context, 'Phone', user?.phone ?? 'N/A'),
-                          _buildDetailRow(context, 'Joining Date', user?.joiningDate ?? 'N/A'),
-                          _buildDetailRow(context, 'Mentor', user?.mentorName ?? 'None assigned'),
-                          if (user?.skills.isNotEmpty ?? false)
-                            _buildDetailRow(context, 'Skills', user!.skills.join(', ')),
-                          if (user?.bio != null && user!.bio!.isNotEmpty)
-                            _buildDetailRow(context, 'Bio', user.bio!),
-                          const SizedBox(height: 16),
-                          if (_overview?.stats.isNotEmpty ?? false) ...[
-                            Text(
-                              'Key Performance Indicators',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
-                              children: _overview!.stats.entries.map((e) {
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surfaceMuted,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: AppColors.border),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        e.key.replaceAll('_', ' ').toUpperCase(),
-                                        style: TextStyle(fontSize: 10, color: AppColors.textTertiary, fontWeight: FontWeight.w600),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        e.value.toString(),
-                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ],
-                        ],
-                      ),
-
-                      // Projects Tab
-                      _overview?.projects.isEmpty ?? true
-                          ? const Center(child: Text('No active projects'))
-                          : ListView.builder(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _overview!.projects.length,
-                              itemBuilder: (ctx, i) {
-                                final p = _overview!.projects[i];
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  child: ListTile(
-                                    title: Text(p.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    subtitle: Text('${(p.progress * 100).toInt()}% complete • ${p.totalTasks} tasks'),
-                                    trailing: StatusChip(label: p.status.toUpperCase(), statusType: StatusType.success),
-                                  ),
-                                );
-                              },
-                            ),
-
-                      // Tasks Tab
-                      _overview?.tasks.isEmpty ?? true
-                          ? const Center(child: Text('No assigned tasks'))
-                          : ListView.builder(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _overview!.tasks.length,
-                              itemBuilder: (ctx, i) {
-                                final t = _overview!.tasks[i];
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  child: ListTile(
-                                    title: Text(t.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    subtitle: Text(t.projectName ?? 'Project #${t.projectId}'),
-                                    trailing: StatusChip(label: t.status.toUpperCase(), statusType: StatusType.info),
-                                  ),
-                                );
-                              },
-                            ),
-
-                      // Attendance Tab
-                      _overview?.attendance.isEmpty ?? true
-                          ? const Center(child: Text('No attendance history found'))
-                          : ListView.builder(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _overview!.attendance.length,
-                              itemBuilder: (ctx, i) {
-                                final a = _overview!.attendance[i];
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  child: ListTile(
-                                    title: Text(a.date.length >= 10 ? a.date.substring(0, 10) : a.date),
-                                    subtitle: Text(a.locationAddress),
-                                    trailing: StatusChip(label: a.status.toUpperCase(), statusType: StatusType.success),
-                                  ),
-                                );
-                              },
-                            ),
-                    ],
-                  ),
-          ),
+          Expanded(child: content),
         ],
       ),
     );
   }
 
-  Widget _buildDetailRow(BuildContext context, String label, String value) {
+  Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 110,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
+          SizedBox(width: 100, child: Text(label, style: AppTypography.caption)),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.ink,
-              ),
-            ),
+            child: Text(value, style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink)),
           ),
         ],
       ),

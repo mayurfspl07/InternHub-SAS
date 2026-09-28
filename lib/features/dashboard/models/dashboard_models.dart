@@ -633,6 +633,7 @@ class MentorDashboardLeaveRequest {
 class MentorDashboardStats {
   final int presentToday;
   final int absentToday;
+  final int onLeaveToday;
   final int assignedInternsCount;
   final int activeProjects;
   final int totalProjects;
@@ -646,6 +647,7 @@ class MentorDashboardStats {
   const MentorDashboardStats({
     this.presentToday = 0,
     this.absentToday = 0,
+    this.onLeaveToday = 0,
     this.assignedInternsCount = 0,
     this.activeProjects = 0,
     this.totalProjects = 0,
@@ -662,6 +664,7 @@ class MentorDashboardStats {
     return MentorDashboardStats(
       presentToday: (json['present_today'] as num?)?.toInt() ?? 0,
       absentToday: (json['absent_today'] as num?)?.toInt() ?? 0,
+      onLeaveToday: (json['on_leave_today'] as num?)?.toInt() ?? 0,
       assignedInternsCount: (json['assigned_interns_count'] ?? json['assigned_interns'] as num?)?.toInt() ?? 0,
       activeProjects: (json['active_projects'] as num?)?.toInt() ?? 0,
       totalProjects: (json['total_projects'] as num?)?.toInt() ?? 0,

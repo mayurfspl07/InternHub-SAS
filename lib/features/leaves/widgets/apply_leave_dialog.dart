@@ -1,10 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/document_picker.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../shared/models/leave_model.dart';
 import '../leave_repository.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
 
 class ApplyLeaveDialog extends StatefulWidget {
   final LeaveBalance balance;
@@ -31,7 +34,6 @@ class ApplyLeaveDialog extends StatefulWidget {
 class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
   final _formKey = GlobalKey<FormState>();
   final _reasonController = TextEditingController();
-  final _imagePicker = ImagePicker();
 
   DateTime? _startDate;
   DateTime? _endDate;
@@ -43,6 +45,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
 
   bool _isSubmitting = false;
   String? _serverError;
+  String? _dateError;
 
   @override
   void dispose() {
@@ -101,35 +104,17 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
   Future<void> _pickAttachment() async {
     setState(() => _attachmentError = null);
     try {
-      final photo = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-      );
-
-      if (photo != null) {
-        final file = File(photo.path);
-        final size = await file.length();
-        if (size > 2 * 1024 * 1024) {
-          setState(() {
-            _attachmentError = 'File size exceeds 2MB limit (selected: ${(size / (1024 * 1024)).toStringAsFixed(1)}MB)';
-            _attachmentFile = null;
-            _attachmentName = null;
-            _attachmentSizeBytes = null;
-          });
-          return;
-        }
-
-        setState(() {
-          _attachmentFile = file;
-          _attachmentName = photo.name;
-          _attachmentSizeBytes = size;
-          _attachmentError = null;
-        });
-      }
-    } catch (e) {
+      final doc = await pickDocument();
+      if (doc == null) return;
       setState(() {
-        _attachmentError = 'Failed to select attachment: $e';
+        _attachmentFile = doc.file;
+        _attachmentName = doc.name;
+        _attachmentSizeBytes = doc.sizeBytes;
       });
+    } on DocumentPickException catch (e) {
+      setState(() => _attachmentError = e.message);
+    } catch (_) {
+      setState(() => _attachmentError = "Couldn't open that file. Try another one.");
     }
   }
 
@@ -146,24 +131,14 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_startDate == null || _endDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select both start and end dates.'),
-          backgroundColor: AppColors.danger,
-        ),
-      );
+      setState(() => _dateError = 'Pick a start and an end date.');
       return;
     }
-
     if (_endDate!.isBefore(_startDate!)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('End date must be on or after start date.'),
-          backgroundColor: AppColors.danger,
-        ),
-      );
+      setState(() => _dateError = 'The end date must be on or after the start date.');
       return;
     }
+    setState(() => _dateError = null);
 
     setState(() {
       _isSubmitting = true;
@@ -187,7 +162,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('🎉 Leave request submitted successfully!'),
+            content: Text('Leave request sent for approval.'),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
           ),
@@ -198,7 +173,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
-          _serverError = e.toString().replaceAll('Exception:', '').trim();
+          _serverError = apiErrorMessage(e);
         });
       }
     }
@@ -209,8 +184,11 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
     final remainingQuota = widget.balance.remaining;
     final requested = _requestedDays;
 
+    final overBalance = requested > 0 && requested > remainingQuota;
+    final daysLeft = remainingQuota % 1 == 0 ? '${remainingQuota.toInt()}' : '$remainingQuota';
+
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: ConstrainedBox(
@@ -234,29 +212,21 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                         children: [
                           Text(
                             'Apply for Leave',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.ink,
-                            ),
+                            style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'Submit a leave request for mentor review and approval.',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              color: AppColors.textSecondary,
-                            ),
+                            style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                           ),
                         ],
                       ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close_rounded, size: 22),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
+                      tooltip: 'Close',
                       color: AppColors.textSecondary,
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _isSubmitting ? null : () => Navigator.pop(context),
                     ),
                   ],
                 ),
@@ -266,25 +236,27 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: AppColors.lavender,
+                    color: overBalance ? AppColors.dangerSoft : AppColors.lavender,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: AppColors.lavender,
-                    ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primaryInk),
+                      Icon(
+                        overBalance ? Icons.warning_amber_rounded : Icons.info_outline_rounded,
+                        size: 18,
+                        color: overBalance ? AppColors.dangerInk : AppColors.lavenderInk,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          requested > 0
-                              ? 'Available Quota: $remainingQuota days • Requesting $requested day(s)'
-                              : 'Available Quota: $remainingQuota days',
-                          style: TextStyle(
-                            fontSize: 13,
+                          overBalance
+                              ? 'You have $daysLeft days left but are asking for $requested.'
+                              : requested > 0
+                                  ? '$daysLeft days available · requesting ${plural(requested, 'day')}'
+                                  : '$daysLeft days available',
+                          style: AppTypography.caption.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: AppColors.lavenderInk,
+                            color: overBalance ? AppColors.dangerInk : AppColors.lavenderInk,
                           ),
                         ),
                       ),
@@ -300,7 +272,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildFieldLabel('START DATE *'),
+                          _buildFieldLabel('Start date'),
                           const SizedBox(height: 6),
                           GestureDetector(
                             onTap: _pickStartDate,
@@ -317,7 +289,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildFieldLabel('END DATE *'),
+                          _buildFieldLabel('End date'),
                           const SizedBox(height: 6),
                           GestureDetector(
                             onTap: _pickEndDate,
@@ -334,12 +306,12 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                 const SizedBox(height: 16),
 
                 // Leave Type Dropdown
-                _buildFieldLabel('LEAVE TYPE *'),
+                _buildFieldLabel('Leave type'),
                 const SizedBox(height: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: AppColors.border,
@@ -349,7 +321,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                     child: DropdownButton<String>(
                       value: _selectedType,
                       isExpanded: true,
-                      dropdownColor: Colors.white,
+                      dropdownColor: AppColors.surface,
                       items: const [
                         DropdownMenuItem(value: 'casual', child: Text('Casual')),
                         DropdownMenuItem(value: 'sick', child: Text('Sick')),
@@ -368,18 +340,15 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildFieldLabel('REASON FOR LEAVE *'),
+                    _buildFieldLabel('Reason'),
                     ValueListenableBuilder<TextEditingValue>(
                       valueListenable: _reasonController,
                       builder: (context, value, _) {
                         return Text(
                           '${value.text.length}/300',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: value.text.length > 300
+                          style: AppTypography.label.copyWith(color: value.text.length > 300
                                 ? AppColors.danger
-                                : AppColors.textTertiary,
-                          ),
+                                : AppColors.textTertiary),
                         );
                       },
                     ),
@@ -391,18 +360,13 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                   maxLines: 3,
                   maxLength: 300,
                   buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    color: AppColors.ink,
-                  ),
+                  textCapitalization: TextCapitalization.sentences,
+                  style: AppTypography.caption.copyWith(color: AppColors.ink),
                   decoration: InputDecoration(
-                    hintText: 'Briefly describe why you are requesting leave...',
-                    hintStyle: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textTertiary,
-                    ),
+                    hintText: 'Briefly describe why you need the leave',
+                    hintStyle: AppTypography.caption.copyWith(color: AppColors.textTertiary),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: AppColors.surface,
                     contentPadding: const EdgeInsets.all(12),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -430,7 +394,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                 const SizedBox(height: 14),
 
                 // Supporting Attachment
-                _buildFieldLabel('SUPPORTING ATTACHMENT (OPTIONAL — MAX 2MB)'),
+                _buildFieldLabel('Supporting file (optional)'),
                 const SizedBox(height: 6),
                 GestureDetector(
                   onTap: _pickAttachment,
@@ -456,20 +420,13 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Click to upload supporting file',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.ink,
-                                ),
+                                'Tap to attach a supporting file',
+                                style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                'PDF, PNG, JPG, or DOC up to 2MB (e.g. medical certificate)',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textTertiary,
-                                ),
+                                'PDF, Word or image, up to 10 MB (e.g. a medical certificate)',
+                                style: AppTypography.label.copyWith(color: AppColors.textTertiary),
                                 textAlign: TextAlign.center,
                               ),
                             ],
@@ -492,23 +449,21 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                                   children: [
                                     Text(
                                       _attachmentName ?? 'Selected File',
-                                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
+                                      style: AppTypography.caption.copyWith(color: AppColors.ink, fontWeight: FontWeight.w600),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     if (_attachmentSizeBytes != null)
                                       Text(
-                                        '${(_attachmentSizeBytes! / 1024).toStringAsFixed(1)} KB',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: AppColors.textSecondary,
-                                        ),
+                                        PickedDocument(file: _attachmentFile!, name: '', sizeBytes: _attachmentSizeBytes!).sizeLabel,
+                                        style: AppTypography.label.copyWith(color: AppColors.textSecondary),
                                       ),
                                   ],
                                 ),
                               ),
                               IconButton(
                                 icon: const Icon(Icons.cancel_rounded, color: AppColors.danger, size: 20),
+                                tooltip: 'Remove file',
                                 onPressed: _removeAttachment,
                               ),
                             ],
@@ -519,8 +474,13 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                   const SizedBox(height: 6),
                   Text(
                     _attachmentError!,
-                    style: const TextStyle(color: AppColors.danger, fontSize: 11.5),
+                    style: AppTypography.label.copyWith(color: AppColors.dangerInk),
                   ),
+                ],
+
+                if (_dateError != null) ...[
+                  const SizedBox(height: 12),
+                  Text(_dateError!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
                 ],
 
                 // Server error if any
@@ -535,7 +495,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                     ),
                     child: Text(
                       _serverError!,
-                      style: const TextStyle(color: AppColors.danger, fontSize: 12),
+                      style: AppTypography.caption.copyWith(color: AppColors.dangerInk),
                     ),
                   ),
                 ],
@@ -543,9 +503,8 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                 const SizedBox(height: 24),
 
                 // Bottom Buttons (Cancel & Submit)
-                Wrap(
-                  alignment: WrapAlignment.end,
-                  runSpacing: 8,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     OutlinedButton(
                       style: OutlinedButton.styleFrom(
@@ -554,44 +513,31 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       ),
                       onPressed: _isSubmitting ? null : () => Navigator.pop(context),
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: AppColors.ink,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: Text('Cancel', style: AppTypography.bodyStrong),
                     ),
                     const SizedBox(width: 10),
-                    ElevatedButton(
+                    Flexible(
+                      child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.black,
+                        foregroundColor: AppColors.ink,
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       ),
-                      onPressed: _isSubmitting ? null : _handleSubmit,
+                      onPressed: _isSubmitting || overBalance ? null : _handleSubmit,
                       child: _isSubmitting
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.ink),
                             )
-                          : Row(
-                              children: [
-                                const Icon(Icons.add_rounded, size: 18, color: Colors.black),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Submit Leave Request',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13.5,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                              ],
+                          : Text(
+                              'Send request',
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.bodyStrong.copyWith(color: AppColors.ink),
                             ),
+                    ),
                     ),
                   ],
                 ),
@@ -606,12 +552,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
   Widget _buildFieldLabel(String label) {
     return Text(
       label,
-      style: TextStyle(
-        fontSize: 10.5,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.6,
-        color: AppColors.textSecondary,
-      ),
+      style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.6, color: AppColors.textSecondary),
     );
   }
 
@@ -625,7 +566,7 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: AppColors.border,
@@ -636,13 +577,9 @@ class _ApplyLeaveDialogState extends State<ApplyLeaveDialog> {
         children: [
           Text(
             text,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              color: isSelected
+            style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: isSelected
                   ? AppColors.ink
-                  : AppColors.textTertiary,
-            ),
+                  : AppColors.textTertiary),
           ),
           Icon(
             Icons.calendar_month_outlined,

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../shared/models/cohort_model.dart';
 import '../cohorts_repository.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
 
 class DeleteCohortDialog extends StatefulWidget {
   final Cohort cohort;
@@ -43,33 +45,26 @@ class _DeleteCohortDialogState extends State<DeleteCohortDialog> {
         Navigator.of(context).pop();
         widget.onSuccess();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cohort "${widget.cohort.name}" deleted successfully'),
-            backgroundColor: AppColors.success,
-          ),
+          SnackBar(content: Text('"${widget.cohort.name}" moved to the recycle bin')),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isDeleting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete cohort: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
+        showApiError(context, e, prefix: "Couldn't delete the cohort");
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final dialogBg = Colors.white;
+    final dialogBg = AppColors.surface;
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
 
     return Dialog(
       backgroundColor: dialogBg,
+      insetPadding: const EdgeInsets.all(16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
@@ -82,33 +77,25 @@ class _DeleteCohortDialogState extends State<DeleteCohortDialog> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: AppColors.danger.withValues(alpha: 0.1),
+                  color: AppColors.dangerSoft,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.delete_outline_rounded,
-                  color: AppColors.danger,
+                  color: AppColors.dangerInk,
                   size: 28,
                 ),
               ),
               const SizedBox(height: 18),
               Text(
-                'Delete Cohort?',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: primaryTextColor,
-                ),
+                'Delete "${widget.cohort.name}"?',
+                style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
               ),
               const SizedBox(height: 10),
               Text(
-                'Are you sure you want to delete "${widget.cohort.name}"? This action will unassign any member associations and cannot be undone.',
+                "Its interns leave the cohort; their accounts aren't affected. You can restore it from the recycle bin.",
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: secondaryTextColor,
-                  height: 1.4,
-                ),
+                style: AppTypography.body.copyWith(color: secondaryTextColor, height: 1.4),
               ),
               const SizedBox(height: 24),
               Row(
@@ -125,13 +112,7 @@ class _DeleteCohortDialogState extends State<DeleteCohortDialog> {
                           color: AppColors.border,
                         ),
                       ),
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: primaryTextColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: Text('Cancel', style: TextStyle(color: primaryTextColor)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -140,7 +121,7 @@ class _DeleteCohortDialogState extends State<DeleteCohortDialog> {
                       onPressed: _isDeleting ? null : _delete,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.danger,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppColors.surface,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 13),
                         shape: RoundedRectangleBorder(
@@ -151,7 +132,7 @@ class _DeleteCohortDialogState extends State<DeleteCohortDialog> {
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.surface),
                             )
                           : const Text(
                               'Delete',

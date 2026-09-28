@@ -74,14 +74,16 @@ void main() {
     expect(find.byType(MentorDashboardView), findsOneWidget);
     expect(find.byType(InternDashboardView), findsNothing);
     expect(find.byType(AdminDashboardView), findsNothing);
-    // 4th tab is the leave approval queue; notices moved into the "+" sheet
+    // 4th tab is the leave approval queue; everything else is on the More tab (no drawer)
     expect(find.byIcon(Icons.how_to_reg_outlined), findsOneWidget);
+    expect(find.byType(Drawer), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('nav_center_action')));
+    await tester.tap(find.text('More'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('New announcement'), findsOneWidget);
-    expect(find.text('Post standup'), findsNothing);
+    expect(find.text('Invite links'), findsOneWidget);
+    expect(find.text('My interns'), findsOneWidget);
+    expect(find.text('Organization settings'), findsNothing); // admin only
 
     FlutterError.onError = originalOnError;
   });
@@ -132,14 +134,16 @@ void main() {
     expect(find.byType(InternDashboardView), findsOneWidget);
     expect(find.byType(MentorDashboardView), findsNothing);
     expect(find.byType(AdminDashboardView), findsNothing);
-    // 4th tab is the intern's own leave; standup moved into the "+" sheet
+    // 4th tab is the intern's own leave; everything else is on the More tab (no drawer)
     expect(find.byIcon(Icons.beach_access_outlined), findsOneWidget);
+    expect(find.byType(Drawer), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('nav_center_action')));
+    await tester.tap(find.text('More'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('Post standup'), findsOneWidget);
-    expect(find.text('New announcement'), findsNothing);
+    expect(find.text('Standup'), findsOneWidget);
+    expect(find.text('Assignments'), findsOneWidget);
+    expect(find.text('Invite links'), findsNothing); // staff only
 
     FlutterError.onError = originalOnError;
   });

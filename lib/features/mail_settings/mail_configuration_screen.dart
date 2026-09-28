@@ -9,6 +9,8 @@ import 'mail_repository.dart';
 import 'models/mail_models.dart';
 import 'widgets/mail_config_panel.dart';
 import 'widgets/mail_logs_panel.dart';
+import '../../core/constants/app_typography.dart';
+import '../../shared/widgets/load_error_view.dart';
 
 class MailConfigurationScreen extends ConsumerStatefulWidget {
   const MailConfigurationScreen({super.key});
@@ -59,13 +61,9 @@ class _MailConfigurationScreenState extends ConsumerState<MailConfigurationScree
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected
+          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: isSelected
                 ? AppColors.onPrimary
-                : AppColors.textSecondary,
-          ),
+                : AppColors.textSecondary),
         ),
       ),
     );
@@ -94,7 +92,7 @@ class _MailConfigurationScreenState extends ConsumerState<MailConfigurationScree
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _errorMessage = apiErrorMessage(e);
           _isLoading = false;
         });
       }
@@ -116,7 +114,7 @@ class _MailConfigurationScreenState extends ConsumerState<MailConfigurationScree
     if (!_canManageMailSettings(user.role)) {
       return Scaffold(
         backgroundColor: AppColors.canvas,
-        appBar: pageAppBar(context, title: 'Mail Configuration'),
+        appBar: pageAppBar(context, title: 'Mail configuration'),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -142,13 +140,13 @@ class _MailConfigurationScreenState extends ConsumerState<MailConfigurationScree
                   const SizedBox(height: 16),
                   Text(
                     'Access Restricted',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: primaryTextColor),
+                    style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'You don\'t have permission to manage mail configuration for this organization.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, color: secondaryTextColor),
+                    style: AppTypography.caption.copyWith(color: secondaryTextColor),
                   ),
                   const SizedBox(height: 20),
                   ElevatedButton(
@@ -183,7 +181,7 @@ class _MailConfigurationScreenState extends ConsumerState<MailConfigurationScree
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   PageHeader(
-                    title: 'Mail Configuration',
+                    title: 'Mail configuration',
                     padding: EdgeInsets.zero,
                   ),
                   const SizedBox(height: 16),
@@ -199,7 +197,7 @@ class _MailConfigurationScreenState extends ConsumerState<MailConfigurationScree
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             _buildSegmentedTab('Configuration', 0),
-                            _buildSegmentedTab('Delivery Logs', 1),
+                            _buildSegmentedTab('Delivery log', 1),
                           ],
                         ),
                       ),
@@ -216,34 +214,7 @@ class _MailConfigurationScreenState extends ConsumerState<MailConfigurationScree
           if (_isLoading)
             const Center(child: CircularProgressIndicator())
           else if (_errorMessage != null)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(16),
-        boxShadow: AppShadows.soft,
-      ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.error_outline_rounded, size: 40, color: AppColors.danger),
-                      const SizedBox(height: 12),
-                      Text('Failed to load SMTP settings', style: TextStyle(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 6),
-                      Text(_errorMessage!, style: TextStyle(fontSize: 12, color: secondaryTextColor), textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadConfig,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
+            LoadErrorView(title: "Couldn't load mail settings", message: _errorMessage!, onRetry: _loadConfig)
           else
             MailConfigPanel(
               initialConfig: _config!,

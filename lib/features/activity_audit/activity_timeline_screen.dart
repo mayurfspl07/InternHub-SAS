@@ -10,6 +10,11 @@ import '../../shared/models/user_model.dart';
 import '../../shared/widgets/reference_components.dart';
 import 'activity_repository.dart';
 import 'models/activity_models.dart';
+import '../../core/constants/app_typography.dart';
+import '../../shared/widgets/load_error_view.dart';
+import '../../core/utils/formatters.dart';
+import '../../shared/widgets/pagination_bar.dart';
+import '../dashboard/widgets/dashboard_shared.dart';
 
 class ActivityTimelineScreen extends ConsumerStatefulWidget {
   final bool showBackButton;
@@ -35,37 +40,27 @@ class _ActivityTimelineScreenState extends ConsumerState<ActivityTimelineScreen>
 
   List<AuditLogEntry> _displayedLogs = [];
   int _totalPages = 1;
-  int _auditPageSize = 30;
 
-  Widget _buildSegmentedTab(String label, String value) {
-    final isSelected = _selectedCategory == value;
-    return GestureDetector(
-      onTap: () {
-        if (_selectedCategory != value) {
-          _onCategoryChanged(value);
-        }
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppSpacing.rPill),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected
-                ? AppColors.onPrimary
-                : AppColors.textSecondary,
-          ),
-        ),
-      ),
-    );
+  /// Filter label and the audit `action` category (null = everything).
+  static const _categories = <(String, String)>[
+    ('All', 'all'),
+    ('Attendance', 'attendance'),
+    ('Leave', 'leave'),
+    ('Projects', 'project'),
+    ('Tasks', 'task'),
+    ('Users', 'user'),
+    ('Standups', 'standup'),
+    ('Reviews', 'review'),
+    ('Announcements', 'announcement'),
+  ];
+
+  void _selectCategory(String value) {
+    if (value == _selectedCategory) return;
+    setState(() {
+      _selectedCategory = value;
+      _currentPage = 1;
+    });
+    _fetchTimelineData();
   }
 
   @override
@@ -94,22 +89,13 @@ class _ActivityTimelineScreenState extends ConsumerState<ActivityTimelineScreen>
     });
   }
 
-  void _onCategoryChanged(String? newCategory) {
-    if (newCategory == null || newCategory == _selectedCategory) return;
-    setState(() {
-      _selectedCategory = newCategory;
-      _currentPage = 1;
-    });
-    _fetchTimelineData();
-  }
-
   Future<void> _pickDate() async {
     final initialDate = _selectedDate != null ? (DateTime.tryParse(_selectedDate!) ?? DateTime.now()) : DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime(2035),
+      lastDate: DateTime.now(),
     );
 
     if (picked != null) {
@@ -166,30 +152,25 @@ class _ActivityTimelineScreenState extends ConsumerState<ActivityTimelineScreen>
           setState(() {
             _displayedLogs = filtered;
             _totalPages = annResult.totalPages;
-            _auditPageSize = 20;
             _isLoading = false;
           });
         }
       } else if (_selectedCategory == 'all') {
-        // Dual query: audit logs for current page + announcements page 1
-        final auditFuture = _repository.fetchAudit(
+        // Audit logs for this page; recent announcements are mixed in on page 1 only,
+        // so later pages don't repeat them.
+        final auditResult = await _repository.fetchAudit(
           page: _currentPage,
           action: null,
           date: _selectedDate,
           actor: _debouncedActorFilter,
         );
-        final annFuture = _repository.fetchAnnouncementsPage(
-          page: 1,
-          pageSize: 20,
-        );
-
-        final results = await Future.wait([auditFuture, annFuture]);
-        final auditResult = results[0] as AuditLogList;
-        final annResult = results[1] as AnnouncementsPageResult;
+        final announcements = _currentPage == 1
+            ? (await _repository.fetchAnnouncementsPage(page: 1, pageSize: 20)).items
+            : const <Never>[];
 
         final merged = mergeAuditLogsWithAnnouncements(
           auditLogs: auditResult.logs,
-          announcements: annResult.items,
+          announcements: announcements,
           category: 'all',
           dateFilter: _selectedDate,
         );
@@ -203,7 +184,6 @@ class _ActivityTimelineScreenState extends ConsumerState<ActivityTimelineScreen>
           setState(() {
             _displayedLogs = filtered;
             _totalPages = auditResult.totalPages;
-            _auditPageSize = auditResult.pageSize;
             _isLoading = false;
           });
         }
@@ -232,7 +212,6 @@ class _ActivityTimelineScreenState extends ConsumerState<ActivityTimelineScreen>
           setState(() {
             _displayedLogs = filtered;
             _totalPages = auditResult.totalPages;
-            _auditPageSize = auditResult.pageSize;
             _isLoading = false;
           });
         }
@@ -241,7 +220,7 @@ class _ActivityTimelineScreenState extends ConsumerState<ActivityTimelineScreen>
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = e.toString();
+          _errorMessage = apiErrorMessage(e);
         });
       }
     }
@@ -267,352 +246,197 @@ class _ActivityTimelineScreenState extends ConsumerState<ActivityTimelineScreen>
     }
 
     final bgColor = AppColors.canvas;
-    final cardBg = AppColors.surface;
-    final borderColor = AppColors.border;
-    final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
-
-    final serialOffset = _selectedCategory == 'announcement'
-        ? (_currentPage - 1) * 20
-        : (_currentPage - 1) * _auditPageSize;
 
     return Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _fetchTimelineData,
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              // Header
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 16, AppSpacing.p20, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Top Row: Back Button & Title & Share Action matching Screen 3 "Interaction History"
-                      PageHeader(
-                        title: 'Activity',
-                        showBack: widget.showBackButton && Navigator.canPop(context),
-                        padding: EdgeInsets.zero,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Segmented Tab Row: [All] [Interns] [Projects] [Reviews]
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceMuted,
-                              borderRadius: BorderRadius.circular(AppSpacing.rPill),
+        child: Column(
+          children: [
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _fetchTimelineData,
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 16, AppSpacing.p20, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            PageHeader(
+                              title: 'Activity',
+                              subtitle: 'What changed, who did it and when',
+                              showBack: widget.showBackButton && Navigator.canPop(context),
+                              padding: EdgeInsets.zero,
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                            const SizedBox(height: 16),
+                            Row(
                               children: [
-                                _buildSegmentedTab('All', 'all'),
-                                _buildSegmentedTab('Interns', 'user'),
-                                _buildSegmentedTab('Projects', 'project'),
-                                _buildSegmentedTab('Reviews', 'review'),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _actorSearchController,
+                                    onChanged: _onActorSearchChanged,
+                                    textInputAction: TextInputAction.search,
+                                    decoration: InputDecoration(
+                                      hintText: 'Search by person',
+                                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                                      suffixIcon: _actorSearchController.text.isNotEmpty
+                                          ? IconButton(
+                                              tooltip: 'Clear search',
+                                              icon: const Icon(Icons.clear_rounded, size: 18),
+                                              onPressed: () {
+                                                _actorSearchController.clear();
+                                                _onActorSearchChanged('');
+                                              },
+                                            )
+                                          : null,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton.outlined(
+                                  tooltip: _selectedDate == null ? 'Pick a date' : 'Change date',
+                                  onPressed: _pickDate,
+                                  icon: Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 18,
+                                    color: _selectedDate != null ? AppColors.primaryInk : secondaryTextColor,
+                                  ),
+                                ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Search bar with date filter action
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _actorSearchController,
-                              onChanged: _onActorSearchChanged,
-                              style: TextStyle(color: primaryTextColor, fontSize: 14),
-                              decoration: InputDecoration(
-                                hintText: 'Search activity...',
-                                hintStyle: TextStyle(color: secondaryTextColor, fontSize: 13),
-                                prefixIcon: Icon(Icons.search_rounded, size: 20, color: secondaryTextColor),
-                                suffixIcon: _actorSearchController.text.isNotEmpty
-                                    ? IconButton(
-                                        icon: Icon(Icons.clear_rounded, size: 18, color: secondaryTextColor),
-                                        onPressed: () {
-                                          _actorSearchController.clear();
-                                          _onActorSearchChanged('');
-                                        },
-                                      )
-                                    : null,
-                                filled: true,
-                                fillColor: cardBg,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                                  borderSide: BorderSide(color: borderColor),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                                  borderSide: BorderSide(color: borderColor),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                            if (_selectedDate != null) ...[
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: InputChip(
+                                  label: Text(formatDate(_selectedDate)),
+                                  deleteButtonTooltipMessage: 'Show all dates',
+                                  onDeleted: _clearDate,
                                 ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          InkWell(
-                            onTap: _pickDate,
-                            borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: cardBg,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: _selectedDate != null ? AppColors.primary : borderColor,
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.calendar_today_rounded,
-                                size: 18,
-                                color: _selectedDate != null ? AppColors.primaryInk : secondaryTextColor,
-                              ),
-                            ),
-                          ),
-                          if (_selectedDate != null) ...[
-                            const SizedBox(width: 4),
-                            InkWell(
-                              onTap: _clearDate,
-                              borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                              child: Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: cardBg,
-                                  shape: BoxShape.circle,
-        boxShadow: AppShadows.soft,
-      ),
-                                child: Icon(Icons.clear_rounded, size: 18, color: secondaryTextColor),
-                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            PillFilter(
+                              options: [for (final c in _categories) c.$1],
+                              selectedIndex: _categories.indexWhere((c) => c.$2 == _selectedCategory),
+                              onSelected: (i) => _selectCategory(_categories[i].$2),
                             ),
                           ],
-                        ],
+                        ),
+                      ),
+                    ),
+                    if (_isLoading && _displayedLogs.isEmpty)
+                      const SliverFillRemaining(hasScrollBody: false, child: Center(child: CircularProgressIndicator()))
+                    else if (_errorMessage != null && _displayedLogs.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: LoadErrorView(title: "Couldn't load activity", message: _errorMessage!, onRetry: _fetchTimelineData),
+                      )
+                    else if (_displayedLogs.isEmpty)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20, vertical: 40),
+                          child: Column(
+                            children: [
+                              const Icon(Icons.history_rounded, size: 48, color: AppColors.textTertiary),
+                              const SizedBox(height: 12),
+                              Text('Nothing here', style: AppTypography.section.copyWith(fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 4),
+                              Text('No activity matches these filters.', style: AppTypography.caption, textAlign: TextAlign.center),
+                            ],
+                          ),
+                        ),
+                      )
+                    else ...[
+                      if (_isLoading) const SliverToBoxAdapter(child: LinearProgressIndicator(minHeight: 2)),
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 4, AppSpacing.p20, 24),
+                        sliver: SliverList.separated(
+                          itemCount: _displayedLogs.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) => _buildTimelineItem(_displayedLogs[index]),
+                        ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
               ),
+            ),
+            PaginationBar(
+              page: _currentPage,
+              totalPages: _totalPages,
+              itemLabel: 'events',
+              isLoading: _isLoading,
+              onPageChanged: _goToPage,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-              // Timeline Content or States
-              if (_isLoading)
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 60),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                )
-              else if (_errorMessage != null)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: AppSpacing.p20),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          const Icon(Icons.error_outline, size: 36, color: AppColors.danger),
-                          const SizedBox(height: 8),
-                          Text(_errorMessage!, style: const TextStyle(color: AppColors.danger)),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _fetchTimelineData,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                )
-              else if (_displayedLogs.isEmpty)
-                // Dashed Card Empty State matching web screenshot
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20),
-                    child: _buildDashedEmptyCard(
-                      borderColor: borderColor,
-                      secondaryTextColor: secondaryTextColor,
-                    ),
-                  ),
-                )
-              else
-                // Timeline List
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final log = _displayedLogs[index];
-                        final serialNumber = serialOffset + index + 1;
-                        final isLast = index == _displayedLogs.length - 1;
+  String _sentence(AuditLogEntry log) =>
+      log.target.isNotEmpty ? '${log.actorName} ${log.verb} ${log.target}' : '${log.actorName} ${log.verb}';
 
-                        return _buildTimelineItem(
-                          log: log,
-                          serialNumber: serialNumber,
-                          isLast: isLast,
-                          cardBg: cardBg,
-                          borderColor: borderColor,
-                          primaryTextColor: primaryTextColor,
-                          secondaryTextColor: secondaryTextColor,
-                        );
-                      },
-                      childCount: _displayedLogs.length,
-                    ),
-                  ),
+  Widget _buildTimelineItem(AuditLogEntry log) {
+    final dt = DateTime.tryParse(log.createdAt);
+    final when = dt == null ? 'Unknown time' : formatRelative(dt);
+    final text = _sentence(log);
+
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => showModalBottomSheet(
+          context: context,
+          showDragHandle: true,
+          builder: (ctx) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(22, 0, 22, 22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(text, style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  Text(dt == null ? 'Unknown time' : formatDateTime(dt), style: AppTypography.caption),
+                  const SizedBox(height: 4),
+                  Text('Type: ${humanize(log.action.split('.').first)}', style: AppTypography.caption),
+                ],
+              ),
+            ),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(color: AppColors.surfaceMuted, shape: BoxShape.circle),
+                child: Icon(getActivityIcon(log.action), size: 18, color: AppColors.ink),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(text, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.body.copyWith(color: AppColors.ink)),
+                    const SizedBox(height: 2),
+                    Text(when, style: AppTypography.label),
+                  ],
                 ),
-
-              // Pagination Footer
-              if (_totalPages > 1 && !_isLoading)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 24, AppSpacing.p20, 40),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: _currentPage > 1 ? () => _goToPage(_currentPage - 1) : null,
-                          icon: const Icon(Icons.chevron_left_rounded, size: 18),
-                          label: const Text('Previous'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'Page $_currentPage of $_totalPages',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: secondaryTextColor,
-                            ),
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _currentPage < _totalPages ? () => _goToPage(_currentPage + 1) : null,
-                          icon: const Icon(Icons.chevron_right_rounded, size: 18),
-                          label: const Text('Next'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                const SliverToBoxAdapter(child: SizedBox(height: 40)),
+              ),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildDashedEmptyCard({
-    required Color borderColor,
-    required Color secondaryTextColor,
-  }) {
-    return Container(
-      width: double.infinity,
-      height: 180,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: borderColor,
-          width: 1.5,
-          strokeAlign: BorderSide.strokeAlignCenter,
-        ),
-      ),
-      child: Center(
-        child: Text(
-          'No activity logs matching the selected filters.',
-          style: TextStyle(
-            fontSize: 14,
-            color: secondaryTextColor,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTimelineItem({
-    required AuditLogEntry log,
-    required int serialNumber,
-    required bool isLast,
-    required Color cardBg,
-    required Color borderColor,
-    required Color primaryTextColor,
-    required Color secondaryTextColor,
-  }) {
-    final themeList = [
-      HistoryCardTheme.amber,
-      HistoryCardTheme.peach,
-      HistoryCardTheme.lavender,
-      HistoryCardTheme.sage,
-    ];
-    final selectedTheme = themeList[serialNumber % themeList.length];
-
-    final dt = DateTime.tryParse(log.createdAt) ?? DateTime.now();
-    final dateStr = DateFormat('MMM d').format(dt);
-
-    // Format readable title
-    String title = '${log.actorName} ${log.verb}';
-    if (log.target.isNotEmpty) {
-      title = '${log.actorName} ${log.verb} ${log.target}';
-    }
-
-    final timeStr = DateFormat('h:mm a').format(dt);
-
-    return InteractionHistoryCard(
-      dateText: dateStr,
-      title: title,
-      metricValue: timeStr,
-      cardTheme: selectedTheme,
-      onTap: () {
-        // Show detail diff modal
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: Colors.white,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          builder: (ctx) => Padding(
-            padding: const EdgeInsets.all(22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Event Details',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  title,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Logged at: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(dt)}',
-                  style: TextStyle(fontSize: 12, color: secondaryTextColor),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

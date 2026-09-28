@@ -5,6 +5,8 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../shared/models/attendance_model.dart';
 import '../attendance_repository.dart';
 import 'authed_attendance_image.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/status_chip.dart';
 
 class AttendanceDayDetailModal extends StatefulWidget {
   final DateTime date;
@@ -46,6 +48,7 @@ class AttendanceDayDetailModal extends StatefulWidget {
 class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
   List<Map<String, dynamic>> _tasks = [];
   bool _isLoadingTasks = false;
+  bool _tasksFailed = false;
 
   @override
   void initState() {
@@ -71,31 +74,12 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoadingTasks = false);
-    }
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'present':
-        return AppColors.success;
-      case 'late':
-        return AppColors.warning; // Amber/Yellow
-      case 'half_day':
-      case 'halfday':
-        return AppColors.info; // Sky Blue
-      case 'absent':
-        return AppColors.danger; // Red
-      case 'on_leave':
-      case 'leave':
-        return AppColors.lavenderInk; // Purple
-      case 'excused':
-        return AppColors.success; // Teal
-      case 'week_off':
-      case 'off':
-        return AppColors.textSecondary;
-      default:
-        return AppColors.textSecondary;
+      if (mounted) {
+        setState(() {
+          _isLoadingTasks = false;
+          _tasksFailed = true;
+        });
+      }
     }
   }
 
@@ -121,18 +105,16 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
 
   @override
   Widget build(BuildContext context) {
-    final dateTitle = DateFormat('EEEE, MMMM d, yyyy').format(widget.date);
-    final statusColor = _getStatusColor(widget.status);
-    final displayStatus = widget.status.replaceAll('_', ' ').toUpperCase();
+    final dateTitle = DateFormat('EEEE, d MMMM yyyy').format(widget.date);
 
     final loginStr = _formatTime(widget.record?.checkIn);
     final logoutStr = _formatTime(widget.record?.checkOut);
     final hoursStr = widget.record?.hoursWorked != null
         ? '${widget.record!.hoursWorked!.toStringAsFixed(1)}h'
-        : '0.0h';
+        : '—';
 
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppSpacing.r24),
         side: BorderSide(
@@ -159,39 +141,16 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                       children: [
                         Text(
                           dateTitle,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
-                          ),
+                          style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                          ),
-                          child: Text(
-                            displayStatus,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
+                        StatusChip.fromString(widget.status),
                       ],
                     ),
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: Icon(
-                      Icons.close,
-                      color: AppColors.textSecondary,
-                      size: 20,
-                    ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    tooltip: 'Close',
+                    icon: const Icon(Icons.close, color: AppColors.textSecondary, size: 20),
                   ),
                 ],
               ),
@@ -200,11 +159,8 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
-                'Detailed shift verification, selfie photos, GPS coordinates, and task audit trail.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
+                'Times, photos, locations and tasks for this day.',
+                style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
               ),
             ),
             const SizedBox(height: 16),
@@ -224,7 +180,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                           Expanded(
                             child: _buildMetricBox(
                               context: context,
-                              title: 'LOGIN',
+                              title: 'Check-in',
                               value: loginStr,
                             ),
                           ),
@@ -232,7 +188,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                           Expanded(
                             child: _buildMetricBox(
                               context: context,
-                              title: 'LOGOUT',
+                              title: 'Check-out',
                               value: logoutStr,
                             ),
                           ),
@@ -240,7 +196,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                           Expanded(
                             child: _buildMetricBox(
                               context: context,
-                              title: 'HOURS',
+                              title: 'Hours',
                               value: hoursStr,
                               isYellow: true,
                             ),
@@ -258,13 +214,8 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'CHECK-IN PHOTO',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textSecondary,
-                                  letterSpacing: 0.5,
-                                ),
+                                'Check-in photo',
+                                style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.5),
                               ),
                               const SizedBox(height: 6),
                               AspectRatio(
@@ -285,13 +236,8 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'CHECK-OUT PHOTO',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textSecondary,
-                                  letterSpacing: 0.5,
-                                ),
+                                'Check-out photo',
+                                style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 0.5),
                               ),
                               const SizedBox(height: 6),
                               AspectRatio(
@@ -337,7 +283,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.surface,
                         borderRadius: BorderRadius.circular(AppSpacing.r16),
                         border: Border.all(
                           color: AppColors.border,
@@ -357,11 +303,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                               Expanded(
                                 child: Text(
                                   'Tasks Completed / Modified on this Day',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.ink,
-                                  ),
+                                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                                 ),
                               ),
                             ],
@@ -380,12 +322,8 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                             )
                           else if (_tasks.isEmpty)
                             Text(
-                              'No task activity recorded on this date.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontStyle: FontStyle.italic,
-                                color: AppColors.textTertiary,
-                              ),
+                              _tasksFailed ? "Couldn't load task activity." : 'No task activity recorded on this date.',
+                              style: AppTypography.caption.copyWith(fontStyle: FontStyle.italic, color: AppColors.textTertiary),
                             )
                           else
                             ..._tasks.map((t) {
@@ -407,10 +345,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
                                     Expanded(
                                       child: Text(
                                         '$taskTitle ($changeType)',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.ink,
-                                        ),
+                                        style: AppTypography.caption.copyWith(color: AppColors.ink),
                                       ),
                                     ),
                                   ],
@@ -466,7 +401,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
       decoration: BoxDecoration(
         color: isYellow
             ? AppColors.primary
-            : Colors.white,
+            : AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.r16),
         border: Border.all(
           color: isYellow
@@ -478,24 +413,17 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
         children: [
           Text(
             title,
-            style: TextStyle(
-              fontSize: 11,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.label.copyWith(
               fontWeight: FontWeight.w700,
-              color: isYellow
-                  ? AppColors.warningInk
-                  : AppColors.textSecondary,
+              color: isYellow ? AppColors.onPrimary : AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: isYellow
-                  ? AppColors.ink
-                  : AppColors.ink,
-            ),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(value, style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -513,7 +441,7 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.r16),
         border: Border.all(
           color: AppColors.border,
@@ -534,19 +462,12 @@ class _AttendanceDayDetailModalState extends State<AttendanceDayDetailModal> {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                  ),
+                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   address,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
+                  style: AppTypography.label.copyWith(color: AppColors.textSecondary),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),

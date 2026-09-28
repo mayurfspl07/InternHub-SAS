@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../mail_repository.dart';
 import '../models/mail_models.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
+import 'package:flutter/services.dart';
 
 class MailConfigPanel extends StatefulWidget {
   final OrgSmtpConfig initialConfig;
@@ -19,7 +22,11 @@ class MailConfigPanel extends StatefulWidget {
   State<MailConfigPanel> createState() => _MailConfigPanelState();
 }
 
-class _MailConfigPanelState extends State<MailConfigPanel> {
+// Kept alive so unsaved edits survive switching to the logs tab and back.
+class _MailConfigPanelState extends State<MailConfigPanel> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   late OrgSmtpConfig _savedConfig;
 
   // Form State
@@ -201,7 +208,7 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
         setState(() {
           _testResult = TestOrgSmtpResponse(
             success: false,
-            message: e.toString().replaceAll('Exception: ', ''),
+            message: apiErrorMessage(e),
           );
           _isTesting = false;
         });
@@ -289,7 +296,7 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
         setState(() {
           _isSaving = false;
         });
-        _showError('Failed to save configuration: ${e.toString().replaceAll('Exception: ', '')}');
+        _showError('Failed to save configuration: ${apiErrorMessage(e)}');
       }
     }
   }
@@ -306,7 +313,8 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = Colors.white;
+    super.build(context);
+    final cardBg = AppColors.surface;
     final borderColor = AppColors.border;
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
@@ -332,18 +340,14 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
                         children: [
                           Text(
                             _isEnabled ? 'Custom SMTP Active' : 'Custom SMTP Disabled',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: primaryTextColor,
-                            ),
+                            style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             _isEnabled
                                 ? 'Custom tenant SMTP is active and will be used for all outgoing emails.'
                                 : 'Platform SMTP fallback will be used for outgoing system notifications.',
-                            style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                            style: AppTypography.caption.copyWith(color: secondaryTextColor),
                           ),
                         ],
                       ),
@@ -376,7 +380,7 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
                         Expanded(
                           child: Text(
                             'When disabled, event notification preferences below remain active, but emails are dispatched using the platform\'s shared default SMTP server.',
-                            style: TextStyle(fontSize: 12, color: AppColors.infoInk),
+                            style: AppTypography.caption.copyWith(color: AppColors.infoInk),
                           ),
                         ),
                       ],
@@ -397,26 +401,25 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
               children: [
                 Text(
                   'SMTP Server Configuration',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: primaryTextColor,
-                  ),
+                  style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                 ),
                 const SizedBox(height: 14),
 
                 // Host
-                _buildFieldLabel('SMTP Host', isRequired: _isEnabled, secondaryTextColor: secondaryTextColor),
+                _buildFieldLabel('SMTP host', isRequired: _isEnabled, secondaryTextColor: secondaryTextColor),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _hostController,
+                  keyboardType: TextInputType.url,
+                  autocorrect: false,
+                  enableSuggestions: false,
                   decoration: _inputDecoration('smtp.sendgrid.net', borderColor),
-                  style: TextStyle(fontSize: 14, color: primaryTextColor),
+                  style: AppTypography.body.copyWith(color: primaryTextColor),
                 ),
                 const SizedBox(height: 14),
 
                 // Port & Port chips
-                _buildFieldLabel('SMTP Port', isRequired: true, secondaryTextColor: secondaryTextColor),
+                _buildFieldLabel('SMTP port', isRequired: true, secondaryTextColor: secondaryTextColor),
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -425,8 +428,9 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
                       child: TextField(
                         controller: _portController,
                         keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(5)],
                         decoration: _inputDecoration('587', borderColor),
-                        style: TextStyle(fontSize: 14, color: primaryTextColor),
+                        style: AppTypography.body.copyWith(color: primaryTextColor),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -446,12 +450,14 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
                 const SizedBox(height: 14),
 
                 // Username
-                _buildFieldLabel('SMTP Username', isRequired: _isEnabled, secondaryTextColor: secondaryTextColor),
+                _buildFieldLabel('SMTP username', isRequired: _isEnabled, secondaryTextColor: secondaryTextColor),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _usernameController,
+                  autocorrect: false,
+                  enableSuggestions: false,
                   decoration: _inputDecoration('e.g. apikey or user@domain.com', borderColor),
-                  style: TextStyle(fontSize: 14, color: primaryTextColor),
+                  style: AppTypography.body.copyWith(color: primaryTextColor),
                 ),
                 const SizedBox(height: 14),
 
@@ -461,7 +467,7 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
                 Wrap(
                   spacing: 8,
                   children: [
-                    _buildEncryptionChip('TLS (rec. 587)', OrgSmtpEncryption.tls),
+                    _buildEncryptionChip('TLS (587, recommended)', OrgSmtpEncryption.tls),
                     _buildEncryptionChip('SSL (465)', OrgSmtpEncryption.ssl),
                     _buildEncryptionChip('None (25)', OrgSmtpEncryption.none),
                   ],
@@ -490,7 +496,7 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
                             children: [
                               Text(
                                 '••••••••',
-                                style: TextStyle(fontSize: 16, color: secondaryTextColor, letterSpacing: 2),
+                                style: AppTypography.body.copyWith(color: secondaryTextColor, letterSpacing: 2),
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -500,11 +506,7 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
                                 ),
                                 child: Text(
                                   'Encrypted & Stored',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.success,
-                                  ),
+                                  style: AppTypography.label.copyWith(color: AppColors.success),
                                 ),
                               ),
                             ],
@@ -531,7 +533,7 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
                         enableSuggestions: false,
                         autocorrect: false,
                         decoration: _inputDecoration('Enter new password', borderColor),
-                        style: TextStyle(fontSize: 14, color: primaryTextColor),
+                        style: AppTypography.body.copyWith(color: primaryTextColor),
                       ),
                       if (_savedConfig.hasPassword) ...[
                         const SizedBox(height: 6),
@@ -565,28 +567,25 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
               children: [
                 Text(
                   'Sender Identity',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: primaryTextColor,
-                  ),
+                  style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                 ),
                 const SizedBox(height: 14),
-                _buildFieldLabel('Sender Name (Optional)', secondaryTextColor: secondaryTextColor),
+                _buildFieldLabel('Sender name (optional)', secondaryTextColor: secondaryTextColor),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _senderNameController,
                   decoration: _inputDecoration('e.g. InternHub Workspace', borderColor),
-                  style: TextStyle(fontSize: 14, color: primaryTextColor),
+                  style: AppTypography.body.copyWith(color: primaryTextColor),
                 ),
                 const SizedBox(height: 14),
-                _buildFieldLabel('Sender Email (Optional)', secondaryTextColor: secondaryTextColor),
+                _buildFieldLabel('Sender email (optional)', secondaryTextColor: secondaryTextColor),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _senderEmailController,
                   keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
                   decoration: _inputDecoration('notifications@yourcompany.com', borderColor),
-                  style: TextStyle(fontSize: 14, color: primaryTextColor),
+                  style: AppTypography.body.copyWith(color: primaryTextColor),
                 ),
               ],
             ),
@@ -602,16 +601,12 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
               children: [
                 Text(
                   'Email Notification Preferences',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: primaryTextColor,
-                  ),
+                  style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Choose which organization events trigger outgoing emails to users.',
-                  style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                  style: AppTypography.caption.copyWith(color: secondaryTextColor),
                 ),
                 const SizedBox(height: 12),
                 _buildNotificationTile('Welcome / Invite', 'Send email when a new user is invited', _notifyWelcome, (v) => setState(() => _notifyWelcome = v), borderColor),
@@ -636,25 +631,22 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
               children: [
                 Text(
                   'Test Email Delivery',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: primaryTextColor,
-                  ),
+                  style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Verify outgoing SMTP connectivity by sending a test message.',
-                  style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                  style: AppTypography.caption.copyWith(color: secondaryTextColor),
                 ),
                 const SizedBox(height: 14),
-                _buildFieldLabel('Recipient Email *', secondaryTextColor: secondaryTextColor),
+                _buildFieldLabel('Send a test to', secondaryTextColor: secondaryTextColor),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _testEmailController,
                   keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
                   decoration: _inputDecoration('admin@example.com', borderColor),
-                  style: TextStyle(fontSize: 14, color: primaryTextColor),
+                  style: AppTypography.body.copyWith(color: primaryTextColor),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
@@ -704,11 +696,7 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
                         Expanded(
                           child: Text(
                             _testResult!.message,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _testResult!.success ? AppColors.success : AppColors.danger,
-                            ),
+                            style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: _testResult!.success ? AppColors.success : AppColors.danger),
                           ),
                         ),
                       ],
@@ -787,7 +775,7 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: secondaryTextColor),
+          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: secondaryTextColor),
         ),
         if (isRequired) ...[
           const SizedBox(width: 4),
@@ -800,7 +788,7 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
   InputDecoration _inputDecoration(String hint, Color borderColor) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(fontSize: 13, color: AppColors.textTertiary),
+      hintStyle: AppTypography.caption.copyWith(color: AppColors.textTertiary),
       filled: true,
       fillColor: AppColors.surfaceMuted,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -873,19 +861,12 @@ class _MailConfigPanelState extends State<MailConfigPanel> {
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.ink,
-                      ),
+                      style: AppTypography.bodyStrong.copyWith(color: AppColors.ink),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
+                      style: AppTypography.label.copyWith(color: AppColors.textSecondary),
                     ),
                   ],
                 ),

@@ -42,7 +42,7 @@ class HeroBannerCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
           child: Column(
             children: [
-              Text(title, textAlign: TextAlign.center, style: AppTypography.section),
+              Text(title, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.section),
               if (subtitle != null) ...[
                 const SizedBox(height: 4),
                 Text(

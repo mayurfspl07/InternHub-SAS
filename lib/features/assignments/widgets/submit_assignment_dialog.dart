@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import '../../../shared/models/assignment_model.dart';
 import '../assignments_repository.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
+import '../../../core/services/document_picker.dart';
 
 class SubmitAssignmentDialog extends StatefulWidget {
   final AssignmentItem assignment;
@@ -44,6 +46,8 @@ class _SubmitAssignmentDialogState extends State<SubmitAssignmentDialog> {
   String? _fileError;
 
   bool _isSubmitting = false;
+  String? _formError;
+  String? _urlError;
 
   bool get isResubmission => widget.assignment.isSubmitted || widget.assignment.mySubmission != null;
 
@@ -67,30 +71,25 @@ class _SubmitAssignmentDialogState extends State<SubmitAssignmentDialog> {
     super.dispose();
   }
 
+  /// Solutions are usually documents or archives, not just photos.
+  static const _solutionTypes = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'zip', 'png', 'jpg', 'jpeg'];
+
   Future<void> _pickFile() async {
     try {
-      final picker = ImagePicker();
-      final picked = await picker.pickMedia();
+      final picked = await pickDocument(allowedExtensions: _solutionTypes, maxMb: 2);
       if (picked != null) {
-        final file = File(picked.path);
-        final size = await file.length();
-
-        if (size > 2 * 1024 * 1024) {
-          setState(() {
-            _fileError = 'File exceeds 2MB limit (${(size / (1024 * 1024)).toStringAsFixed(1)}MB)';
-          });
-          return;
-        }
-
         setState(() {
-          _file = file;
+          _file = picked.file;
           _fileName = picked.name;
-          _fileSize = size;
+          _fileSize = picked.sizeBytes;
           _fileError = null;
+          _formError = null;
         });
       }
+    } on DocumentPickException catch (e) {
+      setState(() => _fileError = e.message);
     } catch (e) {
-      setState(() => _fileError = 'Failed to select file: $e');
+      setState(() => _fileError = "Couldn't open that file. Try another one.");
     }
   }
 
@@ -108,16 +107,21 @@ class _SubmitAssignmentDialogState extends State<SubmitAssignmentDialog> {
     final githubTrimmed = _githubController.text.trim();
 
     // Requires at least one of: submission_text, github_url, or file
+    // Shown inside the dialog; a snackbar would sit behind it.
     if (textTrimmed.isEmpty && githubTrimmed.isEmpty && _file == null && _fileName == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please provide at least a summary, GitHub URL, or attachment file.'),
-        ),
-      );
+      setState(() => _formError = 'Add a summary, a link or a file.');
+      return;
+    }
+    final uri = Uri.tryParse(githubTrimmed);
+    if (githubTrimmed.isNotEmpty && (uri == null || !uri.hasScheme || !uri.scheme.startsWith('http') || uri.host.isEmpty)) {
+      setState(() => _urlError = 'Enter a full link starting with https://');
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _formError = null;
+    });
 
     try {
       final res = await AssignmentsRepository().submitAssignment(
@@ -127,47 +131,41 @@ class _SubmitAssignmentDialogState extends State<SubmitAssignmentDialog> {
         file: _file,
       );
 
-      final message = res['message']?.toString() ?? 'Solution submitted successfully!';
+      final message = res['message']?.toString() ?? 'Work submitted';
 
       if (mounted) {
         Navigator.of(context).pop();
         widget.onSuccess();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: AppColors.success,
-          ),
+          SnackBar(content: Text(message)),
         );
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to submit assignment: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
+        setState(() {
+          _isSubmitting = false;
+          _formError = apiErrorMessage(e);
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final dialogBg = Colors.white;
+    final dialogBg = AppColors.surface;
     final borderColor = AppColors.border;
-    final fieldBg = Colors.white;
+    final fieldBg = AppColors.surface;
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
 
     return Dialog(
       backgroundColor: dialogBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      insetPadding: const EdgeInsets.all(16),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -181,67 +179,39 @@ class _SubmitAssignmentDialogState extends State<SubmitAssignmentDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isResubmission ? 'Resubmit Solution' : 'Submit Solution',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: primaryTextColor,
-                            letterSpacing: -0.3,
-                          ),
+                          isResubmission ? 'Resubmit work' : 'Submit work',
+                          style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor, letterSpacing: -0.3),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           widget.assignment.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.info,
-                          ),
+                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.infoInk),
                         ),
                       ],
                     ),
                   ),
-                  InkWell(
-                    onTap: () => Navigator.of(context).pop(),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: borderColor),
-                      ),
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: 18,
-                        color: secondaryTextColor,
-                      ),
-                    ),
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.close_rounded, color: secondaryTextColor),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
 
               // Solution Summary / Notes
-              Text(
-                'SOLUTION SUMMARY & NOTES',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                  color: primaryTextColor,
-                ),
-              ),
+              Text('Summary', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
               const SizedBox(height: 8),
               TextField(
                 controller: _textController,
                 maxLines: 4,
                 minLines: 3,
-                style: TextStyle(color: primaryTextColor, fontSize: 14),
+                style: AppTypography.body.copyWith(color: primaryTextColor),
                 decoration: InputDecoration(
-                  hintText: 'Summarize your solution, key architecture decisions, and deliverables...',
-                  hintStyle: TextStyle(color: secondaryTextColor, fontSize: 13),
+                  hintText: 'What you built and anything your mentor should know',
+                  hintStyle: AppTypography.caption.copyWith(color: secondaryTextColor),
                   filled: true,
                   fillColor: fieldBg,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -262,23 +232,25 @@ class _SubmitAssignmentDialogState extends State<SubmitAssignmentDialog> {
               const SizedBox(height: 18),
 
               // GitHub / Demo URL
-              Text(
-                'GITHUB / DEMO URL (OPTIONAL)',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                  color: primaryTextColor,
-                ),
-              ),
+              Text('Link (optional)', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
               const SizedBox(height: 8),
               TextField(
                 controller: _githubController,
                 keyboardType: TextInputType.url,
-                style: TextStyle(color: primaryTextColor, fontSize: 14),
+                autocorrect: false,
+                onChanged: (_) {
+                  if (_urlError != null || _formError != null) {
+                    setState(() {
+                      _urlError = null;
+                      _formError = null;
+                    });
+                  }
+                },
+                style: AppTypography.body.copyWith(color: primaryTextColor),
                 decoration: InputDecoration(
-                  hintText: 'https://github.com/your-username/repo-name',
-                  hintStyle: TextStyle(color: secondaryTextColor, fontSize: 13),
+                  hintText: 'https://github.com/you/repo',
+                  errorText: _urlError,
+                  hintStyle: AppTypography.caption.copyWith(color: secondaryTextColor),
                   prefixIcon: Icon(Icons.link_rounded, size: 18, color: secondaryTextColor),
                   filled: true,
                   fillColor: fieldBg,
@@ -300,15 +272,7 @@ class _SubmitAssignmentDialogState extends State<SubmitAssignmentDialog> {
               const SizedBox(height: 18),
 
               // Solution Attachment File (Optional, max 2MB)
-              Text(
-                'ATTACH SOLUTION FILE (OPTIONAL, MAX 2MB)',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                  color: primaryTextColor,
-                ),
-              ),
+              Text('File (optional)', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -320,20 +284,19 @@ class _SubmitAssignmentDialogState extends State<SubmitAssignmentDialog> {
                 child: Row(
                   children: [
                     ElevatedButton.icon(
-                      onPressed: _pickFile,
+                      onPressed: _isSubmitting ? null : _pickFile,
                       icon: const Icon(Icons.file_upload_outlined, size: 16),
-                      label: const Text('Choose File', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                      label: Text('Choose file', style: AppTypography.caption.copyWith(color: AppColors.ink, fontWeight: FontWeight.w600)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.surfaceMuted,
                         foregroundColor: primaryTextColor,
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                           side: BorderSide(color: borderColor),
                         ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        minimumSize: const Size(0, 44),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -341,21 +304,16 @@ class _SubmitAssignmentDialogState extends State<SubmitAssignmentDialog> {
                       child: Text(
                         _fileName != null
                             ? '$_fileName${_fileSize != null ? " (${(_fileSize! / 1024).round()}KB)" : ""}'
-                            : 'No file chosen',
+                            : 'PDF, Office, zip or image · up to 2 MB',
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _fileName != null ? primaryTextColor : secondaryTextColor,
-                          fontWeight: _fileName != null ? FontWeight.w600 : FontWeight.normal,
-                        ),
+                        style: AppTypography.caption.copyWith(color: _fileName != null ? primaryTextColor : secondaryTextColor, fontWeight: FontWeight.w600),
                       ),
                     ),
                     if (_fileName != null)
                       IconButton(
+                        tooltip: 'Remove file',
                         icon: const Icon(Icons.clear_rounded, size: 16),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: _removeFile,
+                        onPressed: _isSubmitting ? null : _removeFile,
                         color: secondaryTextColor,
                       ),
                   ],
@@ -363,49 +321,46 @@ class _SubmitAssignmentDialogState extends State<SubmitAssignmentDialog> {
               ),
               if (_fileError != null) ...[
                 const SizedBox(height: 6),
-                Text(_fileError!, style: const TextStyle(color: AppColors.danger, fontSize: 11)),
+                Text(_fileError!, style: AppTypography.label.copyWith(color: AppColors.dangerInk)),
+              ],
+              if (_formError != null) ...[
+                const SizedBox(height: 12),
+                Text(_formError!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
               ],
 
               const SizedBox(height: 28),
 
               // Actions
-              Wrap(
-                alignment: WrapAlignment.end,
-                runSpacing: 8,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   OutlinedButton(
                     onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: primaryTextColor,
                       side: BorderSide(color: borderColor),
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                      minimumSize: const Size(0, 44),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     ),
-                    child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+                    child: const Text('Cancel'),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
                     onPressed: _isSubmitting ? null : _handleSubmit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.ink,
+                      foregroundColor: AppColors.onPrimary,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: const BorderSide(color: AppColors.warning),
-                      ),
+                      minimumSize: const Size(0, 44),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     ),
                     child: _isSubmitting
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.ink),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary),
                           )
-                        : Text(
-                            isResubmission ? 'Resubmit Solution' : 'Submit Solution',
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                          ),
+                        : Text(isResubmission ? 'Resubmit' : 'Submit'),
                   ),
                 ],
               ),

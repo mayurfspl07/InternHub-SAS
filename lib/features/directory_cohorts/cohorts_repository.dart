@@ -35,10 +35,12 @@ class CohortsRepository {
     int page = 1,
     int pageSize = 20,
     String? search,
+    String? status, // active | upcoming | completed; null for all
   }) async {
     final query = <String, dynamic>{
       'page': page,
       'page_size': pageSize,
+      'status': ?status,
     };
 
     if (search != null && search.trim().isNotEmpty) {

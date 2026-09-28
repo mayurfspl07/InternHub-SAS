@@ -38,7 +38,10 @@ class ApiConfig {
     return trimmed.isNotEmpty && trimmed.length <= textLimitShort && nameRegex.hasMatch(trimmed);
   }
 
+  /// The server's rule for every password endpoint: 8+ characters with at least one number.
   static bool isValidPassword(String password) {
-    return password.length >= passwordMin && password.length <= passwordMax;
+    return password.length >= passwordMin && password.length <= passwordMax && password.contains(RegExp(r'\d'));
   }
+
+  static const String passwordRule = 'At least $passwordMin characters, including a number';
 }

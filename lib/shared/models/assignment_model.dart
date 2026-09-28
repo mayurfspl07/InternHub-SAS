@@ -300,12 +300,16 @@ class AssignmentListResponse {
   final int totalPages;
   final int total;
 
+  /// Server totals across every page: all, draft, active, closed, archived, pending_reviews.
+  final Map<String, int> counts;
+
   const AssignmentListResponse({
     required this.items,
     required this.page,
     required this.pageSize,
     required this.totalPages,
     required this.total,
+    this.counts = const {},
   });
 }
 
@@ -409,12 +413,14 @@ AssignmentListResponse normalizeAssignmentListResponse(
       calcTotalPages < 1 ? 1 : calcTotalPages,
     );
 
+    final rawCounts = raw['counts'] is Map ? raw['counts'] as Map : const {};
     return AssignmentListResponse(
       items: items,
       page: page,
       pageSize: pageSize,
       totalPages: totalPages,
       total: total,
+      counts: {for (final e in rawCounts.entries) e.key.toString(): parseInt(e.value, 0)},
     );
   }
 

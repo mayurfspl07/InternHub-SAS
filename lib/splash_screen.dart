@@ -46,8 +46,8 @@ class _SplashScreenState extends State<SplashScreen>
       'glow': AppColors.sage,
     },
     {
-      'icon': Icons.chat_bubble_rounded,
-      'label': 'Messages',
+      'icon': Icons.beach_access_rounded,
+      'label': 'Leave',
       'color': AppColors.cocoa,
       'glow': AppColors.sand,
     },
@@ -59,7 +59,8 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    // Exactly 4.8 seconds total duration matching the 4-step storyboard prompt
+    // The full storyboard runs 4.8s for first-time visitors; signed-in users get a ~1.5s version (below),
+    // and a tap skips it.
     _mainController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 4800),
@@ -72,6 +73,11 @@ class _SplashScreenState extends State<SplashScreen>
     )..repeat();
 
     _mainController.forward();
+    AuthStorage.getToken().then((token) {
+      if (mounted && token != null && token.isNotEmpty && !_hasNavigated) {
+        _mainController.animateTo(1, duration: const Duration(milliseconds: 1500));
+      }
+    });
 
     _mainController.addStatusListener((status) async {
       if (status == AnimationStatus.completed && !_hasNavigated) {
@@ -84,22 +90,29 @@ class _SplashScreenState extends State<SplashScreen>
               ? const GuardedRoute(child: MainNavigationWrapper())
               : const LoginScreen();
 
-          Navigator.of(context).pushReplacement(
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => targetPage,
-              transitionsBuilder:
-                  (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(
-                      opacity: CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeInOutCubic,
-                      ),
-                      child: child,
-                    );
-                  },
-              transitionDuration: const Duration(milliseconds: 700),
-            ),
+          final navigator = Navigator.of(context);
+          final splashRoute = ModalRoute.of(context);
+          final route = PageRouteBuilder<void>(
+            pageBuilder: (context, animation, secondaryAnimation) => targetPage,
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(
+                    opacity: CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeInOutCubic,
+                    ),
+                    child: child,
+                  );
+                },
+            transitionDuration: const Duration(milliseconds: 700),
           );
+          // A deep link (e.g. an invite) may already be open above the splash: swap the splash
+          // out underneath it instead of replacing the page the user is looking at.
+          if (splashRoute != null && !splashRoute.isCurrent) {
+            navigator.replace(oldRoute: splashRoute, newRoute: route);
+          } else {
+            navigator.pushReplacement(route);
+          }
         }
       }
     });
@@ -121,244 +134,250 @@ class _SplashScreenState extends State<SplashScreen>
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      body: AnimatedBuilder(
-        animation: Listenable.merge([_mainController, _particleController]),
-        builder: (context, child) {
-          final progress = _mainController.value;
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (!_hasNavigated) _mainController.animateTo(1, duration: const Duration(milliseconds: 200));
+        },
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_mainController, _particleController]),
+          builder: (context, child) {
+            final progress = _mainController.value;
 
-          // ===================================================================
-          // STEP 1: PULSE & GLOW (0.0s - 0.8s | progress 0.0 -> 0.167)
-          // ===================================================================
-          final step1T = (progress / 0.167).clamp(0.0, 1.0);
-          final step1LogoScale = step1T < 0.65
-              ? Tween<double>(begin: 0.8, end: 1.12)
-                    .chain(CurveTween(curve: Curves.easeOutBack))
-                    .transform(step1T / 0.65)
-              : Tween<double>(begin: 1.12, end: 1.0)
-                    .chain(CurveTween(curve: Curves.easeInOut))
-                    .transform((step1T - 0.65) / 0.35);
+            // ===================================================================
+            // STEP 1: PULSE & GLOW (0.0s - 0.8s | progress 0.0 -> 0.167)
+            // ===================================================================
+            final step1T = (progress / 0.167).clamp(0.0, 1.0);
+            final step1LogoScale = step1T < 0.65
+                ? Tween<double>(begin: 0.8, end: 1.12)
+                      .chain(CurveTween(curve: Curves.easeOutBack))
+                      .transform(step1T / 0.65)
+                : Tween<double>(begin: 1.12, end: 1.0)
+                      .chain(CurveTween(curve: Curves.easeInOut))
+                      .transform((step1T - 0.65) / 0.35);
 
-          final step1LogoOpacity = Curves.easeIn.transform(
-            (progress / 0.10).clamp(0.0, 1.0),
-          );
-          final step1RippleProgress = (progress / 0.22).clamp(0.0, 1.0);
+            final step1LogoOpacity = Curves.easeIn.transform(
+              (progress / 0.10).clamp(0.0, 1.0),
+            );
+            final step1RippleProgress = (progress / 0.22).clamp(0.0, 1.0);
 
-          // ===================================================================
-          // STEP 2: RISE & BUILD (0.8s - 2.0s | progress 0.167 -> 0.417)
-          // ===================================================================
-          final step2T = ((progress - 0.167) / 0.250).clamp(0.0, 1.0);
-          final lightBeamOpacity = step2T < 0.4
-              ? (step2T / 0.4)
-              : (1.0 - ((step2T - 0.4) / 0.6)).clamp(0.0, 1.0);
+            // ===================================================================
+            // STEP 2: RISE & BUILD (0.8s - 2.0s | progress 0.167 -> 0.417)
+            // ===================================================================
+            final step2T = ((progress - 0.167) / 0.250).clamp(0.0, 1.0);
+            final lightBeamOpacity = step2T < 0.4
+                ? (step2T / 0.4)
+                : (1.0 - ((step2T - 0.4) / 0.6)).clamp(0.0, 1.0);
 
-          // Logo lifts up slightly during Step 2 & 3
-          final logoYOffset =
-              -34.0 *
-              Curves.easeInOutCubic.transform(
-                progress < 0.167
-                    ? 0.0
-                    : progress < 0.38
-                    ? ((progress - 0.167) / 0.213).clamp(0.0, 1.0)
-                    : progress < 0.73
-                    ? 1.0
-                    : (1.0 - ((progress - 0.73) / 0.10)).clamp(0.0, 1.0),
-              );
+            // Logo lifts up slightly during Step 2 & 3
+            final logoYOffset =
+                -34.0 *
+                Curves.easeInOutCubic.transform(
+                  progress < 0.167
+                      ? 0.0
+                      : progress < 0.38
+                      ? ((progress - 0.167) / 0.213).clamp(0.0, 1.0)
+                      : progress < 0.73
+                      ? 1.0
+                      : (1.0 - ((progress - 0.73) / 0.10)).clamp(0.0, 1.0),
+                );
 
-          // ===================================================================
-          // STEP 3: CONNECT & ORBIT (2.0s - 3.5s | progress 0.417 -> 0.729)
-          // ===================================================================
-          final step3T = ((progress - 0.417) / 0.312).clamp(0.0, 1.0);
-          final orbitAngle = (progress - 0.417) * 2.8 * math.pi;
+            // ===================================================================
+            // STEP 3: CONNECT & ORBIT (2.0s - 3.5s | progress 0.417 -> 0.729)
+            // ===================================================================
+            final step3T = ((progress - 0.417) / 0.312).clamp(0.0, 1.0);
+            final orbitAngle = (progress - 0.417) * 2.8 * math.pi;
 
-          // ===================================================================
-          // STEP 4: SETTLE & LAUNCH (3.5s - 4.8s | progress 0.729 -> 1.0)
-          // ===================================================================
-          final settleProgress = ((progress - 0.729) / 0.15).clamp(0.0, 1.0);
+            // ===================================================================
+            // STEP 4: SETTLE & LAUNCH (3.5s - 4.8s | progress 0.729 -> 1.0)
+            // ===================================================================
+            final settleProgress = ((progress - 0.729) / 0.15).clamp(0.0, 1.0);
 
-          // Final State: Progress Bar animates 0% -> 100%
-          final progressBarProgress = Curves.easeInOutCubic.transform(
-            ((progress - 0.66) / 0.30).clamp(0.0, 1.0),
-          );
+            // Final State: Progress Bar animates 0% -> 100%
+            final progressBarProgress = Curves.easeInOutCubic.transform(
+              ((progress - 0.66) / 0.30).clamp(0.0, 1.0),
+            );
 
-          // Subtitle switches after Step 2
-          final isStep3OrLater = progress >= 0.417;
+            // Subtitle switches after Step 2
+            final isStep3OrLater = progress >= 0.417;
 
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              // 1. Background: flat warm canvas
-              Container(
-                width: double.infinity,
-                height: double.infinity,
-                color: AppColors.canvas,
-              ),
-
-              // 2. Subtle Background Glowing Floating Particles with Parallax
-              CustomPaint(
-                size: size,
-                painter: StoryboardParticlePainter(
-                  particleProgress: _particleController.value,
-                  speedMultiplier: isStep3OrLater ? 1.5 : 1.0,
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                // 1. Background: flat warm canvas
+                Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  color: AppColors.canvas,
                 ),
-              ),
 
-              // 3. Step 2 Light Beam Rising from Bottom Center Floor Portal
-              if (lightBeamOpacity > 0.005)
+                // 2. Subtle Background Glowing Floating Particles with Parallax
                 CustomPaint(
                   size: size,
-                  painter: RadiantFloorBeamPainter(
-                    opacity: lightBeamOpacity,
-                    beamProgress: step2T,
+                  painter: StoryboardParticlePainter(
+                    particleProgress: _particleController.value,
+                    speedMultiplier: isStep3OrLater ? 1.5 : 1.0,
                   ),
                 ),
 
-              // 4. Step 1 Concentric Ripple Circles & Step 3 Dotted Orbital Path & Glowing Circle
-              CustomPaint(
-                size: size,
-                painter: RippleAndOrbitCustomPainter(
-                  rippleProgress: step1RippleProgress,
-                  step3Progress: step3T,
-                  settleProgress: settleProgress,
-                  orbitRadius: 122.0,
-                  logoYOffset: logoYOffset,
-                  orbitAngle: orbitAngle,
-                ),
-              ),
+                // 3. Step 2 Light Beam Rising from Bottom Center Floor Portal
+                if (lightBeamOpacity > 0.005)
+                  CustomPaint(
+                    size: size,
+                    painter: RadiantFloorBeamPainter(
+                      opacity: lightBeamOpacity,
+                      beamProgress: step2T,
+                    ),
+                  ),
 
-              // 5. Central InternHub Logo (Pulse, Glow, Rise & Settle)
-              Transform.translate(
-                offset: Offset(0, logoYOffset),
-                child: Opacity(
-                  opacity: step1LogoOpacity,
-                  child: Transform.scale(
-                    scale:
-                        step1LogoScale *
-                        (settleProgress > 0.1 && settleProgress < 0.8
-                            ? (1.0 + 0.08 * math.sin(settleProgress * math.pi))
-                            : 1.0),
-                    child: _buildInternHubLogo(),
+                // 4. Step 1 Concentric Ripple Circles & Step 3 Dotted Orbital Path & Glowing Circle
+                CustomPaint(
+                  size: size,
+                  painter: RippleAndOrbitCustomPainter(
+                    rippleProgress: step1RippleProgress,
+                    step3Progress: step3T,
+                    settleProgress: settleProgress,
+                    orbitRadius: 122.0,
+                    logoYOffset: logoYOffset,
+                    orbitAngle: orbitAngle,
                   ),
                 ),
-              ),
 
-              // 6. Feature Icons (Rise from floor beam in Step 2 -> Orbit in Step 3 -> Settle in Step 4)
-              if (progress > 0.167 && progress < 0.88)
-                ..._buildFeatureIcons(
-                  progress: progress,
-                  step2T: step2T,
-                  step3T: step3T,
-                  settleProgress: settleProgress,
-                  orbitAngle: orbitAngle,
-                  logoYOffset: logoYOffset,
-                  screenSize: size,
-                ),
-
-              // 7. Brand Name & Animated Tagline
-              Positioned(
-                bottom: size.height * 0.145,
-                left: 24,
-                right: 24,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Brand Title: InternHub
-                    Opacity(
-                      opacity: math.min(1.0, progress / 0.14),
-                      child: Text.rich(
-                        TextSpan(
-                          style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.5,
-                          ),
-                          children: const [
-                            TextSpan(
-                              text: 'Intern',
-                              style: TextStyle(color: AppColors.ink),
-                            ),
-                            TextSpan(
-                              text: 'Hub',
-                              style: TextStyle(color: AppColors.primaryInk),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Tagline transition: Step 1 vs Step 3/4
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 600),
-                      switchInCurve: Curves.easeIn,
-                      switchOutCurve: Curves.easeOut,
-                      child: Text(
-                        isStep3OrLater
-                            ? 'Manage. Track. Grow.\nAll in One Place.'
-                            : 'Where Interns Grow,\nTeams Achieve.',
-                        key: ValueKey<bool>(isStep3OrLater),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textSecondary,
-                          height: 1.35,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // 8. Final State: Progress Bar & "Getting things ready..."
-              if (progress > 0.62)
-                Positioned(
-                  bottom: size.height * 0.055,
-                  left: 48,
-                  right: 48,
+                // 5. Central InternHub Logo (Pulse, Glow, Rise & Settle)
+                Transform.translate(
+                  offset: Offset(0, logoYOffset),
                   child: Opacity(
-                    opacity: ((progress - 0.62) / 0.12).clamp(0.0, 1.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Progress Bar (0% -> 100%)
-                        Container(
-                          height: 4.5,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: AppColors.border,
-                            borderRadius: BorderRadius.circular(10),
+                    opacity: step1LogoOpacity,
+                    child: Transform.scale(
+                      scale:
+                          step1LogoScale *
+                          (settleProgress > 0.1 && settleProgress < 0.8
+                              ? (1.0 + 0.08 * math.sin(settleProgress * math.pi))
+                              : 1.0),
+                      child: _buildInternHubLogo(),
+                    ),
+                  ),
+                ),
+
+                // 6. Feature Icons (Rise from floor beam in Step 2 -> Orbit in Step 3 -> Settle in Step 4)
+                if (progress > 0.167 && progress < 0.88)
+                  ..._buildFeatureIcons(
+                    progress: progress,
+                    step2T: step2T,
+                    step3T: step3T,
+                    settleProgress: settleProgress,
+                    orbitAngle: orbitAngle,
+                    logoYOffset: logoYOffset,
+                    screenSize: size,
+                  ),
+
+                // 7. Brand Name & Animated Tagline
+                Positioned(
+                  bottom: size.height * 0.145,
+                  left: 24,
+                  right: 24,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Brand Title: InternHub
+                      Opacity(
+                        opacity: math.min(1.0, progress / 0.14),
+                        child: Text.rich(
+                          TextSpan(
+                            style: TextStyle(
+                              fontSize: 36,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.5,
+                            ),
+                            children: const [
+                              TextSpan(
+                                text: 'Intern',
+                                style: TextStyle(color: AppColors.ink),
+                              ),
+                              TextSpan(
+                                text: 'Hub',
+                                style: TextStyle(color: AppColors.primaryInk),
+                              ),
+                            ],
                           ),
-                          child: FractionallySizedBox(
-                            alignment: Alignment.centerLeft,
-                            widthFactor: progressBarProgress,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Tagline transition: Step 1 vs Step 3/4
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 600),
+                        switchInCurve: Curves.easeIn,
+                        switchOutCurve: Curves.easeOut,
+                        child: Text(
+                          isStep3OrLater
+                              ? 'Manage. Track. Grow.\nAll in One Place.'
+                              : 'Where Interns Grow,\nTeams Achieve.',
+                          key: ValueKey<bool>(isStep3OrLater),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textSecondary,
+                            height: 1.35,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // 8. Final State: Progress Bar & "Getting things ready..."
+                if (progress > 0.62)
+                  Positioned(
+                    bottom: size.height * 0.055,
+                    left: 48,
+                    right: 48,
+                    child: Opacity(
+                      opacity: ((progress - 0.62) / 0.12).clamp(0.0, 1.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Progress Bar (0% -> 100%)
+                          Container(
+                            height: 4.5,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: AppColors.border,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: FractionallySizedBox(
+                              alignment: Alignment.centerLeft,
+                              widthFactor: progressBarProgress,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 14),
+                          const SizedBox(height: 14),
 
-                        // Loading text with cycling animated dots
-                        Text(
-                          'Getting things ready${'.' * (((progress * 14).toInt() % 3) + 1)}',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
-                            letterSpacing: 0.6,
+                          // Loading text with cycling animated dots
+                          Text(
+                            'Getting things ready${'.' * (((progress * 14).toInt() % 3) + 1)}',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                              letterSpacing: 0.6,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }

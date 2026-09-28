@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../../shared/models/assignment_model.dart';
 import '../assignments_repository.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/load_error_view.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../core/utils/formatters.dart';
+import '../../../core/services/document_picker.dart';
 
 class AssignmentFormDialog extends StatefulWidget {
   final AssignmentItem? assignment; // If null, create; else edit
@@ -54,6 +56,14 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
   String? _briefError;
 
   bool _isSaving = false;
+  // Set once a new assignment exists, so a retry after a failed brief upload
+  // uploads again instead of creating a second copy.
+  AssignmentItem? _created;
+  String? _titleError;
+  String? _scoreError;
+  String? _dueError;
+  String? _saveError;
+  DateTime? _originalDueDate;
   List<AssignmentPickerOption> _projectOptions = [];
   List<AssignmentPickerOption> _cohortOptions = [];
 
@@ -74,6 +84,7 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
       _selectedStatus = a.status.toLowerCase();
       if (a.dueDate != null && a.dueDate!.isNotEmpty) {
         _dueDate = DateTime.tryParse(a.dueDate!);
+        _originalDueDate = _dueDate;
       }
       if (a.hasAttachment && a.attachmentName != null) {
         _briefFileName = a.attachmentName;
@@ -101,74 +112,50 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
         });
       }
     } catch (e) {
-      if (mounted) showApiError(context, e, prefix: 'Could not load projects and cohorts');
+      if (mounted) setState(() => _saveError = "Couldn't load projects and cohorts. You can still save without them.");
     }
-  }
-
-  // Strip forbidden characters: < > _ + - =
-  String _sanitizeTitle(String value) {
-    return value.replaceAll(RegExp(r'[<>_\+\-=]'), '');
-  }
-
-  // Strip forbidden characters: < > _ + -
-  String _sanitizeDescription(String value) {
-    return value.replaceAll(RegExp(r'[<>_\+\-]'), '');
   }
 
   Future<void> _pickDueDate() async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final initial = (_dueDate != null && !_dueDate!.isBefore(today)) ? _dueDate! : today;
+    // An overdue assignment keeps its old date pickable so it can still be edited.
+    final first = (_originalDueDate != null && _originalDueDate!.isBefore(today)) ? _originalDueDate! : today;
+    final initial = (_dueDate != null && !_dueDate!.isBefore(first)) ? _dueDate! : today;
 
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
-      firstDate: today, // Must be >= today
-      lastDate: DateTime(2040),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primary,
-              onPrimary: AppColors.ink,
-              surface: Colors.white,
-              onSurface: AppColors.ink,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      firstDate: first,
+      lastDate: DateTime(today.year + 5),
     );
 
     if (picked != null) {
-      setState(() => _dueDate = picked);
+      setState(() {
+        _dueDate = picked;
+        _dueError = null;
+      });
     }
   }
 
+  /// Briefs are documents, not just images: PDF, Office files, text, zip or images, up to 2 MB.
+  static const _briefTypes = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'zip', 'png', 'jpg', 'jpeg'];
+
   Future<void> _pickBriefFile() async {
     try {
-      final picker = ImagePicker();
-      final picked = await picker.pickMedia();
+      final picked = await pickDocument(allowedExtensions: _briefTypes, maxMb: 2);
       if (picked != null) {
-        final file = File(picked.path);
-        final size = await file.length();
-
-        if (size > 2 * 1024 * 1024) {
-          setState(() {
-            _briefError = 'Brief file exceeds 2MB limit (${(size / (1024 * 1024)).toStringAsFixed(1)}MB)';
-          });
-          return;
-        }
-
         setState(() {
-          _briefFile = file;
+          _briefFile = picked.file;
           _briefFileName = picked.name;
-          _briefFileSize = size;
+          _briefFileSize = picked.sizeBytes;
           _briefError = null;
         });
       }
+    } on DocumentPickException catch (e) {
+      setState(() => _briefError = e.message);
     } catch (e) {
-      setState(() => _briefError = 'Failed to select file: $e');
+      setState(() => _briefError = "Couldn't open that file. Try another one.");
     }
   }
 
@@ -184,45 +171,22 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final titleTrimmed = _sanitizeTitle(_titleController.text.trim());
-    if (titleTrimmed.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Assignment title is required')),
-      );
-      return;
-    }
-
-    if (titleTrimmed.length > 100) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Assignment title cannot exceed 100 characters')),
-      );
-      return;
-    }
-
-    final descTrimmed = _sanitizeDescription(_descriptionController.text.trim());
-    if (descTrimmed.length > 5000) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Description cannot exceed 5000 characters')),
-      );
-      return;
-    }
-
+    final titleTrimmed = _titleController.text.trim();
+    final descTrimmed = _descriptionController.text.trim();
     final maxScore = double.tryParse(_maxScoreController.text.trim());
-    if (maxScore == null || maxScore <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Max score must be a valid positive number')),
-      );
-      return;
-    }
-
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    if (_dueDate != null && _dueDate!.isBefore(today)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Due date must be today or in the future')),
-      );
-      return;
-    }
+    // A past date is only a problem if it was changed; overdue work stays editable.
+    final dueChanged = _dueDate != _originalDueDate;
+
+    // Errors show under their fields; a snackbar would sit behind this dialog.
+    setState(() {
+      _titleError = titleTrimmed.isEmpty ? 'Enter a title' : null;
+      _scoreError = (maxScore == null || maxScore <= 0) ? 'Enter a score above 0' : null;
+      _dueError = (_dueDate != null && dueChanged && _dueDate!.isBefore(today)) ? "Due date can't be in the past" : null;
+      _saveError = null;
+    });
+    if (_titleError != null || _scoreError != null || _dueError != null) return;
 
     setState(() => _isSaving = true);
 
@@ -238,26 +202,36 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
           projectId: _selectedProjectId,
           cohortId: _selectedCohortId,
           dueDate: dueStr,
-          maxScore: maxScore,
+          maxScore: maxScore!,
           status: _selectedStatus,
         );
-
-        if (_briefFile != null) {
-          await AssignmentsRepository().uploadAttachment(result.id, _briefFile!);
-        }
       } else {
-        result = await AssignmentsRepository().createAssignment(
-          title: titleTrimmed,
-          description: descTrimmed.isEmpty ? null : descTrimmed,
-          projectId: _selectedProjectId,
-          cohortId: _selectedCohortId,
-          dueDate: dueStr,
-          maxScore: maxScore,
-          status: _selectedStatus,
-        );
+        result = _created ??
+            await AssignmentsRepository().createAssignment(
+              title: titleTrimmed,
+              description: descTrimmed.isEmpty ? null : descTrimmed,
+              projectId: _selectedProjectId,
+              cohortId: _selectedCohortId,
+              dueDate: dueStr,
+              maxScore: maxScore!,
+              status: _selectedStatus,
+            );
+        _created = result;
+      }
 
-        if (_briefFile != null) {
+      if (_briefFile != null) {
+        try {
           await AssignmentsRepository().uploadAttachment(result.id, _briefFile!);
+        } catch (e) {
+          // The assignment is saved; only the file failed. Keep the dialog so they can retry the upload.
+          widget.onSuccess();
+          if (mounted) {
+            setState(() {
+              _isSaving = false;
+              _saveError = "Assignment saved, but the brief didn't upload: ${apiErrorMessage(e)} Tap Save to try the file again.";
+            });
+          }
+          return;
         }
       }
 
@@ -265,41 +239,35 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
         Navigator.of(context).pop();
         widget.onSuccess();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isEdit ? 'Assignment updated successfully' : 'Assignment created successfully'),
-            backgroundColor: AppColors.success,
-          ),
+          SnackBar(content: Text(isEdit ? 'Assignment updated' : 'Assignment created')),
         );
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to ${isEdit ? "update" : "create"} assignment: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
+        setState(() {
+          _isSaving = false;
+          _saveError = apiErrorMessage(e);
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final dialogBg = Colors.white;
+    final dialogBg = AppColors.surface;
     final borderColor = AppColors.border;
-    final fieldBg = Colors.white;
+    final fieldBg = AppColors.surface;
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
 
     return Dialog(
       backgroundColor: dialogBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      insetPadding: const EdgeInsets.all(16),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 580),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -313,41 +281,21 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isEdit ? 'Edit Assignment' : 'Create New Assignment',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: primaryTextColor,
-                            letterSpacing: -0.3,
-                          ),
+                          isEdit ? 'Edit assignment' : 'New assignment',
+                          style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor, letterSpacing: -0.3),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Assign tasks, specify guidelines, attach project briefs, and define grading criteria.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: secondaryTextColor,
-                            height: 1.3,
-                          ),
+                          'Give interns a brief, a due date and a score to aim for.',
+                          style: AppTypography.caption.copyWith(color: secondaryTextColor, height: 1.3),
                         ),
                       ],
                     ),
                   ),
-                  InkWell(
-                    onTap: () => Navigator.of(context).pop(),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: borderColor),
-                      ),
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: 18,
-                        color: secondaryTextColor,
-                      ),
-                    ),
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.close_rounded, color: secondaryTextColor),
                   ),
                 ],
               ),
@@ -362,24 +310,10 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Text(
-                              'ASSIGNMENT TITLE',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: primaryTextColor,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Text('*', style: TextStyle(fontSize: 14, color: AppColors.danger)),
-                          ],
-                        ),
+                        Text('Title', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
                         Text(
                           '${_titleController.text.length} / 100',
-                          style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                          style: AppTypography.label.copyWith(color: secondaryTextColor),
                         ),
                       ],
                     ),
@@ -387,20 +321,13 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                     TextFormField(
                       controller: _titleController,
                       maxLength: 100,
-                      onChanged: (val) {
-                        final clean = _sanitizeTitle(val);
-                        if (clean != val) {
-                          _titleController.value = TextEditingValue(
-                            text: clean,
-                            selection: TextSelection.collapsed(offset: clean.length),
-                          );
-                        }
-                        setState(() {});
-                      },
-                      style: TextStyle(color: primaryTextColor, fontSize: 14),
+                      textCapitalization: TextCapitalization.sentences,
+                      onChanged: (_) => setState(() => _titleError = null),
+                      style: AppTypography.body.copyWith(color: primaryTextColor),
                       decoration: InputDecoration(
-                        hintText: 'e.g. Build REST API Module with Tests',
-                        hintStyle: TextStyle(color: secondaryTextColor, fontSize: 14),
+                        hintText: 'e.g. Build a REST API with tests',
+                        errorText: _titleError,
+                        hintStyle: AppTypography.body.copyWith(color: secondaryTextColor),
                         filled: true,
                         fillColor: fieldBg,
                         counterText: '',
@@ -425,18 +352,10 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'INSTRUCTIONS & OBJECTIVES',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.8,
-                            color: primaryTextColor,
-                          ),
-                        ),
+                        Text('Instructions (optional)', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
                         Text(
                           '${_descriptionController.text.length} / 5000',
-                          style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                          style: AppTypography.label.copyWith(color: secondaryTextColor),
                         ),
                       ],
                     ),
@@ -446,20 +365,12 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                       maxLines: 4,
                       minLines: 3,
                       maxLength: 5000,
-                      onChanged: (val) {
-                        final clean = _sanitizeDescription(val);
-                        if (clean != val) {
-                          _descriptionController.value = TextEditingValue(
-                            text: clean,
-                            selection: TextSelection.collapsed(offset: clean.length),
-                          );
-                        }
-                        setState(() {});
-                      },
-                      style: TextStyle(color: primaryTextColor, fontSize: 14),
+                      textCapitalization: TextCapitalization.sentences,
+                      onChanged: (_) => setState(() {}),
+                      style: AppTypography.body.copyWith(color: primaryTextColor),
                       decoration: InputDecoration(
-                        hintText: 'Detail what interns need to complete, submission requirements, deliverables, etc.',
-                        hintStyle: TextStyle(color: secondaryTextColor, fontSize: 14),
+                        hintText: 'What to build, what to hand in, how it is graded',
+                        hintStyle: AppTypography.body.copyWith(color: secondaryTextColor),
                         filled: true,
                         fillColor: fieldBg,
                         counterText: '',
@@ -488,20 +399,12 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                         final projectDropdown = Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'LINKED PROJECT',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: primaryTextColor,
-                              ),
-                            ),
+                            Text('Project (optional)', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<int?>(
                               initialValue: _selectedProjectId,
                               isExpanded: true,
-                              style: TextStyle(color: primaryTextColor, fontSize: 14),
+                              style: AppTypography.body.copyWith(color: primaryTextColor),
                               dropdownColor: dialogBg,
                               decoration: InputDecoration(
                                 prefixIcon: Icon(Icons.folder_outlined, size: 18, color: secondaryTextColor),
@@ -537,20 +440,12 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                         final cohortDropdown = Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'TARGET COHORT',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: primaryTextColor,
-                              ),
-                            ),
+                            Text('Cohort (optional)', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<int?>(
                               initialValue: _selectedCohortId,
                               isExpanded: true,
-                              style: TextStyle(color: primaryTextColor, fontSize: 14),
+                              style: AppTypography.body.copyWith(color: primaryTextColor),
                               dropdownColor: dialogBg,
                               decoration: InputDecoration(
                                 prefixIcon: Icon(Icons.groups_outlined, size: 18, color: secondaryTextColor),
@@ -612,55 +507,54 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                         final dueDateField = Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'DUE DATE',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: primaryTextColor),
-                            ),
+                            Text('Due date (optional)', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
                             const SizedBox(height: 8),
                             InkWell(
                               onTap: _pickDueDate,
                               borderRadius: BorderRadius.circular(16),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                constraints: const BoxConstraints(minHeight: 50),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: fieldBg,
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: borderColor),
+                                  border: Border.all(color: _dueError != null ? AppColors.danger : borderColor),
                                 ),
                                 child: Row(
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        _dueDate != null ? DateFormat('dd/MM/yyyy').format(_dueDate!) : 'dd/mm/yyyy',
-                                        style: TextStyle(
-                                          color: _dueDate != null ? primaryTextColor : secondaryTextColor,
-                                          fontSize: 13,
-                                        ),
+                                        _dueDate != null ? formatDate(_dueDate) : 'No due date',
+                                        style: AppTypography.caption.copyWith(color: _dueDate != null ? primaryTextColor : secondaryTextColor),
                                       ),
                                     ),
                                     if (_dueDate != null)
-                                      InkWell(
-                                        onTap: () => setState(() => _dueDate = null),
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(right: 6),
-                                          child: Icon(Icons.clear_rounded, size: 16, color: secondaryTextColor),
-                                        ),
+                                      IconButton(
+                                        tooltip: 'Clear date',
+                                        visualDensity: VisualDensity.compact,
+                                        onPressed: () => setState(() {
+                                          _dueDate = null;
+                                          _dueError = null;
+                                        }),
+                                        icon: Icon(Icons.clear_rounded, size: 16, color: secondaryTextColor),
                                       ),
                                     Icon(Icons.calendar_today_outlined, size: 16, color: secondaryTextColor),
                                   ],
                                 ),
                               ),
                             ),
+                            if (_dueError != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(_dueError!, style: AppTypography.label.copyWith(color: AppColors.dangerInk)),
+                              ),
                           ],
                         );
 
                         final maxScoreField = Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'MAX SCORE',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: primaryTextColor),
-                            ),
+                            Text('Max score', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
                             const SizedBox(height: 8),
                             TextFormField(
                               controller: _maxScoreController,
@@ -668,10 +562,14 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                               inputFormatters: [
                                 FilteringTextInputFormatter.allow(RegExp(r'^\d{0,10}(\.\d{0,2})?')),
                               ],
-                              style: TextStyle(color: primaryTextColor, fontSize: 13),
+                              style: AppTypography.caption.copyWith(color: primaryTextColor),
+                              onChanged: (_) {
+                                if (_scoreError != null) setState(() => _scoreError = null);
+                              },
                               decoration: InputDecoration(
+                                errorText: _scoreError,
                                 hintText: '100',
-                                hintStyle: TextStyle(color: secondaryTextColor, fontSize: 13),
+                                hintStyle: AppTypography.caption.copyWith(color: secondaryTextColor),
                                 filled: true,
                                 fillColor: fieldBg,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -691,15 +589,12 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                         final statusField = Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'STATUS',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: primaryTextColor),
-                            ),
+                            Text('Status', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<String>(
                               initialValue: _selectedStatus,
                               isExpanded: true,
-                              style: TextStyle(color: primaryTextColor, fontSize: 13),
+                              style: AppTypography.caption.copyWith(color: primaryTextColor),
                               dropdownColor: dialogBg,
                               decoration: InputDecoration(
                                 filled: true,
@@ -757,15 +652,7 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                     const SizedBox(height: 20),
 
                     // PROJECT BRIEF ATTACHMENT
-                    Text(
-                      'PROJECT BRIEF ATTACHMENT',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: primaryTextColor,
-                      ),
-                    ),
+                    Text('Brief file (optional)', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -777,20 +664,19 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                       child: Row(
                         children: [
                           ElevatedButton.icon(
-                            onPressed: _pickBriefFile,
+                            onPressed: _isSaving ? null : _pickBriefFile,
                             icon: const Icon(Icons.file_upload_outlined, size: 16),
-                            label: const Text('Choose File', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                            label: Text('Choose file', style: AppTypography.caption.copyWith(color: AppColors.ink, fontWeight: FontWeight.w600)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.surfaceMuted,
                               foregroundColor: primaryTextColor,
                               elevation: 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 side: BorderSide(color: borderColor),
                               ),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              minimumSize: const Size(0, 44),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -798,21 +684,16 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                             child: Text(
                               _briefFileName != null
                                   ? '$_briefFileName${_briefFileSize != null ? " (${(_briefFileSize! / 1024).round()}KB)" : ""}'
-                                  : 'Max 2MB',
+                                  : 'PDF, Office, text, zip or image · up to 2 MB',
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: _briefFileName != null ? primaryTextColor : secondaryTextColor,
-                                fontWeight: _briefFileName != null ? FontWeight.w600 : FontWeight.normal,
-                              ),
+                              style: AppTypography.caption.copyWith(color: _briefFileName != null ? primaryTextColor : secondaryTextColor, fontWeight: FontWeight.w600),
                             ),
                           ),
                           if (_briefFileName != null)
                             IconButton(
+                              tooltip: 'Remove file',
                               icon: const Icon(Icons.clear_rounded, size: 16),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: _removeBriefFile,
+                              onPressed: _isSaving ? null : _removeBriefFile,
                               color: secondaryTextColor,
                             ),
                         ],
@@ -820,49 +701,46 @@ class _AssignmentFormDialogState extends State<AssignmentFormDialog> {
                     ),
                     if (_briefError != null) ...[
                       const SizedBox(height: 6),
-                      Text(_briefError!, style: const TextStyle(color: AppColors.danger, fontSize: 11)),
+                      Text(_briefError!, style: AppTypography.label.copyWith(color: AppColors.dangerInk)),
+                    ],
+                    if (_saveError != null) ...[
+                      const SizedBox(height: 12),
+                      Text(_saveError!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
                     ],
 
                     const SizedBox(height: 28),
 
                     // Actions
-                    Wrap(
-                      alignment: WrapAlignment.end,
-                      runSpacing: 8,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         OutlinedButton(
                           onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: primaryTextColor,
                             side: BorderSide(color: borderColor),
-                            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                            minimumSize: const Size(0, 44),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                           ),
-                          child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+                          child: const Text('Cancel'),
                         ),
                         const SizedBox(width: 12),
                         ElevatedButton(
                           onPressed: _isSaving ? null : _submit,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.ink,
+                            foregroundColor: AppColors.onPrimary,
                             elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              side: const BorderSide(color: AppColors.warning),
-                            ),
+                            minimumSize: const Size(0, 44),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                           ),
                           child: _isSaving
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.ink),
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary),
                                 )
-                              : Text(
-                                  isEdit ? 'Save Changes' : 'Create Assignment',
-                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                                ),
+                              : Text(isEdit || _created != null ? 'Save' : 'Create assignment'),
                         ),
                       ],
                     ),

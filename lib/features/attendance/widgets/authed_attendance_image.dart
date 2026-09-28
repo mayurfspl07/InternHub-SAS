@@ -4,6 +4,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/api_config.dart';
 import '../../../core/constants/app_colors.dart';
 import '../attendance_repository.dart';
+import '../../../core/constants/app_typography.dart';
 
 class AuthedAttendanceImage extends StatefulWidget {
   final int? attendanceId;
@@ -32,6 +33,7 @@ class AuthedAttendanceImage extends StatefulWidget {
 class _AuthedAttendanceImageState extends State<AuthedAttendanceImage> {
   Uint8List? _imageBytes;
   bool _isLoading = false;
+  bool _failed = false;
 
   @override
   void initState() {
@@ -86,6 +88,7 @@ class _AuthedAttendanceImageState extends State<AuthedAttendanceImage> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _failed = true;
         });
       }
     }
@@ -109,9 +112,10 @@ class _AuthedAttendanceImageState extends State<AuthedAttendanceImage> {
             ),
             IconButton(
               onPressed: () => Navigator.pop(ctx),
+              tooltip: 'Close',
               icon: const CircleAvatar(
-                backgroundColor: AppColors.textSecondary,
-                child: Icon(Icons.close, color: Colors.white),
+                backgroundColor: AppColors.ink,
+                child: Icon(Icons.close, color: AppColors.surface),
               ),
             ),
           ],
@@ -159,12 +163,6 @@ class _AuthedAttendanceImageState extends State<AuthedAttendanceImage> {
                 color: AppColors.border,
               ),
             ),
-            foregroundDecoration: BoxDecoration(
-              borderRadius: r,
-              border: Border.all(
-                color: AppColors.border,
-              ),
-            ),
             child: Image.memory(
               _imageBytes!,
               fit: BoxFit.cover,
@@ -181,6 +179,21 @@ class _AuthedAttendanceImageState extends State<AuthedAttendanceImage> {
   }
 
   Widget _buildFallback(BorderRadius r) {
+    // A failed download can be retried; a missing photo just says so.
+    if (_failed) {
+      return InkWell(
+        borderRadius: r,
+        onTap: () {
+          setState(() => _failed = false);
+          _loadImage();
+        },
+        child: _placeholder(r, Icons.refresh_rounded, "Couldn't load photo. Tap to retry."),
+      );
+    }
+    return _placeholder(r, Icons.camera_alt_outlined, widget.fallbackLabel);
+  }
+
+  Widget _placeholder(BorderRadius r, IconData icon, String label) {
     return Container(
       width: widget.width ?? double.infinity,
       height: widget.height ?? double.infinity,
@@ -195,19 +208,11 @@ class _AuthedAttendanceImageState extends State<AuthedAttendanceImage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.camera_alt_outlined,
-            size: 28,
-            color: AppColors.textTertiary,
-          ),
+          Icon(icon, size: 28, color: AppColors.textSecondary),
           const SizedBox(height: 8),
           Text(
-            widget.fallbackLabel,
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
+            label,
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
         ],

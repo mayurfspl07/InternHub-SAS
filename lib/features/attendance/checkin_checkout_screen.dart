@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
+import '../../core/constants/app_typography.dart';
 
 class CheckinCheckoutScreen extends ConsumerStatefulWidget {
   final bool? isCheckOut;
@@ -32,6 +34,9 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
   bool _isLocating = true;
   bool _isProcessing = false;
   String? _errorMessage;
+  Timer? _clock;
+  // Which step failed, so the banner offers the matching fix (location, camera or nothing for server errors).
+  bool _cameraError = false;
   bool _permissionDenied = false;
 
   @override
@@ -46,11 +51,16 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
 
     _determineLocation();
     _initializeCamera();
+    // Keep the displayed time current while the user lines up the photo.
+    _clock = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _clock?.cancel();
     _scannerController.dispose();
     _cameraController?.dispose();
     super.dispose();
@@ -58,12 +68,15 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final camera = _cameraController;
-    if (camera == null || !camera.value.isInitialized) return;
-
+    // Release the camera while the app is in the background and build a new controller on return;
+    // a disposed controller can't be restarted.
     if (state == AppLifecycleState.inactive) {
+      final camera = _cameraController;
+      if (camera == null) return;
+      _cameraController = null;
       camera.dispose();
-    } else if (state == AppLifecycleState.resumed) {
+      if (mounted) setState(() => _isCameraInitialized = false);
+    } else if (state == AppLifecycleState.resumed && _cameraController == null && !_isCameraInitializing) {
       _initializeCamera();
     }
   }
@@ -123,6 +136,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
     setState(() {
       _isLocating = true;
       _errorMessage = null;
+      _cameraError = false;
       _permissionDenied = false;
     });
 
@@ -171,7 +185,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Unable to get location coordinates. Tap to retry.';
+          _errorMessage = 'Unable to get your location.';
           _isLocating = false;
         });
       }
@@ -216,6 +230,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
     setState(() {
       _isProcessing = true;
       _errorMessage = null;
+      _cameraError = false;
     });
 
     try {
@@ -226,6 +241,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
       if (photo == null) {
         setState(() {
           _isProcessing = false;
+          _cameraError = true;
           _errorMessage = _isCameraInitialized
               ? 'Could not take the photo. Hold still and tap Confirm again.'
               : 'The camera is not ready. Allow camera access for InternHub and try again.';
@@ -243,8 +259,8 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('👋 Checked Out! Working hours recorded.'),
-              backgroundColor: AppColors.ink,
+              content: Text('Checked out. Your hours are recorded.'),
+              backgroundColor: AppColors.success,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -260,7 +276,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('🎉 Verified & Checked In Successfully!'),
+              content: Text('Checked in.'),
               backgroundColor: AppColors.success,
               behavior: SnackBarBehavior.floating,
             ),
@@ -285,6 +301,21 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
     }
   }
 
+  Widget _bannerAction(String label, VoidCallback onTap) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton(
+        onPressed: onTap,
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.dangerInk,
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(44, 36),
+        ),
+        child: Text(label, style: AppTypography.caption.copyWith(color: AppColors.dangerInk, fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider);
@@ -295,13 +326,13 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
     final formattedDate = DateFormat('EEEE, MMMM d, yyyy').format(now);
     final formattedTime = DateFormat('hh:mm a').format(now);
 
-    final bool isReadyToSubmit = !_isProcessing && _currentPosition != null;
+    final bool isReadyToSubmit = !_isProcessing && _currentPosition != null && _isCameraInitialized;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: pageAppBar(
         context,
-        title: isCheckOutMode ? 'Check Out Verification' : 'Check In Verification',
+        title: isCheckOutMode ? 'Check out' : 'Check in',
       ),
       body: SafeArea(
         child: LayoutBuilder(
@@ -345,12 +376,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                               const SizedBox(width: 8),
                               Text(
                                 isCheckOutMode ? 'SHIFT CHECK-OUT' : 'SHIFT CHECK-IN',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.8,
-                                  color: isCheckOutMode ? AppColors.primaryInk : AppColors.success,
-                                ),
+                                style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.8, color: isCheckOutMode ? AppColors.primaryInk : AppColors.success),
                               ),
                             ],
                           ),
@@ -360,10 +386,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                       Text(
                         'Align your face in the circle & tap confirm',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                        ),
+                        style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 20),
 
@@ -454,41 +477,14 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                   children: [
                                     Text(
                                       _errorMessage!,
-                                      style: const TextStyle(
-                                        color: AppColors.danger,
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                      style: AppTypography.caption.copyWith(color: AppColors.dangerInk),
                                     ),
-                                    if (_permissionDenied) ...[
-                                      const SizedBox(height: 4),
-                                      GestureDetector(
-                                        onTap: () => Geolocator.openAppSettings(),
-                                        child: const Text(
-                                          'Open App Settings →',
-                                          style: TextStyle(
-                                            color: AppColors.danger,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 12,
-                                            decoration: TextDecoration.underline,
-                                          ),
-                                        ),
-                                      ),
-                                    ] else ...[
-                                      const SizedBox(height: 4),
-                                      GestureDetector(
-                                        onTap: _determineLocation,
-                                        child: const Text(
-                                          'Tap to Retry GPS',
-                                          style: TextStyle(
-                                            color: AppColors.danger,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 12,
-                                            decoration: TextDecoration.underline,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                    if (_permissionDenied || (_cameraError && !_isCameraInitialized))
+                                      _bannerAction('Open app settings', Geolocator.openAppSettings)
+                                    else if (_cameraError)
+                                      const SizedBox.shrink()
+                                    else if (_currentPosition == null)
+                                      _bannerAction('Try location again', _determineLocation),
                                   ],
                                 ),
                               ),
@@ -502,7 +498,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.surface,
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: AppShadows.soft,
                         ),
@@ -530,46 +526,18 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Row(
-                                        children: [
-                                          Text(
-                                            _currentPosition != null
-                                                ? 'GPS Geolocation Locked'
-                                                : 'Detecting Location...',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 14,
-                                              color: AppColors.ink,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          if (_currentPosition != null)
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.success.withValues(alpha: 0.15),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: const Text(
-                                                'HIGH ACCURACY',
-                                                style: TextStyle(
-                                                  fontSize: 9,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: AppColors.success,
-                                                ),
-                                              ),
-                                            ),
-                                        ],
+                                      Text(
+                                        _currentPosition != null ? 'Location found' : 'Finding your location…',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTypography.bodyStrong,
                                       ),
                                       const SizedBox(height: 3),
                                       Text(
                                         _currentPosition != null
                                             ? 'Lat: ${_currentPosition!.latitude.toStringAsFixed(5)}, Lng: ${_currentPosition!.longitude.toStringAsFixed(5)}'
-                                            : 'Waiting for high-accuracy GPS signal',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.textSecondary,
-                                        ),
+                                            : 'Waiting for a GPS signal',
+                                        style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                                       ),
                                     ],
                                   ),
@@ -620,19 +588,12 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                     children: [
                                       Text(
                                         'Verification Timestamp',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                          color: AppColors.ink,
-                                        ),
+                                        style: AppTypography.bodyStrong.copyWith(color: AppColors.ink),
                                       ),
                                       const SizedBox(height: 3),
                                       Text(
                                         '$formattedDate • $formattedTime',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.textSecondary,
-                                        ),
+                                        style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                                       ),
                                     ],
                                   ),
@@ -646,11 +607,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                   ),
                                   child: Text(
                                     formattedTime,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: isCheckOutMode ? AppColors.primaryInk : AppColors.success,
-                                    ),
+                                    style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: isCheckOutMode ? AppColors.primaryInk : AppColors.successInk),
                                   ),
                                 ),
                               ],
@@ -668,7 +625,7 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: isCheckOutMode ? AppColors.cocoa : AppColors.primary,
-                            foregroundColor: isCheckOutMode ? Colors.white : AppColors.onPrimary,
+                            foregroundColor: isCheckOutMode ? AppColors.surface : AppColors.onPrimary,
                             disabledBackgroundColor: AppColors.border,
                             disabledForegroundColor: AppColors.textTertiary,
                             elevation: isReadyToSubmit ? 4 : 0,
@@ -690,16 +647,15 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                       height: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2.2,
-                                        color: isCheckOutMode ? Colors.white : AppColors.onPrimary,
+                                        color: isCheckOutMode ? AppColors.surface : AppColors.onPrimary,
                                       ),
                                     ),
-                                    SizedBox(width: 12),
-                                    Text(
-                                      'Capturing & Verifying...',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                        color: isCheckOutMode ? Colors.white : AppColors.onPrimary,
+                                    const SizedBox(width: 12),
+                                    Flexible(
+                                      child: Text(
+                                        'Verifying…',
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTypography.cardTitle.copyWith(color: isCheckOutMode ? AppColors.surface : AppColors.onPrimary),
                                       ),
                                     ),
                                   ],
@@ -715,12 +671,8 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      isCheckOutMode ? 'Confirm Check-Out' : 'Confirm Check-In',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.3,
-                                      ),
+                                      isCheckOutMode ? 'Confirm check-out' : 'Confirm check-in',
+                                      style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700),
                                     ),
                                   ],
                                 ),
@@ -735,15 +687,14 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
                           Icon(
                             Icons.shield_outlined,
                             size: 14,
-                            color: AppColors.textTertiary,
+                            color: AppColors.textSecondary,
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            'One-click biometric snapshot & tamper-proof GPS log',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textTertiary,
-                              fontWeight: FontWeight.w500,
+                          Flexible(
+                            child: Text(
+                              'Your photo and location are recorded',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.label.copyWith(fontWeight: FontWeight.w500),
                             ),
                           ),
                         ],
@@ -800,46 +751,37 @@ class _CheckinCheckoutScreenState extends ConsumerState<CheckinCheckoutScreen>
           const SizedBox(height: 12),
           Text(
             'Starting live camera...',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.ink,
-            ),
+            style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
           ),
         ],
       );
     }
 
-    // 4. If camera requires native rebuild (e.g. app wasn't restarted after adding camera plugin)
+    // 4. The camera couldn't start (usually permission denied, or in use by another app).
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Icon(
           Icons.videocam_off_rounded,
-          size: 42,
+          size: 34,
           color: AppColors.primaryInk.withValues(alpha: 0.7),
         ),
         const SizedBox(height: 8),
         Text(
-          'Camera Drivers Unlinked',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.ink,
-          ),
+          'Camera unavailable',
+          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
         ),
         const SizedBox(height: 4),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'Please restart "flutter run" in terminal to link camera',
+            'Allow camera access for InternHub, then try again.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11,
-              color: AppColors.textTertiary,
-            ),
+            style: AppTypography.label,
           ),
         ),
+        // Coming back from Settings restarts the camera (see didChangeAppLifecycleState).
+        TextButton(onPressed: Geolocator.openAppSettings, child: const Text('Open settings')),
       ],
     );
   }

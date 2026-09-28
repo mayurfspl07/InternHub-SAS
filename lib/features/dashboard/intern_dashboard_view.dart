@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/constants/app_typography.dart';
@@ -22,6 +21,11 @@ import 'dashboard_repository.dart';
 import 'models/dashboard_models.dart';
 import 'widgets/dashboard_charts.dart';
 import 'widgets/dashboard_shared.dart';
+import 'main_navigation_wrapper.dart';
+import '../projects_tasks/project_detail_screen.dart';
+import '../../shared/widgets/app_avatar.dart';
+import '../../shared/widgets/status_chip.dart';
+import '../../core/utils/formatters.dart';
 
 class InternDashboardView extends ConsumerStatefulWidget {
   const InternDashboardView({super.key});
@@ -55,8 +59,9 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
   }
 
   void _startShiftTimer() {
+    // Ticks only matter while checked in and while Home is the visible tab.
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) {
+      if (mounted && TickerMode.valuesOf(context).enabled) {
         _updateElapsedDuration();
       }
     });
@@ -134,6 +139,9 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
     }
   }
 
+  /// Switches the bottom tab instead of pushing a second copy of a tab screen.
+  void _goToTab(int tab) => ref.read(mainTabProvider.notifier).state = tab;
+
   /// Opens a screen and refreshes the dashboard when the user comes back.
   Future<void> _pushAndRefresh(Route<dynamic> route) async {
     await Navigator.of(context).push(route);
@@ -160,7 +168,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
     }
 
     final data = _dashboardData!;
-    final cardBg = Colors.white;
+    final cardBg = AppColors.surface;
     final borderColor = AppColors.border;
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
@@ -169,7 +177,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
       backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _loadDashboard,
+          onRefresh: () => _loadDashboard(silent: true),
           color: AppColors.primary,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -182,22 +190,14 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
                   selectedDate: DateTime.now(),
                   showMonthHeader: false,
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 18),
-                  onDateSelected: (_) {
-                    _pushAndRefresh(
-                      MaterialPageRoute(builder: (_) => const AttendanceHomeScreen()),
-                    );
-                  },
+                  onDateSelected: (_) => _goToTab(MainTab.attendance),
                 ),
 
                 // 2) MY DAY: attendance hero
                 SectionHeader(
-                  title: 'My Day',
+                  title: 'My day',
                   actionText: 'History',
-                  onActionTap: () {
-                    _pushAndRefresh(
-                      MaterialPageRoute(builder: (_) => const AttendanceHomeScreen()),
-                    );
-                  },
+                  onActionTap: () => _goToTab(MainTab.attendance),
                 ),
                 const SizedBox(height: 12),
                 _buildAttendanceHero(
@@ -208,7 +208,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
                 const SizedBox(height: 24),
 
                 // 3) QUICK ACCESS
-                const SectionHeader(title: 'Quick Access'),
+                const SectionHeader(title: 'Quick access'),
                 const SizedBox(height: 12),
                 _buildQuickAccess(context, data),
                 const SizedBox(height: 24),
@@ -230,51 +230,39 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
 
                 // 5) OPEN TASKS
                 DashboardSectionTitle(
-                  title: 'My Open Tasks',
+                  title: 'My open tasks',
                   count: data.openTasks.length,
-                  actionLabel: 'View Projects →',
-                  onAction: () {
-                    _pushAndRefresh(
-                      MaterialPageRoute(builder: (_) => const ProjectsListScreen()),
-                    );
-                  },
+                  actionLabel: 'See all',
+                  onAction: () => _goToTab(MainTab.projects),
                 ),
                 if (data.openTasks.isEmpty)
                   DashboardEmptyCard(
                     icon: Icons.task_alt_rounded,
                     title: 'No pending tasks',
-                    subtitle: 'Great job! You are all caught up for today.',
+                    subtitle: "You're all caught up.",
                   )
                 else
                   _buildTasksList(data.openTasks, cardBg, borderColor, primaryTextColor, secondaryTextColor),
                 const SizedBox(height: 20),
 
                 // 6) ACTIVE PROJECTS
-                DashboardSectionTitle(
-                  title: 'Active Projects',
-                  count: data.activeProjects.length,
-                  actionLabel: 'Explore All →',
-                  onAction: () {
-                    _pushAndRefresh(
-                      MaterialPageRoute(builder: (_) => const ProjectsListScreen()),
-                    );
-                  },
-                ),
-                if (data.activeProjects.isEmpty)
-                  DashboardEmptyCard(
-                    icon: Icons.folder_open_rounded,
-                    title: 'No active projects',
-                    subtitle: 'You are currently not assigned to any projects.',
-                  )
-                else
-                  _buildProjectsList(data.activeProjects, cardBg, borderColor, primaryTextColor, secondaryTextColor),
-                const SizedBox(height: 20),
+                // The first project is the hero card above; list the rest here.
+                if (data.activeProjects.length > 1) ...[
+                  DashboardSectionTitle(
+                    title: 'More projects',
+                    count: data.activeProjects.length - 1,
+                    actionLabel: 'See all',
+                    onAction: () => _goToTab(MainTab.projects),
+                  ),
+                  _buildProjectsList(data.activeProjects.skip(1).toList(), cardBg, borderColor, primaryTextColor, secondaryTextColor),
+                  const SizedBox(height: 20),
+                ],
 
                 // 7) ANNOUNCEMENTS
                 DashboardSectionTitle(
                   title: 'Announcements',
                   count: data.announcements.length,
-                  actionLabel: 'View All →',
+                  actionLabel: 'See all',
                   onAction: () {
                     _pushAndRefresh(
                       MaterialPageRoute(builder: (_) => const AnnouncementsScreen()),
@@ -285,7 +273,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
                   DashboardEmptyCard(
                     icon: Icons.campaign_outlined,
                     title: 'No announcements',
-                    subtitle: 'No team notices or updates posted yet.',
+                    subtitle: 'Team updates will appear here.',
                   )
                 else
                   _buildAnnouncementsList(data.announcements, cardBg, borderColor, primaryTextColor, secondaryTextColor),
@@ -293,26 +281,18 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
 
                 // 8) RECENT LEAVE REQUESTS
                 DashboardSectionTitle(
-                  title: 'Recent Leaves',
+                  title: 'Recent leave',
                   count: data.recentLeaveRequests.length,
-                  actionLabel: 'Manage Leaves →',
-                  onAction: () {
-                    _pushAndRefresh(
-                      MaterialPageRoute(builder: (_) => const LeaveDashboardScreen()),
-                    );
-                  },
+                  actionLabel: 'See all',
+                  onAction: () => _goToTab(MainTab.leave),
                 ),
                 if (data.recentLeaveRequests.isEmpty)
                   DashboardEmptyCard(
                     icon: Icons.calendar_today_rounded,
-                    title: 'No recent leave applications',
-                    subtitle: 'Need time off? Apply for leave easily.',
-                    actionLabel: 'Apply Leave',
-                    onAction: () {
-                      _pushAndRefresh(
-                        MaterialPageRoute(builder: (_) => const LeaveDashboardScreen()),
-                      );
-                    },
+                    title: 'No recent leave',
+                    subtitle: 'Need time off? Apply from the Leave tab.',
+                    actionLabel: 'Apply for leave',
+                    onAction: () => _goToTab(MainTab.leave),
                   )
                 else
                   _buildLeavesList(data.recentLeaveRequests.take(3).toList(), cardBg, borderColor, primaryTextColor, secondaryTextColor),
@@ -320,7 +300,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
 
                 // 9) RECENT ACTIVITY
                 DashboardSectionTitle(
-                  title: 'Recent Activity',
+                  title: 'Recent activity',
                   count: data.recentActivity.length,
                 ),
                 DashboardActivityTimeline(
@@ -341,21 +321,26 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
   // ==========================================
 
   Widget _buildHeroProjectCard(BuildContext context, InternDashboardProject? project) {
-    final title = project?.name ?? 'Project Alpha';
-    final rawDesc = project?.description;
-    final String subtitle = (rawDesc != null && rawDesc.trim().isNotEmpty)
-        ? rawDesc.trim()
-        : 'Frontend Development';
-    final progress = project?.progress ?? 0.85;
+    if (project == null) {
+      return DashboardEmptyCard(
+        icon: Icons.folder_open_rounded,
+        title: 'No active project yet',
+        subtitle: 'Your current project shows here once a mentor adds you to one.',
+      );
+    }
+    final title = project.name;
+    final rawDesc = project.description;
+    final String? subtitle = (rawDesc != null && rawDesc.trim().isNotEmpty) ? rawDesc.trim() : null;
+    final progress = project.progress;
     final pct = (progress * 100).round();
 
     return ReferenceCard(
       padding: const EdgeInsets.all(AppSpacing.p20),
-      onTap: () {
-        _pushAndRefresh(
-          MaterialPageRoute(builder: (_) => const ProjectsListScreen()),
-        );
-      },
+      onTap: () => _pushAndRefresh(
+        MaterialPageRoute(
+          builder: (_) => ProjectDetailScreen(projectId: project.id),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -376,18 +361,22 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
             ],
           ),
           const SizedBox(height: 14),
-          Text(title, style: AppTypography.title),
-          const SizedBox(height: 4),
-          Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body),
+          Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.title),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.body),
+          ],
           const SizedBox(height: 18),
           Row(
             children: [
-              Text(
-                project == null
-                    ? 'No project yet'
-                    : '${project.completedTasksCount}/${project.myTasksCount} of my tasks'
-                        '${project.mentorName != null && project.mentorName!.isNotEmpty ? ' · ${project.mentorName}' : ''}',
-                style: AppTypography.caption,
+              Flexible(
+                child: Text(
+                  '${project.completedTasksCount}/${project.myTasksCount} of my tasks'
+                  '${project.mentorName != null && project.mentorName!.isNotEmpty ? ' · ${project.mentorName}' : ''}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.caption,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -546,16 +535,8 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
                   _buildTimeCell('Hours', '${att.hoursWorked.toStringAsFixed(1)}h'),
                   if (att.checkInPhotoUrl != null && att.checkInPhotoUrl!.trim().isNotEmpty)
                     GestureDetector(
-                      onTap: () => showPhotoModal(context, att.checkInPhotoUrl, 'Check-in Selfie'),
-                      child: ClipOval(
-                        child: Image.network(
-                          att.checkInPhotoUrl!,
-                          width: 38,
-                          height: 38,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-                        ),
-                      ),
+                      onTap: () => showPhotoModal(context, att.checkInPhotoUrl, 'Check-in photo'),
+                      child: AppAvatar(url: att.checkInPhotoUrl, size: 38),
                     ),
                 ],
               ),
@@ -596,13 +577,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
     );
   }
 
-  String formatShortTime(String raw) {
-    if (raw.contains('T')) {
-      final dt = DateTime.tryParse(raw);
-      if (dt != null) return DateFormat('hh:mm a').format(dt);
-    }
-    return raw;
-  }
+  String formatShortTime(String raw) => formatTime(raw, fallback: raw);
 
   Widget _buildStatsStrip(
     InternDashboardStats stats,
@@ -627,35 +602,35 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
 
             final items = [
               DashboardKpiCard(
-                title: 'Total Hours',
+                title: 'Total hours',
                 value: '${stats.totalHours.toStringAsFixed(1)}h',
                 subtitle: 'Logged to date',
                 icon: Icons.access_time_rounded,
-                iconColor: AppColors.primary,
+                iconColor: AppColors.primaryInk,
               ),
               DashboardKpiCard(
-                title: 'Days Logged',
+                title: 'Days logged',
                 value: '${stats.effectiveDaysLogged}',
-                subtitle: 'Attendance active',
+                subtitle: 'Days with a check-in',
                 icon: Icons.calendar_month_rounded,
-                iconColor: AppColors.success,
+                iconColor: AppColors.successInk,
               ),
               DashboardKpiCard(
-                title: 'Tasks Done',
+                title: 'Tasks done',
                 value: '${stats.completedTasksCount}/${stats.assignedTasksCount}',
                 subtitle: '$pct% completed',
                 icon: Icons.task_alt_rounded,
-                iconColor: AppColors.warning,
+                iconColor: AppColors.warningInk,
               ),
               DashboardKpiCard(
-                title: 'Active Projects',
+                title: 'Active projects',
                 value: '${stats.activeProjects}/${stats.totalProjects}',
-                subtitle: 'Assigned batches',
+                subtitle: 'You are on',
                 icon: Icons.folder_special_rounded,
-                iconColor: AppColors.info,
+                iconColor: AppColors.infoInk,
               ),
               DashboardKpiCard(
-                title: 'Pending Leaves',
+                title: 'Pending leave',
                 value: '${stats.pendingLeave}',
                 subtitle: 'Awaiting review',
                 icon: Icons.event_note_rounded,
@@ -699,18 +674,37 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
           const SizedBox(height: 12),
         ],
         DashboardTaskCapsules(
-          title: 'My Tasks',
+          title: 'My tasks',
           taskStatus: taskMap,
         ),
         const SizedBox(height: 16),
         DashboardAttendanceChart(
           points: data.attendanceChart,
-          title: 'Weekly Attendance Hours',
-          subtitle: 'Daily distribution of worked hours',
+          title: 'Hours this week',
+          subtitle: 'Hours worked each day',
         ),
       ],
     );
   }
+
+  Widget _card({required VoidCallback onTap, required Widget child, EdgeInsets padding = const EdgeInsets.all(14)}) {
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppSpacing.rTile),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.rTile),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(AppSpacing.rTile), boxShadow: AppShadows.soft),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  void _openProject(int projectId) =>
+      _pushAndRefresh(MaterialPageRoute(builder: (_) => ProjectDetailScreen(projectId: projectId)));
 
   Widget _buildTasksList(
     List<InternDashboardTask> tasks,
@@ -726,111 +720,41 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
       separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final t = tasks[index];
-
-        Color priorityColor = AppColors.textSecondary;
-        switch (t.priority.toLowerCase()) {
-          case 'high':
-          case 'urgent':
-            priorityColor = AppColors.danger;
-            break;
-          case 'medium':
-            priorityColor = AppColors.warning;
-            break;
-          case 'low':
-            priorityColor = AppColors.success;
-            break;
-        }
-
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(AppSpacing.rTile),
-        boxShadow: AppShadows.soft,
-      ),
-          child: Row(
+        final priorityType = switch (t.priority.toLowerCase()) {
+          'high' => StatusType.danger,
+          'medium' => StatusType.warning,
+          _ => StatusType.neutral,
+        };
+        return _card(
+          onTap: () => _openProject(t.projectId),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: priorityColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.assignment_outlined, size: 20, color: priorityColor),
+              Text(
+                t.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      t.title,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: primaryTextColor,
-                      ),
+              if (t.projectName != null) ...[
+                const SizedBox(height: 2),
+                Text(t.projectName!, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption),
+              ],
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  StatusChip(label: humanize(t.priority), statusType: priorityType),
+                  if (t.effectiveDeadline != null)
+                    StatusChip(
+                      icon: Icons.access_time_rounded,
+                      label: t.isOverdue
+                          ? 'Overdue · ${formatDate(t.effectiveDeadline, withYear: false)}'
+                          : 'Due ${formatDate(t.effectiveDeadline, withYear: false)}',
+                      statusType: t.isOverdue ? StatusType.danger : StatusType.neutral,
                     ),
-                    if (t.projectName != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        t.projectName!,
-                        style: TextStyle(fontSize: 12, color: secondaryTextColor),
-                      ),
-                    ],
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: priorityColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            t.priority.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: priorityColor,
-                            ),
-                          ),
-                        ),
-                        if (t.effectiveDeadline != null)
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.access_time_rounded, size: 12, color: secondaryTextColor),
-                              const SizedBox(width: 4),
-                              Text(
-                                formatShortDate(t.effectiveDeadline),
-                                style: TextStyle(fontSize: 11, color: secondaryTextColor),
-                              ),
-                            ],
-                          ),
-                        if (t.isOverdue)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.danger.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              'OVERDUE',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.danger,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
+                ],
               ),
             ],
           ),
@@ -854,69 +778,39 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
       itemBuilder: (context, index) {
         final p = projects[index];
         final pct = (p.progress * 100).round();
-
-        return Container(
+        return _card(
+          onTap: () => _openProject(p.id),
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(AppSpacing.rTile),
-        boxShadow: AppShadows.soft,
-      ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
                     child: Text(
                       p.name,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: primaryTextColor,
-                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      p.status.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.success,
-                      ),
-                    ),
-                  ),
+                  const SizedBox(width: 8),
+                  StatusChip.fromString(p.status),
                 ],
               ),
               if (p.mentorName != null) ...[
                 const SizedBox(height: 4),
-                Text(
-                  'Mentor: ${p.mentorName}',
-                  style: TextStyle(fontSize: 12, color: secondaryTextColor),
-                ),
+                Text('Mentor: ${p.mentorName}', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption),
               ],
               const SizedBox(height: 12),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Tasks: ${p.completedTasksCount}/${p.myTasksCount}',
-                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                  Expanded(
+                    child: Text('My tasks: ${p.completedTasksCount}/${p.myTasksCount}', style: AppTypography.caption),
                   ),
                   Text(
                     '$pct%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: primaryTextColor,
-                    ),
+                    style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                   ),
                 ],
               ),
@@ -924,7 +818,7 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
-                  value: p.progress,
+                  value: p.progress.clamp(0.0, 1.0),
                   minHeight: 6,
                   backgroundColor: AppColors.border,
                   valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
@@ -951,48 +845,34 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
       separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final a = anns[index];
-
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(AppSpacing.rTile),
-        boxShadow: AppShadows.soft,
-      ),
+        return _card(
+          onTap: () => _pushAndRefresh(MaterialPageRoute(builder: (_) => const AnnouncementsScreen())),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   if (a.isPinned) ...[
-                    const Icon(Icons.push_pin, size: 14, color: AppColors.warning),
+                    const Icon(Icons.push_pin, size: 14, color: AppColors.primaryInk),
                     const SizedBox(width: 4),
                   ],
                   Expanded(
                     child: Text(
                       a.title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: primaryTextColor,
-                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                     ),
                   ),
-                  if (a.createdAt != null)
-                    Text(
-                      formatRelativeTime(a.createdAt),
-                      style: TextStyle(fontSize: 11, color: secondaryTextColor),
-                    ),
+                  if (a.createdAt != null) ...[
+                    const SizedBox(width: 8),
+                    Text(formatRelativeTime(a.createdAt), style: AppTypography.label),
+                  ],
                 ],
               ),
               if (a.effectiveContent.isNotEmpty) ...[
                 const SizedBox(height: 6),
-                Text(
-                  a.effectiveContent,
-                  style: TextStyle(fontSize: 12, color: secondaryTextColor),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(a.effectiveContent, style: AppTypography.caption, maxLines: 2, overflow: TextOverflow.ellipsis),
               ],
             ],
           ),
@@ -1015,38 +895,21 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
       separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final l = leaves[index];
-
-        Color statusColor = AppColors.warning;
-        if (l.status.toLowerCase() == 'approved') {
-          statusColor = AppColors.success;
-        } else if (l.status.toLowerCase() == 'rejected') {
-          statusColor = AppColors.danger;
-        }
-
-        IconData leaveIcon = Icons.calendar_today_rounded;
         final type = l.leaveType.toLowerCase();
-        if (type.contains('sick') || type.contains('medical')) {
-          leaveIcon = Icons.local_hospital_outlined;
-        } else if (type.contains('vacation') || type.contains('casual')) {
-          leaveIcon = Icons.beach_access_rounded;
-        }
+        final leaveIcon = type.contains('sick') || type.contains('medical')
+            ? Icons.local_hospital_outlined
+            : type.contains('vacation') || type.contains('casual')
+                ? Icons.beach_access_rounded
+                : Icons.calendar_today_rounded;
 
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(AppSpacing.rTile),
-        boxShadow: AppShadows.soft,
-      ),
+        return _card(
+          onTap: () => _goToTab(MainTab.leave),
           child: Row(
             children: [
               Container(
                 width: 36,
                 height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                decoration: BoxDecoration(color: AppColors.surfaceMuted, borderRadius: BorderRadius.circular(10)),
                 child: Icon(leaveIcon, size: 18, color: AppColors.primaryInk),
               ),
               const SizedBox(width: 12),
@@ -1055,36 +918,18 @@ class _InternDashboardViewState extends ConsumerState<InternDashboardView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${l.leaveType.toUpperCase()} LEAVE (${l.days} ${l.days > 1 ? 'days' : 'day'})',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: primaryTextColor,
-                      ),
+                      '${humanize(l.leaveType)} leave · ${plural(l.days, 'day')}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      '${formatShortDate(l.startDate)} → ${formatShortDate(l.endDate)}',
-                      style: TextStyle(fontSize: 12, color: secondaryTextColor),
-                    ),
+                    Text(formatDateRange(l.startDate, l.endDate), style: AppTypography.caption),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  l.status.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
-                  ),
-                ),
-              ),
+              const SizedBox(width: 8),
+              StatusChip.fromString(l.status),
             ],
           ),
         );

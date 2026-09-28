@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../blog_repository.dart';
 import '../models/blog_models.dart';
 import 'safe_html_view.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
 
 class BlogEditorDialog extends StatefulWidget {
   final BlogPost? post; // If null, create mode; otherwise edit mode
@@ -31,7 +32,8 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
   late TextEditingController _contentController;
 
   late TabController _tabController;
-  bool _isPublished = true;
+  bool _isPublished = false;
+  String? _formError;
   bool _slugManuallyEdited = false;
   bool _isSubmitting = false;
 
@@ -47,7 +49,8 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
     _excerptController = TextEditingController(text: p?.excerpt ?? '');
     _coverUrlController = TextEditingController(text: p?.coverImageUrl ?? '');
     _contentController = TextEditingController(text: p?.content ?? '');
-    _isPublished = p != null ? p.isPublished : true;
+    // New articles start as drafts; publishing is a deliberate switch.
+    _isPublished = p != null ? p.isPublished : false;
 
     _tabController = TabController(length: 2, vsync: this);
 
@@ -75,60 +78,29 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
     super.dispose();
   }
 
+  /// First problem with the form, or null. Shown inside the dialog, not in a snackbar behind it.
+  String? _problem(String title, String slug, List<String> tags, String excerpt, String content) {
+    if (title.length < 3) return 'Give the article a title of at least 3 characters.';
+    if (title.length > 150) return 'Keep the title to 150 characters.';
+    if (slug.isNotEmpty && !RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$').hasMatch(slug)) {
+      return 'Use lowercase letters, numbers and single hyphens in the link.';
+    }
+    if (tags.length > 5) return 'Use at most 5 tags.';
+    if (excerpt.length > 300) return 'Keep the summary to 300 characters.';
+    if (content.isEmpty) return 'Write the article body.';
+    return null;
+  }
+
   Future<void> _submit() async {
     final title = _titleController.text.trim();
-    if (title.length < 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Title must be at least 3 characters long'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
-    if (title.length > 150) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Title cannot exceed 150 characters'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
-
     final slug = _slugController.text.trim();
-    if (slug.isNotEmpty && !RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$').hasMatch(slug)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Slug may only contain lowercase letters, numbers, and single hyphens'),
-          backgroundColor: AppColors.danger,
-        ),
-      );
-      return;
-    }
-
-    final tags = _tagsController.text
-        .split(',')
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
-
-    if (tags.length > 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Maximum 5 tags allowed'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
-
+    final tags = _tagsController.text.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
     final excerpt = _excerptController.text.trim();
-    if (excerpt.length > 300) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Excerpt cannot exceed 300 characters'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
-
     final content = _contentController.text.trim();
-    if (content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Content is required'), backgroundColor: AppColors.danger),
-      );
-      return;
-    }
+
+    final problem = _problem(title, slug, tags, excerpt, content);
+    setState(() => _formError = problem);
+    if (problem != null) return;
 
     setState(() => _isSubmitting = true);
 
@@ -160,35 +132,33 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isEdit ? 'Article updated successfully' : 'Article created successfully'),
-            backgroundColor: AppColors.success,
-          ),
+          SnackBar(content: Text(_isPublished ? 'Article published' : 'Draft saved')),
         );
         widget.onSaved(saved);
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save article: $e'), backgroundColor: AppColors.danger),
-        );
+        setState(() {
+          _isSubmitting = false;
+          _formError = apiErrorMessage(e);
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = Colors.white;
+    final cardBg = AppColors.surface;
     final borderColor = AppColors.border;
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
 
     final titleLen = _titleController.text.length;
-    final titleOverWarning = titleLen > 100;
+    final titleOverWarning = titleLen > 150;
 
     return Dialog(
       backgroundColor: cardBg,
+      insetPadding: const EdgeInsets.all(16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
         width: 700,
@@ -205,25 +175,22 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isEdit ? 'Edit Article' : 'Write New Article',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: primaryTextColor,
-                          ),
+                          isEdit ? 'Edit article' : 'New article',
+                          style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           isEdit
-                              ? 'Update publication content, tags, and status.'
-                              : 'Draft and publish insights to the InternHub blog feed.',
-                          style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                              ? 'Update the text, tags or status.'
+                              : 'Save a draft or publish it to everyone.',
+                          style: AppTypography.caption.copyWith(color: secondaryTextColor),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    onPressed: () => Navigator.pop(context),
+                    tooltip: 'Close',
+                    onPressed: _isSubmitting ? null : () => Navigator.pop(context),
                     icon: const Icon(Icons.close),
                     color: secondaryTextColor,
                   ),
@@ -235,7 +202,7 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
             // Form Body
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -247,25 +214,15 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
                         children: [
                           Text.rich(
                             TextSpan(
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: secondaryTextColor,
-                              ),
+                              style: AppTypography.bodyStrong.copyWith(fontSize: 13),
                               children: const [
-                                TextSpan(text: 'ARTICLE TITLE '),
-                                TextSpan(text: '*', style: TextStyle(color: AppColors.danger)),
+                                TextSpan(text: 'Title'),
                               ],
                             ),
                           ),
                           Text(
-                            '$titleLen/100',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: titleOverWarning ? AppColors.danger : secondaryTextColor,
-                            ),
+                            '$titleLen/150',
+                            style: AppTypography.label.copyWith(color: titleOverWarning ? AppColors.dangerInk : secondaryTextColor),
                           ),
                         ],
                       ),
@@ -274,10 +231,10 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
                         controller: _titleController,
                         maxLength: 150,
                         buildCounter: (_, {required currentLength, required isFocused, maxLength}) => const SizedBox.shrink(),
-                        style: TextStyle(fontSize: 14, color: primaryTextColor),
+                        style: AppTypography.body.copyWith(color: primaryTextColor),
                         decoration: InputDecoration(
-                          hintText: 'e.g. 5 Common Financial Mistakes to Avoid',
-                          hintStyle: TextStyle(fontSize: 13, color: secondaryTextColor),
+                          hintText: 'e.g. How we run code reviews',
+                          hintStyle: AppTypography.caption.copyWith(color: secondaryTextColor),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -290,17 +247,12 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'CUSTOM SLUG (OPTIONAL)',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.8,
-                              color: secondaryTextColor,
-                            ),
+                            'Link (optional)',
+                            style: AppTypography.bodyStrong.copyWith(fontSize: 13),
                           ),
                           Text(
-                            'Auto-generated from title',
-                            style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                            'Made from the title if empty',
+                            style: AppTypography.label.copyWith(color: secondaryTextColor),
                           ),
                         ],
                       ),
@@ -308,10 +260,10 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
                       TextFormField(
                         controller: _slugController,
                         onChanged: (_) => _slugManuallyEdited = true,
-                        style: GoogleFonts.robotoMono(fontSize: 12, color: primaryTextColor),
+                        style: AppTypography.mono.copyWith(fontSize: 12, color: primaryTextColor),
                         decoration: InputDecoration(
-                          hintText: 'e.g. 5-common-financial-mistakes',
-                          hintStyle: GoogleFonts.robotoMono(fontSize: 12, color: secondaryTextColor),
+                          hintText: 'e.g. how-we-run-code-reviews',
+                          hintStyle: AppTypography.mono.copyWith(fontSize: 12, color: secondaryTextColor),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -324,27 +276,22 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'TAGS (COMMA-SEPARATED)',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.8,
-                              color: secondaryTextColor,
-                            ),
+                            'Tags',
+                            style: AppTypography.bodyStrong.copyWith(fontSize: 13),
                           ),
                           Text(
-                            'Max 5 tags (e.g. Engineering, Guide)',
-                            style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                            'Up to 5, separated by commas',
+                            style: AppTypography.label.copyWith(color: secondaryTextColor),
                           ),
                         ],
                       ),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _tagsController,
-                        style: TextStyle(fontSize: 13, color: primaryTextColor),
+                        style: AppTypography.caption.copyWith(color: primaryTextColor),
                         decoration: InputDecoration(
                           hintText: 'e.g. Engineering, Product, News',
-                          hintStyle: TextStyle(fontSize: 13, color: secondaryTextColor),
+                          hintStyle: AppTypography.caption.copyWith(color: secondaryTextColor),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -357,17 +304,12 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'EXCERPT (OPTIONAL)',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.8,
-                              color: secondaryTextColor,
-                            ),
+                            'Summary (optional)',
+                            style: AppTypography.bodyStrong.copyWith(fontSize: 13),
                           ),
                           Text(
                             '${_excerptController.text.length}/300',
-                            style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                            style: AppTypography.label.copyWith(color: secondaryTextColor),
                           ),
                         ],
                       ),
@@ -377,10 +319,10 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
                         maxLines: 2,
                         maxLength: 300,
                         buildCounter: (_, {required currentLength, required isFocused, maxLength}) => const SizedBox.shrink(),
-                        style: TextStyle(fontSize: 13, color: primaryTextColor),
+                        style: AppTypography.caption.copyWith(color: primaryTextColor),
                         decoration: InputDecoration(
-                          hintText: 'Brief summary of the article...',
-                          hintStyle: TextStyle(fontSize: 13, color: secondaryTextColor),
+                          hintText: 'One or two sentences shown on the article card',
+                          hintStyle: AppTypography.caption.copyWith(color: secondaryTextColor),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                           contentPadding: const EdgeInsets.all(12),
@@ -390,21 +332,16 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
 
                       // Cover Image URL
                       Text(
-                        'COVER IMAGE URL (OPTIONAL)',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.8,
-                          color: secondaryTextColor,
-                        ),
+                        'Cover image link (optional)',
+                        style: AppTypography.bodyStrong.copyWith(fontSize: 13),
                       ),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _coverUrlController,
-                        style: TextStyle(fontSize: 13, color: primaryTextColor),
+                        style: AppTypography.caption.copyWith(color: primaryTextColor),
                         decoration: InputDecoration(
-                          hintText: 'https://images.unsplash.com/...',
-                          hintStyle: TextStyle(fontSize: 13, color: secondaryTextColor),
+                          hintText: 'https://…',
+                          hintStyle: AppTypography.caption.copyWith(color: secondaryTextColor),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -428,21 +365,21 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
                                 children: [
                                   Text(
                                     _isPublished ? 'Published' : 'Draft',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: primaryTextColor),
+                                    style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     _isPublished
-                                        ? 'Article will be immediately visible to all readers'
-                                        : 'Article saved as draft; visible to administrators only',
-                                    style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                                        ? 'Everyone can read it as soon as you save'
+                                        : 'Only people who manage blogs can see it',
+                                    style: AppTypography.label.copyWith(color: secondaryTextColor),
                                   ),
                                 ],
                               ),
                             ),
                             Switch(
                               value: _isPublished,
-                              activeThumbColor: AppColors.success,
+                              activeThumbColor: AppColors.primary,
                               onChanged: (v) => setState(() => _isPublished = v),
                             ),
                           ],
@@ -456,15 +393,9 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
                         children: [
                           Text.rich(
                             TextSpan(
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: secondaryTextColor,
-                              ),
+                              style: AppTypography.bodyStrong.copyWith(fontSize: 13),
                               children: const [
-                                TextSpan(text: 'CONTENT '),
-                                TextSpan(text: '*', style: TextStyle(color: AppColors.danger)),
+                                TextSpan(text: 'Body (HTML)'),
                               ],
                             ),
                           ),
@@ -504,10 +435,10 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
                               maxLines: null,
                               expands: true,
                               textAlignVertical: TextAlignVertical.top,
-                              style: TextStyle(fontSize: 13.5, height: 1.5, color: primaryTextColor),
+                              style: AppTypography.caption.copyWith(height: 1.5, color: primaryTextColor),
                               decoration: InputDecoration(
-                                hintText: '<p>Write your article content here (HTML supported)...</p>',
-                                hintStyle: TextStyle(fontSize: 13, color: secondaryTextColor),
+                                hintText: '<p>Write the article here. Basic HTML works.</p>',
+                                hintStyle: AppTypography.caption.copyWith(color: secondaryTextColor),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                                 enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: borderColor)),
                                 contentPadding: const EdgeInsets.all(14),
@@ -530,7 +461,7 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
                                           padding: const EdgeInsets.only(top: 80),
                                           child: Text(
                                             'Nothing to preview yet.',
-                                            style: TextStyle(color: secondaryTextColor, fontSize: 13),
+                                            style: AppTypography.caption.copyWith(color: secondaryTextColor),
                                           ),
                                         ),
                                       ),
@@ -546,17 +477,20 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
             ),
 
             const Divider(height: 1),
-            // Footer
+            if (_formError != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Text(_formError!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
+              ),
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                runSpacing: 8,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   OutlinedButton(
                     onPressed: _isSubmitting ? null : () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      minimumSize: const Size(0, 44),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: const Text('Cancel'),
@@ -566,23 +500,18 @@ class _BlogEditorDialogState extends State<BlogEditorDialog> with SingleTickerPr
                     onPressed: _isSubmitting ? null : _submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.ink,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: AppColors.warning, width: 1),
-                      ),
+                      foregroundColor: AppColors.onPrimary,
+                      minimumSize: const Size(0, 44),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: _isSubmitting
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.ink),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary),
                           )
-                        : Text(
-                            isEdit ? 'Save Changes' : 'Publish Article',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                        // The label says what the switch above will do.
+                        : Text(_isPublished ? (isEdit && widget.post!.isPublished ? 'Save' : 'Publish') : 'Save draft'),
                   ),
                 ],
               ),

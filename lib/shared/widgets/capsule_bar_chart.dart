@@ -89,7 +89,7 @@ class CapsuleBarChart extends StatelessWidget {
     final color = d.color ?? AppColors.chartPalette[index % AppColors.chartPalette.length];
     final fraction = d.fraction.clamp(0.0, 1.0);
     final label = d.valueLabel ?? '${(fraction * 100).round()}%';
-    final onColor = color.computeLuminance() > 0.45 ? AppColors.ink : Colors.white;
+    final onColor = color.computeLuminance() > 0.45 ? AppColors.ink : AppColors.surface;
 
     return Column(
       children: [

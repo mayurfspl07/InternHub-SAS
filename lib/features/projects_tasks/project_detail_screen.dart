@@ -1,14 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/api/api_client.dart';
 import '../activity_audit/activity_repository.dart';
 import '../activity_audit/models/activity_models.dart';
 import '../../shared/widgets/load_error_view.dart';
 import '../../core/constants/app_colors.dart';
-import '../../shared/widgets/reference_components.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/services/file_export_service.dart';
@@ -16,9 +14,12 @@ import '../../core/state/app_state_provider.dart';
 import '../../shared/models/project_model.dart';
 import '../../shared/models/user_model.dart';
 import '../../shared/widgets/app_avatar.dart';
-import 'create_task_bottom_sheet.dart';
+import 'task_form_dialog.dart';
 import 'project_form_dialog.dart';
 import 'task_detail_screen.dart';
+import '../../core/constants/app_typography.dart';
+import '../../shared/widgets/status_chip.dart';
+import '../../core/utils/formatters.dart';
 
 class ProjectDetailScreen extends ConsumerStatefulWidget {
   final ProjectModel? project;
@@ -42,6 +43,9 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   List<ProjectLink> _links = [];
   List<TaskStatusColumn> _taskStatuses = [];
   bool _isLoading = true;
+  // After the first load, reloads keep the page on screen (no spinner, scroll kept).
+  bool _hasLoaded = false;
+  bool _refreshing = false;
   String? _loadError;
   List<AuditLogEntry> _activity = const [];
 
@@ -82,7 +86,11 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
 
   Future<void> _loadProjectData() async {
     setState(() {
-      _isLoading = true;
+      if (_hasLoaded) {
+        _refreshing = true;
+      } else {
+        _isLoading = true;
+      }
       _loadError = null;
     });
     final targetId = widget.project?.id ?? widget.projectId?.toString() ?? _project.id;
@@ -116,11 +124,18 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           _comments = commentList;
           _taskStatuses = statusCols;
           _isLoading = false;
+          _refreshing = false;
+          _hasLoaded = true;
         });
       }
       _loadActivity(targetId);
     } catch (e) {
-      if (mounted) {
+      if (!mounted) return;
+      if (_hasLoaded) {
+        // Keep what's on screen; just say the refresh failed.
+        setState(() => _refreshing = false);
+        showApiError(context, e, prefix: "Couldn't refresh the project");
+      } else {
         setState(() {
           _isLoading = false;
           _loadError = apiErrorMessage(e);
@@ -166,8 +181,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r20)),
-        title: const Text('Delete Project', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to delete "${_project.name}"? This action cannot be undone.'),
+        title: const Text('Delete this project?'),
+        content: Text('"${_project.name}" and its tasks move to the recycle bin, where an admin can restore them.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -176,8 +191,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.danger,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r12)),
+              foregroundColor: AppColors.surface,
             ),
             onPressed: () async {
               Navigator.pop(ctx);
@@ -192,7 +206,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to delete project: $e')),
+                    SnackBar(content: Text('Failed to delete project: ${apiErrorMessage(e)}')),
                   );
                 }
               }
@@ -220,221 +234,82 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     );
   }
 
-  // Assign Intern Dialog (Screenshot 5)
+  // Assign intern dialog
   // GET /api/projects/interns?page=1&page_size=30&search={q?} (filter out users already in project.members)
   // POST /api/projects/{id}/assign with { "user_id": 41 }
-  void _openAssignInternDialog() async {
-    final searchCtrl = TextEditingController();
-    String? selectedInternId;
-    List<Map<String, dynamic>> availableInterns = [];
-    bool loading = true;
-    bool loaded = false;
-    String? loadError;
-
+  void _openAssignInternDialog() {
+    final existingIds = _project.members.map((m) => m['id']?.toString()).toSet();
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          final existingIds = _project.members.map((m) => m['id']?.toString()).toSet();
-
-          if (loading) {
-            loading = false; // start the request once
-            ApiClient().get('/api/users/dropdown', queryParameters: {'role': 'intern'}).then((res) {
-              final list = res is Map && res['interns'] is List
-                  ? (res['interns'] as List).whereType<Map<String, dynamic>>().toList()
-                  : <Map<String, dynamic>>[];
-              setDialogState(() {
-                availableInterns = list.where((i) => !existingIds.contains(i['id']?.toString())).toList();
-                loadError = null;
-                loaded = true;
-              });
-            }).catchError((Object e) {
-              setDialogState(() {
-                loadError = apiErrorMessage(e);
-                loaded = true;
-              });
-            });
+      builder: (_) => _AssignInternDialog(
+        projectId: _project.id,
+        projectName: _project.name,
+        excludeIds: existingIds,
+        onAssigned: () {
+          _loadProjectData();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Intern added to the project')));
           }
-
-          final q = searchCtrl.text.trim().toLowerCase();
-          final filtered = availableInterns.where((i) {
-            final name = i['name']?.toString().toLowerCase() ?? '';
-            final email = i['email']?.toString().toLowerCase() ?? '';
-            return name.contains(q) || email.contains(q);
-          }).toList();
-
-          return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 440),
-              padding: const EdgeInsets.all(22),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Assign Intern', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 2),
-                            Text('Select an intern to assign to ${_project.name}.', style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                          ],
-                        ),
-                      ),
-                      IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(ctx)),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  const Text('SELECT INTERN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: searchCtrl,
-                    onChanged: (_) => setDialogState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Search interns by name or email...',
-                      hintStyle: const TextStyle(fontSize: 12),
-                      prefixIcon: const Icon(Icons.search, size: 16),
-                      contentPadding: EdgeInsets.zero,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  if (!loaded)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 10),
-                      child: LinearProgressIndicator(minHeight: 2),
-                    )
-                  else if (loadError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Text("Couldn't load interns: $loadError",
-                          style: const TextStyle(fontSize: 12, color: AppColors.danger)),
-                    )
-                  else if (availableInterns.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 10),
-                      child: Text('Every intern is already on this project.',
-                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                    ),
-
-                  Container(
-                    height: 44,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedInternId,
-                        hint: const Text('-- Choose an intern --', style: TextStyle(fontSize: 12)),
-                        isExpanded: true,
-                        items: filtered.map((i) {
-                          return DropdownMenuItem(
-                            value: i['id']?.toString() ?? '',
-                            child: Text('${i['name']} (${i['email']})', style: const TextStyle(fontSize: 12)),
-                          );
-                        }).toList(),
-                        onChanged: (val) => setDialogState(() => selectedInternId = val),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  Wrap(
-                    alignment: WrapAlignment.end,
-                    runSpacing: 8,
-                    children: [
-                      OutlinedButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        style: OutlinedButton.styleFrom(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                        ),
-                        child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: selectedInternId == null
-                            ? null
-                            : () async {
-                                Navigator.pop(ctx);
-                                try {
-                                  final uid = int.tryParse(selectedInternId!) ?? selectedInternId;
-                                  await ApiClient().post('/api/projects/${_project.id}/assign', body: {'user_id': uid});
-                                  _loadProjectData();
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Intern assigned successfully!')),
-                                    );
-                                  }
-                                } catch (e) {
-                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
-                                }
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.onPrimary,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        ),
-                        child: const Text('Assign Intern', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
         },
       ),
     );
   }
 
   // Unassign Intern Dialog
-  // Pick from project.members, DELETE /api/projects/{id}/assign/{userId}
+  // Pick from project.members, then confirm; DELETE /api/projects/{id}/assign/{userId}
   void _openUnassignInternDialog() {
     final interns = _project.members.where((m) => m['role'] == null || m['role'].toString().toLowerCase() == 'intern').toList();
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Unassign Intern'),
+        insetPadding: const EdgeInsets.all(16),
+        title: const Text('Remove an intern'),
         content: SizedBox(
           width: 360,
           child: interns.isEmpty
-              ? const Text('No interns currently assigned.')
+              ? const Text('No interns are on this project.')
               : ListView.builder(
                   shrinkWrap: true,
                   itemCount: interns.length,
                   itemBuilder: (_, i) {
                     final intern = interns[i];
+                    final name = intern['name']?.toString() ?? 'Intern';
                     return ListTile(
-                      title: Text(intern['name']?.toString() ?? 'Intern'),
-                      subtitle: Text(intern['email']?.toString() ?? ''),
-                      trailing: const Icon(Icons.remove_circle_outline, color: AppColors.danger),
+                      contentPadding: EdgeInsets.zero,
+                      leading: AppAvatar(size: 36, fallbackText: name),
+                      title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      subtitle: Text(intern['email']?.toString() ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+                      trailing: const Icon(Icons.remove_circle_outline, color: AppColors.dangerInk),
                       onTap: () async {
+                        final ok = await showDialog<bool>(
+                          context: ctx,
+                          builder: (c) => AlertDialog(
+                            title: Text('Remove $name?'),
+                            content: const Text('They will no longer see this project or its tasks.'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.danger,
+                                  foregroundColor: AppColors.surface,
+                                ),
+                                onPressed: () => Navigator.pop(c, true),
+                                child: const Text('Remove'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (ok != true || !ctx.mounted) return;
                         Navigator.pop(ctx);
-                        final scaffoldMessenger = ScaffoldMessenger.of(context);
                         try {
                           await ApiClient().delete('/api/projects/${_project.id}/assign/${intern['id']}');
                           _loadProjectData();
                           if (mounted) {
-                            scaffoldMessenger.showSnackBar(
-                              const SnackBar(content: Text('Intern unassigned successfully.')),
-                            );
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$name removed from the project')));
                           }
                         } catch (e) {
-                          if (mounted) {
-                            scaffoldMessenger.showSnackBar(SnackBar(content: Text('Failed: $e')));
-                          }
+                          if (mounted) showApiError(context, e, prefix: "Couldn't remove $name");
                         }
                       },
                     );
@@ -450,134 +325,15 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
 
   // Project Links Manager Modal
   void _openLinksModal() {
-    final linkCtrl = TextEditingController();
-    final remarkCtrl = TextEditingController();
-
+    final user = ref.read(appStateProvider).currentUser;
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            child: Container(
-              width: 500,
-              constraints: const BoxConstraints(maxHeight: 520),
-              padding: const EdgeInsets.all(22),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Text('Project Links', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(color: AppColors.lavender, borderRadius: BorderRadius.circular(10)),
-                            child: Text('${_links.length}', style: const TextStyle(color: AppColors.info, fontWeight: FontWeight.bold, fontSize: 12)),
-                          ),
-                        ],
-                      ),
-                      IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-                    ],
-                  ),
-                  const Divider(height: 16),
-
-                  // Add link row
-                  TextField(
-                    controller: linkCtrl,
-                    decoration: const InputDecoration(labelText: 'Resource URL *', hintText: 'https://docs.google.com/...'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: remarkCtrl,
-                    decoration: const InputDecoration(labelText: 'Remark / Title', hintText: 'e.g. PRD draft'),
-                  ),
-                  const SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.onPrimary,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r12)),
-                      ),
-                      icon: const Icon(Icons.add_link_rounded, size: 16),
-                      label: const Text('Add Link'),
-                      onPressed: () async {
-                        final rawLink = linkCtrl.text.trim();
-                        if (rawLink.isEmpty) return;
-                        final remark = remarkCtrl.text.trim().isEmpty ? 'Project Resource' : remarkCtrl.text.trim();
-                        try {
-                          await ApiClient().post('/api/projects/${_project.id}/links', body: {
-                            'link': rawLink,
-                            'remark': remark,
-                          });
-                          linkCtrl.clear();
-                          remarkCtrl.clear();
-                          final updated = await ApiClient().get('/api/projects/${_project.id}/links');
-                          List<ProjectLink> lList = [];
-                          if (updated is List) lList = updated.whereType<Map<String, dynamic>>().map((l) => ProjectLink.fromJson(l)).toList();
-                          setDialogState(() {
-                            _links = lList;
-                          });
-                          setState(() {});
-                        } catch (e) {
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Existing Links List
-                  Expanded(
-                    child: _links.isEmpty
-                        ? const Center(child: Text('No links added yet.'))
-                        : ListView.separated(
-                            itemCount: _links.length,
-                            separatorBuilder: (_, _) => const Divider(height: 1),
-                            itemBuilder: (context, i) {
-                              final l = _links[i];
-                              return ListTile(
-                                dense: true,
-                                leading: const Icon(Icons.link_rounded, color: AppColors.info),
-                                title: Text(l.remark, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                subtitle: Text(l.link, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                                      onPressed: () {
-                                        final uri = Uri.tryParse(l.link);
-                                        if (uri != null && uri.scheme.startsWith('http')) {
-                                          launchUrl(uri, mode: LaunchMode.externalApplication);
-                                        }
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.danger),
-                                      onPressed: () async {
-                                        await ApiClient().delete('/api/projects/links/${l.id}');
-                                        setDialogState(() => _links.removeAt(i));
-                                        setState(() {});
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+      builder: (_) => _ProjectLinksDialog(
+        projectId: _project.id,
+        initialLinks: _links,
+        // DELETE /api/projects/links/{id} is admin/mentor only.
+        canDelete: user.role != UserRole.intern,
+        onChanged: (links) => setState(() => _links = links),
       ),
     );
   }
@@ -587,7 +343,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => CreateTaskBottomSheet(
+      builder: (ctx) => TaskFormDialog(
         project: _project,
         onTaskCreated: () {
           _loadProjectData();
@@ -601,12 +357,6 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     final text = _commentInputController.text.trim();
     if (text.isEmpty) return;
 
-    if (text.length > 100) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Comment must be under 100 characters')),
-      );
-      return;
-    }
 
     setState(() => _isPostingComment = true);
     try {
@@ -626,7 +376,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isPostingComment = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to post comment: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to post comment: ${apiErrorMessage(e)}')));
       }
     }
   }
@@ -640,7 +390,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           : (e.action.contains('status') || e.action.contains('complete') ? 'check' : 'task');
       return {
         'title': '${e.actorName} ${e.verb}${e.target.isNotEmpty ? ' "${e.target}"' : ''}',
-        'time': when == null ? '' : DateFormat('MMM d, h:mm a').format(when),
+        'time': when == null ? '' : formatRelative(when),
         'icon': icon,
       };
     }).toList();
@@ -651,7 +401,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     final state = ref.watch(appStateProvider);
     final user = state.currentUser;
 
-    if (_isLoading && _project.name == 'Loading...') {
+    if (_isLoading && !_hasLoaded) {
       return Scaffold(
         backgroundColor: AppColors.canvas,
         appBar: pageAppBar(context, title: 'Project'),
@@ -703,72 +453,30 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
+      appBar: pageAppBar(
+        context,
+        title: 'Project',
+        actions: [
+          HeaderAction(
+            icon: Icons.link_rounded,
+            tooltip: 'Project links (${_links.length})',
+            onTap: _openLinksModal,
+          ),
+        ],
+      ),
       body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
+        top: false,
+        child: RefreshIndicator(
                 onRefresh: _loadProjectData,
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.p20, vertical: 16),
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 4, AppSpacing.p20, 32),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Top Row: Back button & Links button
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          CircularIconButton(
-                            icon: Icons.arrow_back_ios_new_rounded,
-                            iconSize: 18,
-                            onTap: () => Navigator.pop(context),
-                          ),
-                          InkWell(
-                            onTap: _openLinksModal,
-                            borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                                boxShadow: AppShadows.soft,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.link_rounded, size: 16, color: AppColors.primaryInk),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Project Links',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.ink,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primarySoft,
-                                      borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                                    ),
-                                    child: Text(
-                                      '${_links.length}',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.primaryInk,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-
+                      if (_refreshing) ...[
+                        const LinearProgressIndicator(minHeight: 2),
+                        const SizedBox(height: 10),
+                      ],
                       // Project Name & Status Badge & Description
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -777,47 +485,17 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        _project.name,
-                                        style: TextStyle(
-                                          fontSize: 26,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: -0.5,
-                                          color: AppColors.ink,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primarySoft,
-                                        borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                                      ),
-                                      child: Text(
-                                        _project.status.toUpperCase(),
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.5,
-                                          color: AppColors.primaryInk,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                Text(
+                                  _project.name,
+                                  style: AppTypography.headline.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.5, color: AppColors.ink),
                                 ),
+                                const SizedBox(height: 8),
+                                StatusChip.fromString(_project.status),
                                 if (_project.description.isNotEmpty) ...[
                                   const SizedBox(height: 6),
                                   Text(
                                     _project.description,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      height: 1.4,
-                                      color: AppColors.textSecondary,
-                                    ),
+                                    style: AppTypography.caption.copyWith(height: 1.4, color: AppColors.textSecondary),
                                   ),
                                 ],
                               ],
@@ -844,7 +522,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r16)),
                                 ),
                                 icon: const Icon(Icons.add_rounded, size: 18),
-                                label: const Text('Add Task', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                label: Text('Add task', style: AppTypography.caption.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700)),
                               ),
                               const SizedBox(width: 8),
                             ],
@@ -865,19 +543,19 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                     borderRadius: BorderRadius.circular(AppSpacing.r16),
                                     border: Border.all(color: AppColors.danger.withValues(alpha: 0.25), width: 1.2),
                                   ),
-                                  child: const Row(
+                                  child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.danger),
-                                      SizedBox(width: 6),
-                                      Text('Delete', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.danger)),
+                                      const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.dangerInk),
+                                      const SizedBox(width: 6),
+                                      Text('Delete', style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.dangerInk)),
                                     ],
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 8),
                             ],
-                            _buildActionOutlineButton('Export', Icons.file_upload_outlined, _exportProject),
+                            _buildActionOutlineButton('Export', Icons.file_download_outlined, _exportProject),
                           ],
                         ),
                       ),
@@ -901,12 +579,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                _taskViewMode == 'board' ? 'Kanban Board' : 'Task List',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.ink,
-                                ),
+                                _taskViewMode == 'board' ? 'Board' : 'Tasks',
+                                style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                               ),
                               const SizedBox(width: 8),
                               Container(
@@ -917,39 +591,36 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                                 ),
                                 child: Text(
                                   '${filteredTasks.length} tasks',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primaryInk,
-                                  ),
+                                  style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.primaryInk),
                                 ),
                               ),
                             ],
                           ),
 
-                          // Filter button
+                          // Filter button; tinted while any filter is on.
                           InkWell(
                             onTap: _showTaskFilterDialog,
                             borderRadius: BorderRadius.circular(AppSpacing.r12),
                             child: Container(
+                              constraints: const BoxConstraints(minHeight: 40),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: _activeFilterCount > 0 ? AppColors.primarySoft : AppColors.surface,
                                 borderRadius: BorderRadius.circular(AppSpacing.r12),
-        boxShadow: AppShadows.soft,
-      ),
+                                boxShadow: AppShadows.soft,
+                              ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.filter_alt_outlined, size: 15, color: AppColors.textSecondary),
+                                  Icon(
+                                    Icons.filter_alt_outlined,
+                                    size: 15,
+                                    color: _activeFilterCount > 0 ? AppColors.primaryInk : AppColors.textSecondary,
+                                  ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    'Filter',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.ink,
-                                    ),
+                                    _activeFilterCount > 0 ? 'Filter · $_activeFilterCount' : 'Filter',
+                                    style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                                   ),
                                 ],
                               ),
@@ -1007,7 +678,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppSpacing.r16),
           boxShadow: AppShadows.soft,
         ),
@@ -1018,11 +689,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             const SizedBox(width: 6),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: AppColors.ink,
-              ),
+              style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
             ),
           ],
         ),
@@ -1034,7 +701,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.p20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.r24),
         boxShadow: AppShadows.soft,
       ),
@@ -1045,12 +712,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Overview & Progress',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
-                ),
+                'Progress',
+                style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1060,11 +723,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                 ),
                 child: Text(
                   '$progressInt%',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primaryInk,
-                  ),
+                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.primaryInk),
                 ),
               ),
             ],
@@ -1072,11 +731,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           const SizedBox(height: 6),
           Text(
             '$doneTasks / $totalTasks tasks completed',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-            ),
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 12),
 
@@ -1097,21 +752,21 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             children: [
               Expanded(
                 child: _buildMetricPill(
-                  label: 'START DATE',
-                  value: DateFormat('yyyy-MM-dd').format(_project.startDate),
+                  label: 'Start',
+                  value: formatDate(_project.startDate),
                   icon: Icons.calendar_today_outlined,
                   bgColor: AppColors.lavender,
-                  accentColor: AppColors.primary,
+                  accentColor: AppColors.lavenderInk,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: _buildMetricPill(
-                  label: 'END DATE',
-                  value: DateFormat('yyyy-MM-dd').format(_project.endDate),
+                  label: 'End',
+                  value: formatDate(_project.endDate),
                   icon: Icons.event_available_outlined,
                   bgColor: AppColors.infoSoft,
-                  accentColor: AppColors.info,
+                  accentColor: AppColors.infoInk,
                 ),
               ),
             ],
@@ -1121,21 +776,21 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             children: [
               Expanded(
                 child: _buildMetricPill(
-                  label: 'TASKS DONE',
+                  label: 'Tasks done',
                   value: '$doneTasks',
                   icon: Icons.check_circle_outline_rounded,
                   bgColor: AppColors.successSoft,
-                  accentColor: AppColors.success,
+                  accentColor: AppColors.successInk,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: _buildMetricPill(
-                  label: 'TOTAL TASKS',
+                  label: 'Total tasks',
                   value: '$totalTasks',
                   icon: Icons.assignment_outlined,
                   bgColor: AppColors.warningSoft,
-                  accentColor: AppColors.warning,
+                  accentColor: AppColors.warningInk,
                 ),
               ),
             ],
@@ -1180,23 +835,16 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                    color: accentColor,
-                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: accentColor),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                  ),
+                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                 ),
               ],
             ),
@@ -1210,7 +858,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.p20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.r24),
         boxShadow: AppShadows.soft,
       ),
@@ -1218,12 +866,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Mentors & Leadership',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.ink,
-            ),
+            'Mentors',
+            style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
           ),
           const SizedBox(height: 14),
           ..._project.mentors.map((m) {
@@ -1239,40 +883,24 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        name.isNotEmpty ? name[0].toUpperCase() : 'M',
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.warningInk),
-                      ),
-                    ),
-                  ),
+                  AppAvatar(size: 34, url: m['avatar_url']?.toString(), fallbackText: name),
                   const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: AppColors.ink,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                         ),
-                      ),
-                      Text(
-                        role,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
+                        Text(
+                          humanize(role),
+                          style: AppTypography.label.copyWith(color: AppColors.textSecondary),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1295,15 +923,11 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.add_rounded, size: 16, color: AppColors.primaryInk),
+                      const Icon(Icons.edit_outlined, size: 16, color: AppColors.primaryInk),
                       const SizedBox(width: 6),
                       Text(
-                        'Add another mentor',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryInk,
-                        ),
+                        'Change mentors',
+                        style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.primaryInk),
                       ),
                     ],
                   ),
@@ -1318,11 +942,13 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
 
   Widget _buildViewModeToggle(String mode, String label, IconData icon) {
     final isSel = _taskViewMode == mode;
-    return GestureDetector(
+    return InkWell(
       onTap: () => setState(() => _taskViewMode = mode),
+      borderRadius: BorderRadius.circular(AppSpacing.r12),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        constraints: const BoxConstraints(minHeight: 36),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
           color: isSel ? AppColors.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(AppSpacing.r12),
@@ -1346,11 +972,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             const SizedBox(width: 4),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSel ? FontWeight.w700 : FontWeight.w600,
-                color: isSel ? AppColors.onPrimary : AppColors.textSecondary,
-              ),
+              style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: isSel ? AppColors.onPrimary : AppColors.textSecondary),
             ),
           ],
         ),
@@ -1361,32 +983,42 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   // ========================================
   // KANBAN COLUMNS WITH DRAG & DROP
   // ========================================
+  static String _statusKey(String s) => s.toLowerCase().replaceAll(' ', '_').replaceAll('-', '_');
+
   Widget _buildKanbanBoardView(List<TaskModel> taskList, bool canManageTasks) {
+    if (_taskStatuses.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Text('This project has no task statuses set up yet.', style: AppTypography.body),
+      );
+    }
+    final keys = _taskStatuses.map((c) => _statusKey(c.key)).toSet();
+    // Tasks whose status isn't one of the columns (e.g. a status that was removed) still show up.
+    final orphans = taskList.where((t) => !keys.contains(_statusKey(t.rawStatus))).toList();
+    final columns = [
+      ..._taskStatuses,
+      if (orphans.isNotEmpty)
+        const TaskStatusColumn(key: '__other__', title: 'Other', color: AppColors.textSecondary, orderIndex: 999),
+    ];
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: _taskStatuses.map((col) {
-          final colTasks = taskList.where((t) {
-            final s = t.rawStatus.toLowerCase().replaceAll(' ', '_').replaceAll('-', '_');
-            final k = col.key.toLowerCase().replaceAll(' ', '_').replaceAll('-', '_');
-            if (s == k) return true;
-            if (k.contains('todo') && (s.contains('todo') || s == 'to_do')) return true;
-            if (k.contains('progress') && s.contains('progress')) return true;
-            if ((k.contains('review') || k.contains('test')) && (s.contains('review') || s.contains('test'))) return true;
-            if ((k.contains('complete') || k.contains('done')) && (s.contains('complete') || s.contains('done'))) return true;
-            return false;
-          }).toList();
+        children: columns.map((col) {
+          final isOther = col.key == '__other__';
+          final colTasks =
+              isOther ? orphans : taskList.where((t) => _statusKey(t.rawStatus) == _statusKey(col.key)).toList();
 
           return DragTarget<TaskModel>(
-            onWillAcceptWithDetails: (details) => canManageTasks && details.data.canMove,
+            onWillAcceptWithDetails: (details) => !isOther && canManageTasks && details.data.canMove,
             onAcceptWithDetails: (details) async {
               final task = details.data;
               try {
                 await ApiClient().put('/api/projects/tasks/${task.id}', body: {'status': col.key});
                 _loadProjectData();
               } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${apiErrorMessage(e)}')));
               }
             },
             builder: (context, candidateData, rejectedData) {
@@ -1411,20 +1043,29 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Container(width: 8, height: 8, decoration: BoxDecoration(color: col.color, shape: BoxShape.circle)),
-                            const SizedBox(width: 8),
-                            Text(col.title, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.ink)),
-                          ],
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Container(width: 8, height: 8, decoration: BoxDecoration(color: col.color, shape: BoxShape.circle)),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  col.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppColors.surface,
                             borderRadius: BorderRadius.circular(AppSpacing.rPill),
                           ),
-                          child: Text('${colTasks.length}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.ink)),
+                          child: Text('${colTasks.length}', style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink)),
                         ),
                       ],
                     ),
@@ -1440,13 +1081,14 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                           border: Border.all(color: AppColors.border, style: BorderStyle.solid),
                         ),
                         child: Center(
-                          child: Text('No tasks in ${col.title}', style: TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                          child: Text('No tasks', style: AppTypography.label),
                         ),
                       )
                     else
                       ...colTasks.map((t) {
+                        // Long-press to drag, so a normal swipe scrolls the board.
                         return canManageTasks && t.canMove
-                            ? Draggable<TaskModel>(
+                            ? LongPressDraggable<TaskModel>(
                                 data: t,
                                 feedback: Material(
                                   color: Colors.transparent,
@@ -1471,19 +1113,6 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   }
 
   Widget _buildTaskCard(TaskModel task) {
-    Color priorityBg;
-    Color priorityColor;
-    if (task.priority == TaskPriority.high) {
-      priorityBg = AppColors.dangerSoft;
-      priorityColor = AppColors.danger;
-    } else if (task.priority == TaskPriority.medium) {
-      priorityBg = AppColors.warningSoft;
-      priorityColor = AppColors.warning;
-    } else {
-      priorityBg = AppColors.infoSoft;
-      priorityColor = AppColors.info;
-    }
-
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -1501,7 +1130,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppSpacing.r16),
           boxShadow: AppShadows.soft,
         ),
@@ -1511,40 +1140,26 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: priorityBg,
-                    borderRadius: BorderRadius.circular(AppSpacing.r8),
-                  ),
-                  child: Text(
-                    task.priority.name.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      color: priorityColor,
+                StatusChip.fromPriority(task.priority),
+                if (task.assigneeName != null) ...[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      task.assigneeName!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.label.copyWith(color: AppColors.textSecondary),
                     ),
                   ),
-                ),
-                if (task.assigneeName != null)
-                  Text(
-                    task.assigneeName!,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                ],
               ],
             ),
             const SizedBox(height: 8),
             Text(
               task.title,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: AppColors.ink,
-              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
             ),
             if (task.description.isNotEmpty) ...[
               const SizedBox(height: 4),
@@ -1552,10 +1167,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                 task.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
+                style: AppTypography.label.copyWith(color: AppColors.textSecondary),
               ),
             ],
             const SizedBox(height: 8),
@@ -1564,11 +1176,21 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.calendar_today_outlined, size: 12, color: AppColors.textTertiary),
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      size: 12,
+                      color: task.isOverdue ? AppColors.dangerInk : AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 4),
                     Text(
-                      task.dueDate == null ? 'No due date' : DateFormat('yyyy-MM-dd').format(task.dueDate!),
-                      style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                      task.dueDate == null
+                          ? 'No due date'
+                          : task.isOverdue
+                              ? 'Overdue · ${formatDate(task.dueDate, withYear: false)}'
+                              : formatDate(task.dueDate, withYear: false),
+                      style: AppTypography.label.copyWith(
+                        color: task.isOverdue ? AppColors.dangerInk : AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -1577,13 +1199,13 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                     if (task.commentCount > 0) ...[
                       Icon(Icons.chat_bubble_outline_rounded, size: 12, color: AppColors.textTertiary),
                       const SizedBox(width: 2),
-                      Text('${task.commentCount}', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                      Text('${task.commentCount}', style: AppTypography.label.copyWith(color: AppColors.textSecondary)),
                       const SizedBox(width: 6),
                     ],
                     if (task.attachmentCount > 0) ...[
                       Icon(Icons.attach_file_rounded, size: 12, color: AppColors.textTertiary),
                       const SizedBox(width: 2),
-                      Text('${task.attachmentCount}', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                      Text('${task.attachmentCount}', style: AppTypography.label.copyWith(color: AppColors.textSecondary)),
                     ],
                   ],
                 ),
@@ -1604,8 +1226,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         height: 120,
         alignment: Alignment.center,
         child: Text(
-          'No tasks found matching filter.',
-          style: TextStyle(color: AppColors.textSecondary),
+          _activeFilterCount > 0 ? 'No tasks match the filter.' : 'No tasks yet.',
+          style: AppTypography.body,
         ),
       );
     }
@@ -1619,7 +1241,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         final t = taskList[i];
         return Card(
           elevation: 0,
-          color: Colors.white,
+          color: AppColors.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.r16),
             side: BorderSide(color: AppColors.border),
@@ -1627,30 +1249,19 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           child: ListTile(
             title: Text(
               t.title,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: AppColors.ink,
-              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
             ),
             subtitle: Text(
-              '${t.dueDate == null ? 'No due date' : 'Due: ${DateFormat('yyyy-MM-dd').format(t.dueDate!)}'} • Assignee: ${t.assigneeName ?? 'Unassigned'}',
-              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              '${t.dueDate == null ? 'No due date' : 'Due ${formatDate(t.dueDate, withYear: false)}'} · ${t.assigneeName ?? 'Unassigned'}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.label.copyWith(color: AppColors.textSecondary),
             ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.primarySoft,
-                borderRadius: BorderRadius.circular(AppSpacing.r12),
-              ),
-              child: Text(
-                t.rawStatus.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primaryInk,
-                ),
-              ),
+            trailing: StatusChip.fromString(
+              t.rawStatus,
+              label: _taskStatuses.where((c) => c.key == t.rawStatus).map((c) => c.title).firstOrNull,
             ),
             onTap: () {
               Navigator.push(
@@ -1664,33 +1275,59 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     );
   }
 
+  int get _activeFilterCount =>
+      [_taskFilterText.isNotEmpty, _taskPriorityFilter != 'all', _taskAssigneeFilter != 'all'].where((on) => on).length;
+
   void _showTaskFilterDialog() {
+    // Edit a draft; nothing changes unless Apply is pressed.
+    final search = TextEditingController(text: _taskFilterText);
+    var priority = _taskPriorityFilter;
+    var assignee = _taskAssigneeFilter;
+    final people = <String, String>{
+      for (final m in _project.members)
+        if (m['id'] != null) m['id'].toString(): m['name']?.toString() ?? 'Member',
+    };
+    if (assignee != 'all' && assignee != 'unassigned' && !people.containsKey(assignee)) assignee = 'all';
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r24)),
-            title: const Text('Filter Tasks', style: TextStyle(fontWeight: FontWeight.bold)),
+            insetPadding: const EdgeInsets.all(16),
+            title: const Text('Filter tasks'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 TextField(
-                  decoration: const InputDecoration(labelText: 'Search text or #task-id'),
-                  onChanged: (v) => _taskFilterText = v,
+                  controller: search,
+                  decoration: const InputDecoration(labelText: 'Search title or description'),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: _taskPriorityFilter,
+                  initialValue: priority,
                   decoration: const InputDecoration(labelText: 'Priority'),
                   items: const [
-                    DropdownMenuItem(value: 'all', child: Text('All Priorities')),
+                    DropdownMenuItem(value: 'all', child: Text('Any priority')),
                     DropdownMenuItem(value: 'low', child: Text('Low')),
                     DropdownMenuItem(value: 'medium', child: Text('Medium')),
                     DropdownMenuItem(value: 'high', child: Text('High')),
                   ],
-                  onChanged: (v) => _taskPriorityFilter = v ?? 'all',
+                  onChanged: (v) => setDialogState(() => priority = v ?? 'all'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: assignee,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Assignee'),
+                  items: [
+                    const DropdownMenuItem(value: 'all', child: Text('Anyone')),
+                    const DropdownMenuItem(value: 'unassigned', child: Text('Unassigned')),
+                    for (final e in people.entries)
+                      DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis)),
+                  ],
+                  onChanged: (v) => setDialogState(() => assignee = v ?? 'all'),
                 ),
               ],
             ),
@@ -1704,19 +1341,18 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                   });
                   Navigator.pop(ctx);
                 },
-                child: const Text('Reset'),
+                child: const Text('Clear'),
               ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.onPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.r12)),
-                ),
                 onPressed: () {
-                  setState(() {});
+                  setState(() {
+                    _taskFilterText = search.text.trim();
+                    _taskPriorityFilter = priority;
+                    _taskAssigneeFilter = assignee;
+                  });
                   Navigator.pop(ctx);
                 },
-                child: const Text('Apply', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text('Apply'),
               ),
             ],
           );
@@ -1728,11 +1364,37 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   // ========================================
   // COMMENTS BOARD & RECENT ACTIVITY
   // ========================================
+  Future<void> _deleteBoardComment(ProjectComment c) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this comment?'),
+        content: Text(c.body, maxLines: 3, overflow: TextOverflow.ellipsis),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: AppColors.surface),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ApiClient().delete('/api/projects/comments-board/${c.id}');
+      _loadProjectData();
+    } catch (e) {
+      if (mounted) showApiError(context, e, prefix: "Couldn't delete the comment");
+    }
+  }
+
   Widget _buildCommentsBoardSection() {
+    final user = ref.read(appStateProvider).currentUser;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.p20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.r24),
         boxShadow: AppShadows.soft,
       ),
@@ -1743,12 +1405,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Project Comments',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
-                ),
+                'Comments',
+                style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -1757,12 +1415,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                   borderRadius: BorderRadius.circular(AppSpacing.rPill),
                 ),
                 child: Text(
-                  '${_comments.length} comments',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primaryInk,
-                  ),
+                  plural(_comments.length, 'comment'),
+                  style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.primaryInk),
                 ),
               ),
             ],
@@ -1776,11 +1430,11 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                 child: TextField(
                   controller: _commentInputController,
                   maxLength: 100,
-                  style: TextStyle(fontSize: 12, color: AppColors.ink),
+                  textCapitalization: TextCapitalization.sentences,
+                  style: AppTypography.caption.copyWith(color: AppColors.ink),
                   decoration: InputDecoration(
-                    hintText: 'Write project message (max 100 chars)...',
-                    hintStyle: TextStyle(fontSize: 12, color: AppColors.textTertiary),
-                    counterText: '',
+                    hintText: 'Write a short update for the team',
+                    hintStyle: AppTypography.caption.copyWith(color: AppColors.textTertiary),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     filled: true,
                     fillColor: AppColors.surfaceMuted,
@@ -1806,9 +1460,10 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
+                  tooltip: 'Post comment',
                   icon: _isPostingComment
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
+                      : const Icon(Icons.send_rounded, color: AppColors.onPrimary, size: 18),
                   onPressed: _isPostingComment ? null : _postBoardComment,
                 ),
               ),
@@ -1820,7 +1475,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Center(
-                child: Text('No project comments posted yet.', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                child: Text('No comments yet.', style: AppTypography.caption),
               ),
             )
           else
@@ -1843,41 +1498,33 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                c.userName,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                  color: AppColors.ink,
+                              Expanded(
+                                child: Text(
+                                  c.userName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                                 ),
                               ),
-                              Text(
-                                DateFormat('MMM d, h:mm a').format(c.createdAt),
-                                style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
-                              ),
+                              const SizedBox(width: 8),
+                              Text(formatRelative(c.createdAt), style: AppTypography.label),
                             ],
                           ),
                           const SizedBox(height: 3),
                           Text(
                             c.body,
-                            style: TextStyle(
-                              fontSize: 12,
-                              height: 1.3,
-                              color: AppColors.ink,
-                            ),
+                            style: AppTypography.caption.copyWith(height: 1.3, color: AppColors.ink),
                           ),
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.textTertiary),
-                      onPressed: () async {
-                        await ApiClient().delete('/api/projects/comments-board/${c.id}');
-                        _loadProjectData();
-                      },
-                    ),
+                    if (c.userId == user.id || user.isAdmin)
+                      IconButton(
+                        tooltip: 'Delete comment',
+                        icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.textSecondary),
+                        onPressed: () => _deleteBoardComment(c),
+                      ),
                   ],
                 ),
               );
@@ -1894,7 +1541,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.p20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.r24),
         boxShadow: AppShadows.soft,
       ),
@@ -1902,26 +1549,22 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Recent Activity',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.ink,
-            ),
+            'Recent activity',
+            style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
           ),
           const SizedBox(height: 14),
           ...activity.map((a) {
             IconData iconData = Icons.assignment_outlined;
-            Color iconColor = AppColors.primary;
+            Color iconColor = AppColors.lavenderInk;
             Color iconBg = AppColors.lavender;
 
             if (a['icon'] == 'folder') {
               iconData = Icons.folder_open_rounded;
-              iconColor = AppColors.warning;
+              iconColor = AppColors.warningInk;
               iconBg = AppColors.warningSoft;
             } else if (a['icon'] == 'check') {
               iconData = Icons.check_circle_outline_rounded;
-              iconColor = AppColors.success;
+              iconColor = AppColors.successInk;
               iconBg = AppColors.successSoft;
             }
 
@@ -1951,16 +1594,12 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                       children: [
                         Text(
                           a['title']!,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                            color: AppColors.ink,
-                          ),
+                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           a['time']!,
-                          style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
+                          style: AppTypography.label.copyWith(color: AppColors.textTertiary),
                         ),
                       ],
                     ),
@@ -1971,6 +1610,349 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           }),
         ],
       ),
+    );
+  }
+}
+
+/// Search the organization's interns and add one to the project.
+class _AssignInternDialog extends StatefulWidget {
+  final String projectId;
+  final String projectName;
+  final Set<String?> excludeIds;
+  final VoidCallback onAssigned;
+
+  const _AssignInternDialog({
+    required this.projectId,
+    required this.projectName,
+    required this.excludeIds,
+    required this.onAssigned,
+  });
+
+  @override
+  State<_AssignInternDialog> createState() => _AssignInternDialogState();
+}
+
+class _AssignInternDialogState extends State<_AssignInternDialog> {
+  final _search = TextEditingController();
+  List<Map<String, dynamic>> _interns = const [];
+  bool _loading = true;
+  String? _error;
+  String? _selectedId;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final res = await ApiClient().get('/api/users/dropdown', queryParameters: {'role': 'intern'});
+      final list = res is Map && res['interns'] is List
+          ? (res['interns'] as List).whereType<Map<String, dynamic>>().toList()
+          : <Map<String, dynamic>>[];
+      if (mounted) {
+        setState(() {
+          _interns = list.where((i) => !widget.excludeIds.contains(i['id']?.toString())).toList();
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = apiErrorMessage(e);
+        });
+      }
+    }
+  }
+
+  Future<void> _assign() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ApiClient().post('/api/projects/${widget.projectId}/assign',
+          body: {'user_id': int.tryParse(_selectedId!) ?? _selectedId});
+      if (!mounted) return;
+      Navigator.pop(context);
+      widget.onAssigned();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = apiErrorMessage(e);
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final q = _search.text.trim().toLowerCase();
+    final visible = _interns.where((i) {
+      final name = i['name']?.toString().toLowerCase() ?? '';
+      final email = i['email']?.toString().toLowerCase() ?? '';
+      return q.isEmpty || name.contains(q) || email.contains(q);
+    }).toList();
+
+    return AlertDialog(
+      insetPadding: const EdgeInsets.all(16),
+      title: const Text('Add an intern'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('To ${widget.projectName}', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _search,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(hintText: 'Search by name or email', prefixIcon: Icon(Icons.search, size: 18)),
+            ),
+            const SizedBox(height: 8),
+            if (_loading)
+              const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()))
+            else if (_interns.isEmpty && _error == null)
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text('Every intern is already on this project.', style: AppTypography.body),
+              )
+            else
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 280),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: visible.length,
+                    itemBuilder: (_, i) {
+                      final intern = visible[i];
+                      final id = intern['id']?.toString();
+                      final name = intern['name']?.toString() ?? '';
+                      final selected = id == _selectedId;
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                        selected: selected,
+                        selectedTileColor: AppColors.primarySoft,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        leading: AppAvatar(size: 36, fallbackText: name),
+                        title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(intern['email']?.toString() ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: selected ? const Icon(Icons.check_circle_rounded, color: AppColors.primaryInk) : null,
+                        onTap: _saving ? null : () => setState(() => _selectedId = id),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
+              if (_interns.isEmpty) TextButton(onPressed: _load, child: const Text('Try again')),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: _selectedId == null || _saving ? null : _assign,
+          child: _saving
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Add'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Shared resources for a project: add (anyone on it), open, and delete (staff).
+class _ProjectLinksDialog extends StatefulWidget {
+  final String projectId;
+  final List<ProjectLink> initialLinks;
+  final bool canDelete;
+  final ValueChanged<List<ProjectLink>> onChanged;
+
+  const _ProjectLinksDialog({
+    required this.projectId,
+    required this.initialLinks,
+    required this.canDelete,
+    required this.onChanged,
+  });
+
+  @override
+  State<_ProjectLinksDialog> createState() => _ProjectLinksDialogState();
+}
+
+class _ProjectLinksDialogState extends State<_ProjectLinksDialog> {
+  final _link = TextEditingController();
+  final _remark = TextEditingController();
+  late List<ProjectLink> _links = List.of(widget.initialLinks);
+  String? _error;
+  bool _adding = false;
+
+  @override
+  void dispose() {
+    _link.dispose();
+    _remark.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    final updated = await ApiClient().get('/api/projects/${widget.projectId}/links');
+    final list = updated is List
+        ? updated.whereType<Map<String, dynamic>>().map(ProjectLink.fromJson).toList()
+        : <ProjectLink>[];
+    if (!mounted) return;
+    setState(() => _links = list);
+    widget.onChanged(list);
+  }
+
+  Future<void> _add() async {
+    final raw = _link.text.trim();
+    final uri = Uri.tryParse(raw);
+    if (uri == null || !(uri.scheme == 'http' || uri.scheme == 'https') || uri.host.isEmpty) {
+      setState(() => _error = 'Enter a full link starting with https://');
+      return;
+    }
+    setState(() {
+      _adding = true;
+      _error = null;
+    });
+    try {
+      await ApiClient().post('/api/projects/${widget.projectId}/links', body: {
+        'link': raw,
+        'remark': _remark.text.trim().isEmpty ? uri.host : _remark.text.trim(),
+      });
+      _link.clear();
+      _remark.clear();
+      await _refresh();
+    } catch (e) {
+      if (mounted) setState(() => _error = apiErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  Future<void> _delete(ProjectLink l) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Delete this link?'),
+        content: Text(l.remark),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: AppColors.surface),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ApiClient().delete('/api/projects/links/${l.id}');
+      await _refresh();
+    } catch (e) {
+      if (mounted) setState(() => _error = apiErrorMessage(e));
+    }
+  }
+
+  Future<void> _open(ProjectLink l) async {
+    final uri = Uri.tryParse(l.link);
+    final opened = uri != null && await launchUrl(uri, mode: LaunchMode.externalApplication).catchError((_) => false);
+    if (!opened && mounted) setState(() => _error = "Couldn't open that link.");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      insetPadding: const EdgeInsets.all(16),
+      title: Text('Project links (${_links.length})'),
+      content: SizedBox(
+        width: 460,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _link,
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+              enabled: !_adding,
+              decoration: const InputDecoration(labelText: 'Link', hintText: 'https://docs.google.com/…'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _remark,
+              textCapitalization: TextCapitalization.sentences,
+              enabled: !_adding,
+              decoration: const InputDecoration(labelText: 'Title (optional)', hintText: 'e.g. Design doc'),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
+            ],
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton.icon(
+                onPressed: _adding ? null : _add,
+                icon: _adding
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.add_link_rounded, size: 16),
+                label: const Text('Add link'),
+              ),
+            ),
+            const Divider(height: 24),
+            Flexible(
+              child: _links.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text('No links yet.', style: AppTypography.body, textAlign: TextAlign.center),
+                    )
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: _links.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, i) {
+                        final l = _links[i];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.link_rounded, color: AppColors.infoInk),
+                          title: Text(l.remark, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.bodyStrong),
+                          subtitle: Text(l.link, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption),
+                          onTap: () => _open(l),
+                          trailing: widget.canDelete
+                              ? IconButton(
+                                  tooltip: 'Delete link',
+                                  icon: const Icon(Icons.delete_outline_rounded, size: 20, color: AppColors.dangerInk),
+                                  onPressed: () => _delete(l),
+                                )
+                              : const Icon(Icons.open_in_new_rounded, size: 18, color: AppColors.textSecondary),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
     );
   }
 }

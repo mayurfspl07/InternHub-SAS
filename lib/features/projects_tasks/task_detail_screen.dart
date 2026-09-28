@@ -1,21 +1,22 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import '../../core/api/api_client.dart';
+import '../../core/api/api_exception.dart';
 import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/services/file_export_service.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/project_model.dart';
-import '../../shared/models/user_model.dart';
 import '../../shared/widgets/app_avatar.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/load_error_view.dart';
 import '../../shared/widgets/status_chip.dart';
+import 'task_form_dialog.dart';
+import '../../core/constants/app_typography.dart';
+import '../../core/services/document_picker.dart';
+import '../../core/utils/formatters.dart';
 
 class TaskDetailScreen extends ConsumerStatefulWidget {
   final TaskModel task;
@@ -33,6 +34,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   List<TaskAttachment> _attachments = [];
   List<TaskStatusColumn> _statuses = [];
   bool _isLoading = true;
+  bool _hasLoaded = false;
   String? _loadError;
 
   @override
@@ -44,7 +46,8 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
 
   Future<void> _loadTaskDetails() async {
     setState(() {
-      _isLoading = true;
+      // After the first load, refresh in place instead of blanking the page.
+      if (!_hasLoaded) _isLoading = true;
       _loadError = null;
     });
     try {
@@ -78,6 +81,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
           _comments = commentsList;
           _attachments = attachmentsList;
           _isLoading = false;
+          _hasLoaded = true;
         });
       }
     } catch (e) {
@@ -90,222 +94,153 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     }
   }
 
-  // Upload Validation
-  // max 5 MB; allowed: jpg/jpeg/png/webp/gif/pdf/txt/doc/docx/xls/xlsx/zip
-  String? _validateUploadFile(File file) {
-    final size = file.lengthSync();
-    if (size == 0) return 'File cannot be empty.';
-    if (size > 5 * 1024 * 1024) {
-      return 'Attachment must be 5 MB or smaller.';
-    }
-    final ext = file.path.split('.').last.toLowerCase();
-    const allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf', 'txt', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
-    if (!allowed.contains(ext)) {
-      return 'Attachment type is not allowed. Use images, PDF, Office docs, or zip.';
-    }
-    return null;
+  /// Files the task endpoints accept (images, PDF, Office documents, text, zip), up to 5 MB.
+  static const _taskFileTypes = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf', 'txt', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
+
+  Future<bool> _confirm(String title, String body) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: AppColors.surface),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
   }
 
-  void _showAddCommentDialog() {
-    final commentController = TextEditingController();
-    File? pickedFile;
-    String? fileError;
+  Future<void> _deleteComment(TaskComment c) async {
+    if (!await _confirm('Delete this comment?', 'Files attached to it are deleted too.')) return;
+    try {
+      await ApiClient().delete('/api/projects/tasks/comments/${c.id}');
+      _loadTaskDetails();
+    } catch (e) {
+      if (mounted) showApiError(context, e, prefix: "Couldn't delete the comment");
+    }
+  }
 
-    showDialog(
+  Future<void> _deleteAttachment(TaskAttachment att) async {
+    if (!await _confirm('Delete this file?', att.fileName)) return;
+    try {
+      await ApiClient().delete('/api/projects/tasks/attachments/${att.id}');
+      _loadTaskDetails();
+    } catch (e) {
+      if (mounted) showApiError(context, e, prefix: "Couldn't delete the file");
+    }
+  }
+
+  Future<void> _download(TaskAttachment att) async {
+    try {
+      await FileExportService.downloadAndShare(
+        endpoint: '/api/projects/tasks/attachments/${att.id}/download',
+        defaultFileName: att.fileName,
+      );
+    } catch (e) {
+      if (mounted) showApiError(context, e, prefix: "Couldn't download ${att.fileName}");
+    }
+  }
+
+  void _showAddCommentDialog() => _openUploadDialog(isComment: true);
+
+  void _showUploadAttachmentDialog() => _openUploadDialog(isComment: false);
+
+  /// Comment (text, optional file) or attachment (file, optional note). Stays open until the upload finishes.
+  Future<void> _openUploadDialog({required bool isComment}) async {
+    final sent = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            title: const Text('Add Task Comment'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CustomTextField(
-                  label: 'Comment',
-                  hintText: 'Share an update or note on this task...',
-                  controller: commentController,
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        final picker = ImagePicker();
-                        final picked = await picker.pickImage(source: ImageSource.gallery);
-                        if (picked != null) {
-                          final f = File(picked.path);
-                          final err = _validateUploadFile(f);
-                          setDialogState(() {
-                            if (err != null) {
-                              fileError = err;
-                              pickedFile = null;
-                            } else {
-                              pickedFile = f;
-                              fileError = null;
-                            }
-                          });
-                        }
-                      },
-                      icon: const Icon(Icons.attach_file_rounded, size: 16),
-                      label: const Text('Attach Image/File', style: TextStyle(fontSize: 12)),
-                    ),
-                    if (pickedFile != null) ...[
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          pickedFile!.path.split('/').last,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 16),
-                        onPressed: () => setDialogState(() => pickedFile = null),
-                      ),
-                    ],
-                  ],
-                ),
-                if (fileError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(fileError!, style: const TextStyle(color: AppColors.danger, fontSize: 11)),
-                  ),
-              ],
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary),
-                onPressed: () async {
-                  final text = commentController.text.trim();
-                  if (text.isEmpty && pickedFile == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please enter a comment message or attach a file.')),
-                    );
-                    return;
-                  }
-                  Navigator.pop(ctx);
+      builder: (_) => _TaskUploadDialog(
+        taskId: _task.id,
+        isComment: isComment,
+        allowedExtensions: _taskFileTypes,
+      ),
+    );
+    if (sent == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(isComment ? 'Comment posted' : 'File uploaded')),
+      );
+      _loadTaskDetails();
+      widget.onTaskUpdated?.call();
+    }
+  }
 
-                  try {
-                    List<http.MultipartFile> files = [];
-                    if (pickedFile != null) {
-                      files.add(await http.MultipartFile.fromPath('file', pickedFile!.path));
-                    }
-                    await ApiClient().postMultipart(
-                      '/api/projects/tasks/${_task.id}/comments',
-                      fields: {'body': text},
-                      files: files,
-                    );
-                    _loadTaskDetails();
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Failed to post comment: $e')),
-                      );
-                    }
-                  }
-                },
-                child: const Text('Post'),
-              ),
-            ],
-          );
+  /// The task form needs the project (members to assign, workflow statuses).
+  Future<ProjectModel> _fetchProject() async {
+    final res = await ApiClient().get('/api/projects/${_task.projectId}');
+    if (res is! Map<String, dynamic>) {
+      throw ApiException(statusCode: 500, message: 'Unexpected response for the project.');
+    }
+    return ProjectModel.fromJson(res);
+  }
+
+  Future<void> _editTask() async {
+    final ProjectModel project;
+    try {
+      project = await _fetchProject();
+    } catch (e) {
+      if (mounted) showApiError(context, e, prefix: "Couldn't open the task");
+      return;
+    }
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => TaskFormDialog(
+        project: project,
+        taskToEdit: _task,
+        onTaskCreated: () async {
+          widget.onTaskUpdated?.call();
+          // Show the saved values: the project payload carries the updated task.
+          try {
+            final fresh = (await _fetchProject()).tasks.where((x) => x.id == _task.id);
+            if (mounted && fresh.isNotEmpty) setState(() => _task = fresh.first);
+          } catch (_) {
+            // The edit itself succeeded; the list refresh above keeps the project view current.
+          }
         },
       ),
     );
   }
 
-  void _showUploadAttachmentDialog() {
-    File? pickedFile;
-    String? fileError;
-    final descController = TextEditingController();
-
-    showDialog(
+  Future<void> _deleteTask() async {
+    final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            title: const Text('Upload Task Attachment'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    final picker = ImagePicker();
-                    final picked = await picker.pickImage(source: ImageSource.gallery);
-                    if (picked != null) {
-                      final f = File(picked.path);
-                      final err = _validateUploadFile(f);
-                      setDialogState(() {
-                        if (err != null) {
-                          fileError = err;
-                          pickedFile = null;
-                        } else {
-                          pickedFile = f;
-                          fileError = null;
-                        }
-                      });
-                    }
-                  },
-                  icon: const Icon(Icons.file_upload_outlined),
-                  label: Text(pickedFile == null ? 'Choose File' : pickedFile!.path.split('/').last),
-                ),
-                if (fileError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(fileError!, style: const TextStyle(color: AppColors.danger, fontSize: 11)),
-                  ),
-                const SizedBox(height: 12),
-                CustomTextField(
-                  label: 'Description (optional)',
-                  hintText: 'e.g. Test results screenshot',
-                  controller: descController,
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary),
-                onPressed: () async {
-                  if (pickedFile == null) {
-                    setDialogState(() => fileError = 'Please choose a file to upload.');
-                    return;
-                  }
-                  Navigator.pop(ctx);
-                  try {
-                    final files = [await http.MultipartFile.fromPath('file', pickedFile!.path)];
-                    final fields = <String, String>{};
-                    final desc = descController.text.trim();
-                    if (desc.isNotEmpty) fields['description'] = desc;
-
-                    await ApiClient().postMultipart(
-                      '/api/projects/tasks/${_task.id}/attachments',
-                      fields: fields,
-                      files: files,
-                    );
-                    _loadTaskDetails();
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Failed to upload attachment: $e')),
-                      );
-                    }
-                  }
-                },
-                child: const Text('Upload'),
-              ),
-            ],
-          );
-        },
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this task?'),
+        content: Text('"${_task.title}" moves to the recycle bin, where an admin can restore it.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: AppColors.surface),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
+    if (ok != true || !mounted) return;
+    try {
+      await ApiClient().delete('/api/tasks/${_task.id}');
+      widget.onTaskUpdated?.call();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task deleted')));
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) showApiError(context, e, prefix: "Couldn't delete the task");
+    }
   }
+
+  String? _savingStatus; // the status being saved, so taps can't pile up
 
   void _changeStatus(String newStatusKey) async {
+    if (_savingStatus != null || newStatusKey == _task.rawStatus) return;
+    setState(() => _savingStatus = newStatusKey);
     try {
       await ApiClient().put('/api/projects/tasks/${_task.id}', body: {
         'status': newStatusKey,
@@ -315,7 +250,9 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
       });
       widget.onTaskUpdated?.call();
     } catch (e) {
-      if (mounted) showApiError(context, e, prefix: 'Failed to update status');
+      if (mounted) showApiError(context, e, prefix: "Couldn't change the status");
+    } finally {
+      if (mounted) setState(() => _savingStatus = null);
     }
   }
 
@@ -323,24 +260,33 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(appStateProvider);
     final user = state.currentUser;
-
-    // canManageTasks = admin OR mentor OR (intern AND user is in project.members)
-    final canManageTasks = user.role == UserRole.admin ||
-        user.role == UserRole.mentor ||
-        user.role == UserRole.superadmin ||
-        _task.assignedTo == user.id;
+    final isAdmin = user.isAdmin;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: pageAppBar(
         context,
-        title: _task.projectName.isNotEmpty ? _task.projectName : 'Task Details',
+        title: _task.projectName.isNotEmpty ? _task.projectName : 'Task',
+        actions: [
+          if (_task.canEdit)
+            HeaderAction(icon: Icons.edit_outlined, tooltip: 'Edit task', onTap: _editTask),
+          if (_task.canDelete)
+            HeaderAction(
+              icon: Icons.delete_outline_rounded,
+              tooltip: 'Delete task',
+              color: AppColors.danger,
+              onTap: _deleteTask,
+            ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
           ? LoadErrorView(title: 'Couldn\'t load this task', message: _loadError!, onRetry: _loadTaskDetails)
-          : SingleChildScrollView(
+          : RefreshIndicator(
+              onRefresh: _loadTaskDetails,
+              child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,10 +298,14 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                       Expanded(
                         child: Text(
                           _task.title,
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                          style: AppTypography.title.copyWith(fontWeight: FontWeight.w700),
                         ),
                       ),
-                      StatusChip(label: _task.rawStatus.toUpperCase().replaceAll('_', ' '), statusType: StatusType.primary),
+                      const SizedBox(width: 8),
+                      StatusChip.fromString(
+                        _task.rawStatus,
+                        label: _statuses.where((s) => s.key == _task.rawStatus).map((s) => s.title).firstOrNull,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -365,20 +315,17 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      Chip(
-                        avatar: const Icon(Icons.flag_rounded, size: 16, color: AppColors.primaryInk),
-                        label: Text('Priority: ${_task.priority.name.toUpperCase()}'),
-                      ),
-                      Chip(
-                        avatar: const Icon(Icons.calendar_today_rounded, size: 14),
-                        label: Text(_task.dueDate == null
-                            ? 'No due date'
-                            : 'Due: ${DateFormat('yyyy-MM-dd').format(_task.dueDate!)}'),
+                      StatusChip.fromPriority(_task.priority),
+                      StatusChip(
+                        icon: Icons.calendar_today_rounded,
+                        label: _task.dueDate == null ? 'No due date' : 'Due ${formatDate(_task.dueDate)}',
+                        statusType: _task.isOverdue ? StatusType.danger : StatusType.neutral,
                       ),
                       if (_task.assigneeName != null && _task.assigneeName!.isNotEmpty)
-                        Chip(
-                          avatar: const Icon(Icons.person_rounded, size: 14),
-                          label: Text('Assignee: ${_task.assigneeName}'),
+                        StatusChip(
+                          icon: Icons.person_rounded,
+                          label: _task.assigneeName!,
+                          statusType: StatusType.neutral,
                         ),
                     ],
                   ),
@@ -386,30 +333,30 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
 
                   // Description
                   Text(
-                    'Notes / Description',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                    'Description',
+                    style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 6),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.surface,
                       borderRadius: BorderRadius.circular(14),
         boxShadow: AppShadows.soft,
       ),
                     child: Text(
                       _task.description.isNotEmpty ? _task.description : 'No additional description provided.',
-                      style: TextStyle(fontSize: 13, height: 1.4, color: AppColors.ink),
+                      style: AppTypography.caption.copyWith(height: 1.4, color: AppColors.ink),
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  // Status Selector Buttons
-                  if (canManageTasks && _task.canMove && _statuses.isNotEmpty) ...[
+                  // Status selector: shown when the API says this user can move the task.
+                  if (_task.canMove && _statuses.isNotEmpty) ...[
                     Text(
-                      'Update Status',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                      'Status',
+                      style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 8),
                     SingleChildScrollView(
@@ -434,11 +381,11 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                     children: [
                       Text(
                         'Comments (${_comments.length})',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700),
                       ),
                       TextButton.icon(
                         icon: const Icon(Icons.add_comment_rounded, size: 16),
-                        label: const Text('Add Comment'),
+                        label: const Text('Add comment'),
                         onPressed: _showAddCommentDialog,
                       ),
                     ],
@@ -447,7 +394,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                   _comments.isEmpty
                       ? Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Text('No comments yet on this task.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                          child: Text('No comments yet on this task.', style: AppTypography.caption.copyWith(color: AppColors.textSecondary)),
                         )
                       : ListView.builder(
                           shrinkWrap: true,
@@ -459,7 +406,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                               margin: const EdgeInsets.only(bottom: 10),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppColors.surface,
                                 borderRadius: BorderRadius.circular(14),
         boxShadow: AppShadows.soft,
       ),
@@ -473,29 +420,30 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Text(c.authorName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                                            Text(
-                                              DateFormat('yyyy-MM-dd').format(c.createdAt),
-                                              style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
+                                            Expanded(
+                                              child: Text(
+                                                c.authorName,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: AppTypography.caption.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
+                                              ),
                                             ),
+                                            const SizedBox(width: 8),
+                                            Text(formatRelative(c.createdAt), style: AppTypography.label),
                                           ],
                                         ),
                                         const SizedBox(height: 4),
                                         if (c.message.isNotEmpty)
-                                          Text(c.message, style: const TextStyle(fontSize: 13)),
+                                          Text(c.message, style: AppTypography.caption.copyWith(color: AppColors.ink)),
                                         for (final file in c.attachments) ...[
                                           const SizedBox(height: 6),
                                           InkWell(
-                                            onTap: () {
-                                              FileExportService.downloadAndShare(
-                                                endpoint: '/api/projects/tasks/attachments/${file.id}/download',
-                                                defaultFileName: file.fileName,
-                                              );
-                                            },
+                                            borderRadius: BorderRadius.circular(8),
+                                            onTap: () => _download(file),
                                             child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              constraints: const BoxConstraints(minHeight: 36),
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                               decoration: BoxDecoration(
                                                 color: AppColors.infoSoft,
                                                 borderRadius: BorderRadius.circular(8),
@@ -503,11 +451,15 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  const Icon(Icons.attachment_rounded, size: 14, color: AppColors.info),
+                                                  const Icon(Icons.attachment_rounded, size: 14, color: AppColors.infoInk),
                                                   const SizedBox(width: 4),
-                                                  Text(
-                                                    file.fileName,
-                                                    style: const TextStyle(fontSize: 11, color: AppColors.info, fontWeight: FontWeight.bold),
+                                                  Flexible(
+                                                    child: Text(
+                                                      file.fileName,
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: AppTypography.label.copyWith(color: AppColors.infoInk, fontWeight: FontWeight.w700),
+                                                    ),
                                                   ),
                                                 ],
                                               ),
@@ -517,13 +469,13 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                                       ],
                                     ),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.textTertiary),
-                                    onPressed: () async {
-                                      await ApiClient().delete('/api/projects/tasks/comments/${c.id}');
-                                      _loadTaskDetails();
-                                    },
-                                  ),
+                                  // Only admins can delete task comments.
+                                  if (isAdmin)
+                                    IconButton(
+                                      tooltip: 'Delete comment',
+                                      icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.textSecondary),
+                                      onPressed: () => _deleteComment(c),
+                                    ),
                                 ],
                               ),
                             );
@@ -537,11 +489,11 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                     children: [
                       Text(
                         'Attachments (${_attachments.length})',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700),
                       ),
                       TextButton.icon(
                         icon: const Icon(Icons.upload_file_rounded, size: 16),
-                        label: const Text('Upload File'),
+                        label: const Text('Upload file'),
                         onPressed: _showUploadAttachmentDialog,
                       ),
                     ],
@@ -550,7 +502,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                   _attachments.isEmpty
                       ? Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Text('No files attached.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                          child: Text('No files attached.', style: AppTypography.caption.copyWith(color: AppColors.textSecondary)),
                         )
                       : ListView.builder(
                           shrinkWrap: true,
@@ -562,7 +514,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                               margin: const EdgeInsets.only(bottom: 10),
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppColors.surface,
                                 borderRadius: BorderRadius.circular(14),
         boxShadow: AppShadows.soft,
       ),
@@ -574,28 +526,29 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(att.fileName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                        Text(
+                                          att.fileName,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: AppTypography.caption.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
+                                        ),
                                         if (att.description != null && att.description!.isNotEmpty)
-                                          Text(att.description!, style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                          Text(att.description!, style: AppTypography.label.copyWith(color: AppColors.textSecondary)),
                                       ],
                                     ),
                                   ),
                                   IconButton(
+                                    tooltip: 'Download',
                                     icon: const Icon(Icons.download_rounded),
-                                    onPressed: () async {
-                                      await FileExportService.downloadAndShare(
-                                        endpoint: '/api/projects/tasks/attachments/${att.id}/download',
-                                        defaultFileName: att.fileName,
-                                      );
-                                    },
+                                    onPressed: () => _download(att),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
-                                    onPressed: () async {
-                                      await ApiClient().delete('/api/projects/tasks/attachments/${att.id}');
-                                      _loadTaskDetails();
-                                    },
-                                  ),
+                                  // The API lets admins, the uploader and the project's mentors delete a file.
+                                  if (isAdmin || user.isMentor || att.uploadedById == user.id)
+                                    IconButton(
+                                      tooltip: 'Delete file',
+                                      icon: const Icon(Icons.delete_outline_rounded, color: AppColors.dangerInk),
+                                      onPressed: () => _deleteAttachment(att),
+                                    ),
                                 ],
                               ),
                             );
@@ -604,32 +557,185 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                 ],
               ),
             ),
+            ),
     );
   }
 
   Widget _buildStatusButton(String key, String label, String currentStatus, Color color) {
     final isSelected = currentStatus.toLowerCase().replaceAll(' ', '_') == key.toLowerCase();
 
-    return InkWell(
-      onTap: () => _changeStatus(key),
-      borderRadius: BorderRadius.circular(10),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? color : color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color, width: 1.2),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: isSelected ? Colors.white : color,
+    final saving = _savingStatus == key;
+    // Selected = amber with ink text (readable for any org status color); the column color is the dot.
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      child: InkWell(
+        onTap: _savingStatus == null ? () => _changeStatus(key) : null,
+        borderRadius: BorderRadius.circular(AppSpacing.rPill),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          constraints: const BoxConstraints(minHeight: 40),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primary : AppColors.surface,
+            borderRadius: BorderRadius.circular(AppSpacing.rPill),
+            border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (saving)
+                const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5))
+              else
+                Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: AppTypography.caption.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? AppColors.onPrimary : AppColors.ink,
+                ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _TaskUploadDialog extends StatefulWidget {
+  final String taskId;
+  final bool isComment;
+  final List<String> allowedExtensions;
+
+  const _TaskUploadDialog({required this.taskId, required this.isComment, required this.allowedExtensions});
+
+  @override
+  State<_TaskUploadDialog> createState() => _TaskUploadDialogState();
+}
+
+class _TaskUploadDialogState extends State<_TaskUploadDialog> {
+  final _text = TextEditingController();
+  PickedDocument? _file;
+  String? _error;
+  bool _sending = false;
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pick() async {
+    try {
+      final doc = await pickDocument(allowedExtensions: widget.allowedExtensions, maxMb: 5);
+      if (doc != null) {
+        setState(() {
+          _file = doc;
+          _error = null;
+        });
+      }
+    } on DocumentPickException catch (e) {
+      setState(() => _error = e.message);
+    } catch (_) {
+      setState(() => _error = "Couldn't open that file. Try another one.");
+    }
+  }
+
+  Future<void> _send() async {
+    final text = _text.text.trim();
+    if (widget.isComment && text.isEmpty && _file == null) {
+      setState(() => _error = 'Write a comment or attach a file.');
+      return;
+    }
+    if (!widget.isComment && _file == null) {
+      setState(() => _error = 'Choose a file to upload.');
+      return;
+    }
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      final files = [if (_file != null) await http.MultipartFile.fromPath('file', _file!.file.path)];
+      final path = widget.isComment
+          ? '/api/projects/tasks/${widget.taskId}/comments'
+          : '/api/projects/tasks/${widget.taskId}/attachments';
+      final fields = widget.isComment ? {'body': text} : {if (text.isNotEmpty) 'description': text};
+      await ApiClient().postMultipart(path, fields: fields, files: files);
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _sending = false;
+          _error = apiErrorMessage(e);
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      insetPadding: const EdgeInsets.all(16),
+      title: Text(widget.isComment ? 'Add a comment' : 'Upload a file'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CustomTextField(
+              label: widget.isComment ? 'Comment' : 'Note (optional)',
+              hintText: widget.isComment ? 'Share an update on this task' : 'e.g. Test results',
+              controller: _text,
+              maxLines: widget.isComment ? 3 : 1,
+              textCapitalization: TextCapitalization.sentences,
+              enabled: !_sending,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _sending ? null : _pick,
+              icon: const Icon(Icons.attach_file_rounded, size: 18),
+              label: Text(
+                _file == null ? (widget.isComment ? 'Attach a file (optional)' : 'Choose a file') : _file!.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (_file != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  children: [
+                    Expanded(child: Text(_file!.sizeLabel, style: AppTypography.caption)),
+                    TextButton(
+                      onPressed: _sending ? null : () => setState(() => _file = null),
+                      child: const Text('Remove'),
+                    ),
+                  ],
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text('Images, PDF, Office files, text or zip · up to 5 MB', style: AppTypography.label),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: _sending ? null : () => Navigator.pop(context, false), child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: _sending ? null : _send,
+          child: _sending
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : Text(widget.isComment ? 'Post' : 'Upload'),
+        ),
+      ],
     );
   }
 }

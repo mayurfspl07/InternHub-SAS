@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/models/performance_review_model.dart';
 import '../performance_repository.dart';
 import 'star_rating.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
 
 class PerformanceReviewDialog extends StatefulWidget {
   final PerformanceReview? review; // If provided, edit mode
@@ -32,7 +35,8 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
   late final TextEditingController _periodController;
 
   // Ratings
-  late int _rating;
+  // Overall rating starts unset for a new review so a score is never pre-filled.
+  int? _rating;
   // Optional sub-ratings: null until the reviewer picks a value (never invented).
   int? _technicalRating;
   int? _communicationRating;
@@ -48,6 +52,9 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
   String? _feedbackError;
   String? _strengthsError;
   String? _improvementsError;
+  String? _internError;
+  String? _ratingError;
+  String? _submitError;
 
   bool get isEditing => widget.review != null;
 
@@ -71,7 +78,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
       _improvementsController = TextEditingController(text: r.improvements ?? '');
     } else {
       _periodController = TextEditingController();
-      _rating = 5;
+      _rating = null;
       _technicalRating = null;
       _communicationRating = null;
       _initiativeRating = null;
@@ -102,7 +109,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _SearchPickerSheet(
-        title: 'Select Intern',
+        title: 'Choose an intern',
         loadOptions: (query) => _repository.getInternOptions(search: query),
       ),
     );
@@ -111,6 +118,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
       setState(() {
         _selectedInternId = selected.id;
         _selectedInternName = selected.label;
+        _internError = null;
       });
     }
   }
@@ -122,16 +130,17 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _SearchPickerSheet(
-        title: 'Select Project',
+        title: 'Choose a project',
         showNoneOption: true,
         noneLabel: 'No project',
         loadOptions: (query) => _repository.getProjectOptions(search: query),
       ),
     );
 
-    if (mounted) {
+    // Dismissing the sheet (null) keeps the current choice; only "No project" (id 0) clears it.
+    if (mounted && selected != null) {
       setState(() {
-        if (selected == null || selected.id == 0) {
+        if (selected.id == 0) {
           _selectedProjectId = null;
           _selectedProjectName = null;
         } else {
@@ -145,40 +154,43 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
   bool _validateForm() {
     bool hasError = false;
 
+    // Shown inline: a snackbar would sit behind this dialog.
     if (!isEditing && (_selectedInternId == null || _selectedInternId == 0)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select an intern to review'),
-          backgroundColor: AppColors.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return false;
+      _internError = 'Choose who this review is for';
+      hasError = true;
+    } else {
+      _internError = null;
+    }
+    if (_rating == null) {
+      _ratingError = 'Pick an overall rating';
+      hasError = true;
+    } else {
+      _ratingError = null;
     }
 
     if (_periodController.text.trim().length > 100) {
-      _periodError = 'Evaluation period cannot exceed 100 characters';
+      _periodError = 'Use 100 characters or fewer';
       hasError = true;
     } else {
       _periodError = null;
     }
 
     if (_feedbackController.text.trim().length > 1000) {
-      _feedbackError = 'Feedback cannot exceed 1000 characters';
+      _feedbackError = 'Use 1000 characters or fewer';
       hasError = true;
     } else {
       _feedbackError = null;
     }
 
     if (_strengthsController.text.trim().length > 1000) {
-      _strengthsError = 'Strengths cannot exceed 1000 characters';
+      _strengthsError = 'Use 1000 characters or fewer';
       hasError = true;
     } else {
       _strengthsError = null;
     }
 
     if (_improvementsController.text.trim().length > 1000) {
-      _improvementsError = 'Areas for improvement cannot exceed 1000 characters';
+      _improvementsError = 'Use 1000 characters or fewer';
       hasError = true;
     } else {
       _improvementsError = null;
@@ -191,13 +203,16 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
   Future<void> _handleSubmit() async {
     if (!_validateForm()) return;
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _submitError = null;
+    });
 
     try {
       if (isEditing) {
         await _repository.updateReview(
           id: widget.review!.id,
-          rating: _rating,
+          rating: _rating!,
           technicalRating: _technicalRating,
           communicationRating: _communicationRating,
           initiativeRating: _initiativeRating,
@@ -210,7 +225,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
           internId: _selectedInternId!,
           projectId: _selectedProjectId,
           period: _periodController.text.trim(),
-          rating: _rating,
+          rating: _rating!,
           technicalRating: _technicalRating,
           communicationRating: _communicationRating,
           initiativeRating: _initiativeRating,
@@ -225,21 +240,17 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception:', '').trim()),
-            backgroundColor: AppColors.dangerInk,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        setState(() {
+          _isSubmitting = false;
+          _submitError = apiErrorMessage(e);
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = Colors.white;
+    final cardBg = AppColors.surface;
     final borderColor = AppColors.border;
 
     return Dialog(
@@ -256,32 +267,17 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
             children: [
               // Header Row: Title + Close Button
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    isEditing ? 'Edit Performance Review' : 'Submit Performance Review',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.4,
-                      color: AppColors.ink,
+                  Expanded(
+                    child: Text(
+                      isEditing ? 'Edit review' : 'New review',
+                      style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.4, color: AppColors.ink),
                     ),
                   ),
-                  InkWell(
-                    onTap: _isSubmitting ? null : () => Navigator.of(context).pop(),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: borderColor),
-                      ),
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: 18,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -303,11 +299,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
                         backgroundColor: AppColors.primary,
                         child: Text(
                           widget.review!.internInitials,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
-                          ),
+                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.onPrimary),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -317,25 +309,22 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
                           children: [
                             Text(
                               widget.review!.internDisplayName,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.ink,
-                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                             ),
                             if (widget.review!.period != null && widget.review!.period!.isNotEmpty)
                               Text(
                                 'Period: ${widget.review!.period}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                ),
+                                style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                               ),
                           ],
                         ),
                       ),
                       if (widget.review!.projectName != null) ...[
-                        Container(
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: AppColors.infoSoft,
@@ -343,12 +332,11 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
                           ),
                           child: Text(
                             widget.review!.projectName!,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.info,
-                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.label.copyWith(color: AppColors.infoInk),
                           ),
+                        ),
                         ),
                       ],
                     ],
@@ -382,15 +370,15 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
                 const SizedBox(height: 16),
 
                 // EVALUATION PERIOD
-                _buildFieldLabel('EVALUATION PERIOD'),
+                _buildFieldLabel('Period (optional)'),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _periodController,
                   maxLength: 100,
                   buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
-                  style: TextStyle(fontSize: 14, color: AppColors.ink),
+                  style: AppTypography.body.copyWith(color: AppColors.ink),
                   decoration: _buildInputDecoration(
-                    hint: 'e.g., Q3 2026, Mid-Term Q3 2026',
+                    hint: 'e.g. Q3 2026',
                     borderColor: _periodError != null ? AppColors.danger : borderColor,
                   ),
                 ),
@@ -405,7 +393,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
                   color: AppColors.warningSoft.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppColors.primarySoft,
+                    color: _ratingError != null ? AppColors.danger : AppColors.primarySoft,
                     width: 1.2,
                   ),
                 ),
@@ -414,39 +402,29 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Text(
-                              'OVERALL RATING',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.5,
-                                color: AppColors.ink,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Text('*', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
+                        Text('Overall rating', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
                         Text(
-                          '$_rating / 5',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.warning,
-                          ),
+                          _rating == null ? 'Not rated' : '$_rating / 5',
+                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.warningInk),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Center(
                       child: StarRating(
-                        rating: _rating,
+                        rating: _rating ?? 0,
                         size: 32,
-                        onRatingChanged: (val) => setState(() => _rating = val),
+                        onRatingChanged: (val) => setState(() {
+                          _rating = val;
+                          _ratingError = null;
+                        }),
                       ),
                     ),
+                    if (_ratingError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(_ratingError!, style: AppTypography.label.copyWith(color: AppColors.dangerInk)),
+                      ),
                   ],
                 ),
               ),
@@ -457,9 +435,9 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
                 builder: (context, constraints) {
                   final isSmall = constraints.maxWidth < 480;
                   final cards = [
-                    _buildCategoryStarBox('TECHNICAL', _technicalRating, (v) => setState(() => _technicalRating = v), borderColor),
-                    _buildCategoryStarBox('COMMUNICATION', _communicationRating, (v) => setState(() => _communicationRating = v), borderColor),
-                    _buildCategoryStarBox('INITIATIVE', _initiativeRating, (v) => setState(() => _initiativeRating = v), borderColor),
+                    _buildCategoryStarBox('Technical', _technicalRating, (v) => setState(() => _technicalRating = v), borderColor),
+                    _buildCategoryStarBox('Communication', _communicationRating, (v) => setState(() => _communicationRating = v), borderColor),
+                    _buildCategoryStarBox('Initiative', _initiativeRating, (v) => setState(() => _initiativeRating = v), borderColor),
                   ];
 
                   if (isSmall) {
@@ -488,7 +466,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
               const SizedBox(height: 18),
 
               // DETAILED FEEDBACK
-              _buildFieldLabel('DETAILED FEEDBACK'),
+              _buildFieldLabel('Feedback'),
               const SizedBox(height: 6),
               TextField(
                 controller: _feedbackController,
@@ -496,9 +474,9 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
                 maxLines: 5,
                 maxLength: 1000,
                 buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
-                style: TextStyle(fontSize: 14, color: AppColors.ink),
+                style: AppTypography.body.copyWith(color: AppColors.ink),
                 decoration: _buildInputDecoration(
-                  hint: 'Provide detailed observations on performance, deliverables, and growth...',
+                  hint: 'What went well, what they delivered, how they grew',
                   borderColor: _feedbackError != null ? AppColors.danger : borderColor,
                 ),
               ),
@@ -506,7 +484,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
               const SizedBox(height: 14),
 
               // KEY STRENGTHS
-              _buildFieldLabel('KEY STRENGTHS'),
+              _buildFieldLabel('Strengths'),
               const SizedBox(height: 6),
               TextField(
                 controller: _strengthsController,
@@ -514,9 +492,9 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
                 maxLines: 4,
                 maxLength: 1000,
                 buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
-                style: TextStyle(fontSize: 14, color: AppColors.ink),
+                style: AppTypography.body.copyWith(color: AppColors.ink),
                 decoration: _buildInputDecoration(
-                  hint: 'e.g., Python, FastAPI, proactive collaboration, architecture...',
+                  hint: 'e.g. Clean APIs, helps teammates',
                   borderColor: _strengthsError != null ? AppColors.danger : borderColor,
                 ),
               ),
@@ -524,7 +502,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
               const SizedBox(height: 14),
 
               // AREAS FOR IMPROVEMENT
-              _buildFieldLabel('AREAS FOR IMPROVEMENT'),
+              _buildFieldLabel('To improve'),
               const SizedBox(height: 6),
               TextField(
                 controller: _improvementsController,
@@ -532,19 +510,21 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
                 maxLines: 4,
                 maxLength: 1000,
                 buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
-                style: TextStyle(fontSize: 14, color: AppColors.ink),
+                style: AppTypography.body.copyWith(color: AppColors.ink),
                 decoration: _buildInputDecoration(
-                  hint: 'e.g., Continue expanding integration tests, system design documentation...',
+                  hint: 'e.g. More tests, clearer docs',
                   borderColor: _improvementsError != null ? AppColors.danger : borderColor,
                 ),
               ),
               _buildCharCounter(_improvementsController.text.length, 1000, _improvementsError),
+              if (_submitError != null) ...[
+                const SizedBox(height: 8),
+                Text(_submitError!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
+              ],
               const SizedBox(height: 20),
 
-              // Action Buttons Row: Cancel & Submit Review
-              Wrap(
-                alignment: WrapAlignment.end,
-                runSpacing: 8,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   OutlinedButton(
                     onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
@@ -552,34 +532,27 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
                       foregroundColor: AppColors.ink,
                       side: BorderSide(color: borderColor, width: 1.2),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                      minimumSize: const Size(0, 44),
                     ),
-                    child: Text(
-                      'Cancel',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                    ),
+                    child: const Text('Cancel'),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
                     onPressed: _isSubmitting ? null : _handleSubmit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.black,
+                      foregroundColor: AppColors.onPrimary,
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shadowColor: AppColors.primary.withValues(alpha: 0.35),
+                      minimumSize: const Size(0, 44),
                     ),
                     child: _isSubmitting
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary),
                           )
-                        : Text(
-                            isEditing ? 'Save Changes' : 'Submit Review',
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                          ),
+                        : Text(isEditing ? 'Save' : 'Submit review'),
                   ),
                 ],
               ),
@@ -590,22 +563,10 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
     );
   }
 
-  Widget _buildFieldLabel(String label, {bool required = false}) {
+  Widget _buildFieldLabel(String label) {
     return Row(
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        if (required) ...[
-          const SizedBox(width: 4),
-          const Text('*', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold)),
-        ],
+        Text(label, style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
       ],
     );
   }
@@ -614,7 +575,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildFieldLabel('INTERN', required: true),
+        _buildFieldLabel('Intern'),
         const SizedBox(height: 6),
         InkWell(
           onTap: _openInternPicker,
@@ -622,9 +583,9 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: borderColor, width: 1.2),
+              border: Border.all(color: _internError != null ? AppColors.danger : borderColor, width: 1.2),
             ),
             child: Row(
               children: [
@@ -636,15 +597,11 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    _selectedInternName ?? 'Select intern being reviewed...',
+                    _selectedInternName ?? 'Choose an intern',
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: _selectedInternName != null
+                    style: AppTypography.bodyStrong.copyWith(color: _selectedInternName != null
                           ? AppColors.ink
-                          : (AppColors.textSecondary.withValues(alpha: 0.6)),
-                      fontWeight: _selectedInternName != null ? FontWeight.w600 : FontWeight.normal,
-                    ),
+                          : (AppColors.textSecondary.withValues(alpha: 0.6))),
                   ),
                 ),
                 Icon(
@@ -656,6 +613,11 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
             ),
           ),
         ),
+        if (_internError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(_internError!, style: AppTypography.label.copyWith(color: AppColors.dangerInk)),
+          ),
       ],
     );
   }
@@ -664,7 +626,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildFieldLabel('PROJECT (OPTIONAL)'),
+        _buildFieldLabel('Project (optional)'),
         const SizedBox(height: 6),
         InkWell(
           onTap: _openProjectPicker,
@@ -672,7 +634,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: borderColor, width: 1.2),
             ),
@@ -688,13 +650,9 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
                   child: Text(
                     _selectedProjectName ?? 'No project',
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: _selectedProjectName != null
+                    style: AppTypography.bodyStrong.copyWith(color: _selectedProjectName != null
                           ? AppColors.ink
-                          : AppColors.textSecondary,
-                      fontWeight: _selectedProjectName != null ? FontWeight.w600 : FontWeight.normal,
-                    ),
+                          : AppColors.textSecondary),
                   ),
                 ),
                 Icon(
@@ -727,24 +685,19 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.4,
-                  color: AppColors.textSecondary,
+              Expanded(
+                child: Text(
+                  '$title (optional)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                 ),
               ),
+              const SizedBox(width: 6),
               Text(
                 rating == null ? 'Not rated' : '$rating / 5',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.warning,
-                ),
+                style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.warningInk),
               ),
             ],
           ),
@@ -765,12 +718,9 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(
-        fontSize: 13.5,
-        color: AppColors.textSecondary.withValues(alpha: 0.6),
-      ),
+      hintStyle: AppTypography.caption.copyWith(color: AppColors.textSecondary.withValues(alpha: 0.6)),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AppColors.surface,
       contentPadding: const EdgeInsets.all(14),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -778,7 +728,7 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.warning, width: 1.8),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.8),
       ),
     );
   }
@@ -790,15 +740,12 @@ class _PerformanceReviewDialogState extends State<PerformanceReviewDialog> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           if (error != null)
-            Text(error, style: const TextStyle(color: AppColors.danger, fontSize: 11))
+            Flexible(child: Text(error, style: AppTypography.label.copyWith(color: AppColors.dangerInk)))
           else
             const SizedBox.shrink(),
           Text(
             '$current/$max',
-            style: TextStyle(
-              fontSize: 11,
-              color: current > max ? AppColors.danger : AppColors.textSecondary,
-            ),
+            style: AppTypography.label.copyWith(color: current > max ? AppColors.dangerInk : AppColors.textSecondary),
           ),
         ],
       ),
@@ -828,6 +775,9 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
   final TextEditingController _searchCtrl = TextEditingController();
   List<ReviewSelectOption> _options = [];
   bool _isLoading = true;
+  String? _error;
+  Timer? _debounce;
+  String _activeQuery = '';
 
   @override
   void initState() {
@@ -837,30 +787,49 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _fetch() async {
-    setState(() => _isLoading = true);
-    final res = await widget.loadOptions(_searchCtrl.text.trim());
-    if (mounted) {
-      setState(() {
-        _options = res;
-        _isLoading = false;
-      });
+    final query = _searchCtrl.text.trim();
+    _activeQuery = query;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final res = await widget.loadOptions(query);
+      if (mounted && query == _activeQuery) {
+        setState(() {
+          _options = res;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted && query == _activeQuery) {
+        setState(() {
+          _isLoading = false;
+          _error = apiErrorMessage(e);
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final media = MediaQuery.of(context);
+    // Shrink above the keyboard so the results stay visible while typing.
+    return Padding(
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+      child: Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.75,
+        maxHeight: (media.size.height * 0.75 - media.viewInsets.bottom).clamp(240.0, media.size.height),
       ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SafeArea(
         top: false,
@@ -872,24 +841,22 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.black12,
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    widget.title,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink,
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Close',
                     icon: const Icon(Icons.close_rounded, size: 20),
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -900,13 +867,15 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
               child: TextField(
                 controller: _searchCtrl,
-                onChanged: (_) => _fetch(),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.ink,
-                ),
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                onChanged: (_) {
+                  _debounce?.cancel();
+                  _debounce = Timer(const Duration(milliseconds: 300), _fetch);
+                },
+                style: AppTypography.body.copyWith(color: AppColors.ink),
                 decoration: InputDecoration(
-                  hintText: 'Search...',
+                  hintText: 'Search',
                   prefixIcon: const Icon(Icons.search_rounded, size: 20),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   border: OutlineInputBorder(
@@ -922,13 +891,16 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? LoadErrorView(title: "Couldn't load the list", message: _error!, onRetry: _fetch, compact: true)
                   : ListView(
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       children: [
                         if (widget.showNoneOption)
                           ListTile(
                             leading: const Icon(Icons.block_rounded, size: 20),
-                            title: Text(widget.noneLabel, style: TextStyle(fontWeight: FontWeight.w600)),
+                            title: Text(widget.noneLabel, style: AppTypography.bodyStrong),
                             onTap: () => Navigator.pop(context, const ReviewSelectOption(id: 0, label: 'None')),
                           ),
                         if (_options.isEmpty)
@@ -936,11 +908,8 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
                             padding: const EdgeInsets.symmetric(vertical: 36),
                             child: Center(
                               child: Text(
-                                'No matching results found',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary,
-                                ),
+                                'Nothing matches that search',
+                                style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                               ),
                             ),
                           )
@@ -952,12 +921,12 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
                                 backgroundColor: AppColors.primary,
                                 child: Text(
                                   opt.label.isNotEmpty ? opt.label[0].toUpperCase() : '?',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
+                                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.onPrimary),
                                 ),
                               ),
-                              title: Text(opt.label, style: TextStyle(fontWeight: FontWeight.w600)),
+                              title: Text(opt.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.bodyStrong),
                               subtitle: opt.subtitle != null
-                                  ? Text(opt.subtitle!, style: TextStyle(fontSize: 12))
+                                  ? Text(opt.subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption)
                                   : null,
                               onTap: () => Navigator.pop(context, opt),
                             );
@@ -967,6 +936,7 @@ class _SearchPickerSheetState extends State<_SearchPickerSheet> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

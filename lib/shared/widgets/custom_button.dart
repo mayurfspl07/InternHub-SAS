@@ -45,7 +45,7 @@ class CustomButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = backgroundColor ?? AppColors.primary;
     final fg = textColor ??
-        (isOutlined || bg.computeLuminance() > 0.45 ? AppColors.ink : Colors.white);
+        (isOutlined || bg.computeLuminance() > 0.45 ? AppColors.ink : AppColors.surface);
 
     final child = isLoading
         ? SizedBox(

@@ -336,11 +336,24 @@ class AppStateNotifier extends StateNotifier<AppState> {
 
   Future<void> deleteNotification(String id) async {
     await _api.delete('/api/notifications/$id');
+    hideNotification(id);
+  }
+
+  /// Removes a notification from the list right away (swipe-to-delete), before the server call.
+  void hideNotification(String id) {
     final removed = state.notifications.where((n) => n.id == id).toList();
+    if (removed.isEmpty) return;
     state = state.copyWith(
       notifications: state.notifications.where((n) => n.id != id).toList(),
       unreadCount: removed.any((n) => !n.isRead) ? (state.unreadCount - 1).clamp(0, 1 << 30) : state.unreadCount,
     );
+  }
+
+  /// Puts a hidden notification back at [index] (Undo, or the delete failed).
+  void restoreNotification(NotificationItem item, int index) {
+    if (state.notifications.any((n) => n.id == item.id)) return;
+    final list = [...state.notifications]..insert(index.clamp(0, state.notifications.length), item);
+    state = state.copyWith(notifications: list, unreadCount: item.isRead ? state.unreadCount : state.unreadCount + 1);
   }
 
   // ---------------------------------------------------------------- users
@@ -477,9 +490,12 @@ class AppStateNotifier extends StateNotifier<AppState> {
     await fetchInviteLinks();
   }
 
-  Future<void> reviewSignupRequest(String userId, {required bool approve}) async {
-    await _api.post('/api/admin/intern-signup-requests/$userId/review',
-        body: {'decision': approve ? 'approved' : 'rejected'});
+  /// Approving sets the intern's duration tier ([durationMonths]; the server uses the org default when null).
+  Future<void> reviewSignupRequest(String userId, {required bool approve, int? durationMonths}) async {
+    await _api.post('/api/admin/intern-signup-requests/$userId/review', body: {
+      'decision': approve ? 'approved' : 'rejected',
+      if (approve && durationMonths != null) 'internship_duration_months': durationMonths,
+    });
     await fetchInviteLinks();
   }
 

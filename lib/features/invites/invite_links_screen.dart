@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/api/api_client.dart';
 import '../../core/constants/app_colors.dart';
@@ -13,6 +12,9 @@ import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/load_error_view.dart';
 import '../../shared/widgets/status_chip.dart';
+import '../../core/constants/app_typography.dart';
+import '../../core/utils/formatters.dart';
+import '../directory_cohorts/widgets/intern_terms_section.dart';
 
 /// Invite links (create, share, regenerate, deactivate, delete) and the sign-up requests
 /// they produce (approve / reject). Admins manage every link of the organization;
@@ -26,6 +28,7 @@ class InviteLinksScreen extends ConsumerStatefulWidget {
 
 class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final Set<String> _reviewing = {};
 
   @override
   void initState() {
@@ -63,9 +66,10 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
         content: Text(message),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: AppColors.surface),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(action, style: const TextStyle(color: AppColors.danger)),
+            child: Text(action),
           ),
         ],
       ),
@@ -77,28 +81,38 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
     final isAdmin = ref.read(appStateProvider).currentUser.isAdmin;
     final labelController = TextEditingController();
     List<Map<String, dynamic>> mentors = const [];
+    bool mentorsRequested = false;
+    bool mentorsLoading = isAdmin;
+    String? mentorsError;
     String? mentorId;
     String? error;
     bool isCreating = false;
 
-    if (isAdmin) {
-      try {
-        final res = await ApiClient().get('/api/users/mentors');
-        mentors = res is Map && res['mentors'] is List
-            ? (res['mentors'] as List).whereType<Map<String, dynamic>>().toList()
-            : const [];
-      } catch (e) {
-        if (mounted) showApiError(context, e, prefix: 'Could not load mentors');
-      }
-    }
-    if (!mounted) return;
-
-    await showModalBottomSheet(
+    final created = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
+          // Load mentors once, after the sheet is already on screen.
+          if (isAdmin && !mentorsRequested) {
+            mentorsRequested = true;
+            ApiClient().get('/api/users/mentors').then((res) {
+              if (!ctx.mounted) return;
+              setModalState(() {
+                mentors = res is Map && res['mentors'] is List
+                    ? (res['mentors'] as List).whereType<Map<String, dynamic>>().toList()
+                    : const [];
+                mentorsLoading = false;
+              });
+            }).catchError((Object e) {
+              if (!ctx.mounted) return;
+              setModalState(() {
+                mentorsLoading = false;
+                mentorsError = "Couldn't load mentors. You can still create the link.";
+              });
+            });
+          }
           return Container(
             padding: EdgeInsets.only(
               left: 20,
@@ -107,38 +121,44 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
               bottom: MediaQuery.of(context).viewInsets.bottom + 24,
             ),
             decoration: const BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('New invite link', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('New invite link', style: AppTypography.section.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 16),
                 CustomTextField(
                   label: 'Label',
                   hintText: 'e.g. Pune campus drive 2026',
+                  helperText: 'Only your team sees this',
                   controller: labelController,
+                  textCapitalization: TextCapitalization.sentences,
                 ),
                 if (isAdmin) ...[
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     initialValue: mentorId,
-                    decoration: const InputDecoration(labelText: 'Mentor for new interns (optional)'),
+                    decoration: InputDecoration(
+                      labelText: 'Mentor for new interns (optional)',
+                      hintText: mentorsLoading ? 'Loading mentors…' : null,
+                      helperText: mentorsError,
+                    ),
                     items: [
                       const DropdownMenuItem<String>(value: null, child: Text('No mentor')),
                       ...mentors.map((m) => DropdownMenuItem<String>(
                             value: m['id']?.toString(),
-                            child: Text(m['name']?.toString() ?? ''),
+                            child: Text(m['name']?.toString() ?? '', overflow: TextOverflow.ellipsis),
                           )),
                     ],
-                    onChanged: (v) => setModalState(() => mentorId = v),
+                    onChanged: mentorsLoading ? null : (v) => setModalState(() => mentorId = v),
                   ),
                 ],
                 if (error != null) ...[
                   const SizedBox(height: 12),
-                  Text(error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                  Text(error!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
                 ],
                 const SizedBox(height: 20),
                 CustomButton(
@@ -158,7 +178,7 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
                       await ref
                           .read(appStateProvider.notifier)
                           .createInviteLink(label: labelController.text.trim(), mentorId: mentorId);
-                      nav.pop();
+                      nav.pop(true);
                     } catch (e) {
                       setModalState(() {
                         isCreating = false;
@@ -173,6 +193,7 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
         },
       ),
     );
+    if (created == true && mounted) _toast('Link created. Copy or share it below.');
   }
 
   Future<void> _regenerate() async {
@@ -186,7 +207,7 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
     await _run(
       () => ref.read(appStateProvider.notifier).regenerateInviteLink(),
       success: 'New invite link created',
-      failure: 'Could not regenerate the link',
+      failure: "Couldn't regenerate the link",
     );
   }
 
@@ -201,7 +222,7 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
     await _run(
       () => ref.read(appStateProvider.notifier).deactivateInviteLinks(),
       success: 'Invite links turned off',
-      failure: 'Could not turn off the links',
+      failure: "Couldn't turn off the links",
     );
   }
 
@@ -212,16 +233,58 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
     await _run(
       () => ref.read(appStateProvider.notifier).deleteInviteLink(link.id),
       success: 'Invite link deleted',
-      failure: 'Could not delete the link',
+      failure: "Couldn't delete the link",
+    );
+  }
+
+  /// Asks the reviewer for the intern's duration (its leaves become their leave allowance).
+  Future<int?> _pickDuration(SignupRequestModel req) {
+    int? months;
+    return showDialog<int>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          title: Text('Approve ${req.name}?'),
+          scrollable: true,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Choose their internship duration. It sets how many leave days they get.', style: AppTypography.caption),
+              const SizedBox(height: 16),
+              InternDurationField(value: months, onChanged: (v) => setDlg(() => months = v)),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: months == null ? null : () => Navigator.pop(ctx, months),
+              child: const Text('Approve'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Future<void> _review(SignupRequestModel req, {required bool approve}) async {
+    if (_reviewing.contains(req.id)) return;
+    if (!approve &&
+        !await _confirm('Reject ${req.name}?', "They won't get an account. They can ask for a new invite later.", 'Reject')) {
+      return;
+    }
+    int? months;
+    if (approve) {
+      months = await _pickDuration(req);
+      if (months == null || !mounted) return;
+    }
+    setState(() => _reviewing.add(req.id));
     await _run(
-      () => ref.read(appStateProvider.notifier).reviewSignupRequest(req.id, approve: approve),
+      () => ref.read(appStateProvider.notifier).reviewSignupRequest(req.id, approve: approve, durationMonths: months),
       success: approve ? '${req.name} approved' : '${req.name} rejected',
-      failure: approve ? 'Could not approve' : 'Could not reject',
+      failure: approve ? "Couldn't approve" : "Couldn't reject",
     );
+    if (mounted) setState(() => _reviewing.remove(req.id));
   }
 
   @override
@@ -237,7 +300,7 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
       backgroundColor: AppColors.canvas,
       appBar: pageAppBar(
         context,
-        title: 'Invites & sign-ups',
+        title: user.isAdmin ? 'Invite links & sign-ups' : 'Invite links',
         actions: [
           HeaderAction(icon: Icons.add_link_rounded, tooltip: 'New invite link', onTap: _showCreateInviteDialog),
           if (user.isAdmin)
@@ -291,9 +354,12 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
         SizedBox(height: MediaQuery.of(context).size.height * 0.2),
         Icon(icon, size: 48, color: AppColors.textTertiary),
         const SizedBox(height: 12),
-        Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(title, textAlign: TextAlign.center, style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
-        Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(subtitle, textAlign: TextAlign.center, style: AppTypography.caption),
+        ),
       ],
     );
   }
@@ -310,7 +376,7 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(AppSpacing.r20),
             boxShadow: AppShadows.soft,
           ),
@@ -320,8 +386,9 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
               Row(
                 children: [
                   Expanded(
-                    child: Text(link.label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    child: Text(link.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700)),
                   ),
+                  const SizedBox(width: 8),
                   StatusChip(
                     label: link.isActive ? 'Active' : 'Off',
                     statusType: link.isActive ? StatusType.success : StatusType.neutral,
@@ -330,7 +397,7 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
               ),
               if (link.mentorName != null) ...[
                 const SizedBox(height: 4),
-                Text('Mentor: ${link.mentorName}', style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                Text('Mentor: ${link.mentorName}', style: AppTypography.caption.copyWith(color: AppColors.textSecondary)),
               ],
               const SizedBox(height: 10),
               Container(
@@ -346,7 +413,7 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
                         link.url,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                        style: AppTypography.caption.copyWith(color: AppColors.ink, fontWeight: FontWeight.w600),
                       ),
                     ),
                     IconButton(
@@ -371,15 +438,15 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
                   Expanded(
                     child: Text(
                       'Used ${link.usageCount} ${link.usageCount == 1 ? 'time' : 'times'} · '
-                      'created ${DateFormat('d MMM yyyy').format(link.createdAt)}'
+                      'created ${formatDate(link.createdAt)}'
                       '${link.createdByName != null ? ' by ${link.createdByName}' : ''}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                     ),
                   ),
                   if (canDelete)
                     IconButton(
                       tooltip: 'Delete link',
-                      icon: const Icon(Icons.delete_outline_rounded, size: 20, color: AppColors.danger),
+                      icon: const Icon(Icons.delete_outline_rounded, size: 20, color: AppColors.dangerInk),
                       onPressed: () => _delete(link),
                     ),
                 ],
@@ -400,18 +467,19 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
       itemCount: signups.length,
       itemBuilder: (context, i) {
         final req = signups[i];
+        final busy = _reviewing.contains(req.id);
         final details = [
           if (req.inviteLabel != null) 'Link: ${req.inviteLabel}',
           if (req.mentorName != null) 'Mentor: ${req.mentorName}',
           if (req.department != null) 'Department: ${req.department}',
           if (req.phone != null) 'Phone: ${req.phone}',
-          'Requested ${DateFormat('d MMM yyyy').format(req.createdAt)}',
+          'Requested ${formatDate(req.createdAt)}',
         ];
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
             boxShadow: AppShadows.soft,
           ),
@@ -420,26 +488,31 @@ class _InviteLinksScreenState extends ConsumerState<InviteLinksScreen> with Sing
             children: [
               Row(
                 children: [
-                  Expanded(child: Text(req.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+                  Expanded(child: Text(req.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700))),
+                  const SizedBox(width: 8),
                   const StatusChip(label: 'Pending', statusType: StatusType.warning),
                 ],
               ),
               const SizedBox(height: 4),
-              Text(req.email, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              Text(req.email, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.caption.copyWith(color: AppColors.textSecondary)),
               const SizedBox(height: 6),
-              ...details.map((d) => Text(d, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary))),
+              ...details.map((d) => Text(d, style: AppTypography.caption.copyWith(color: AppColors.textSecondary))),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: () => _review(req, approve: false),
-                    child: const Text('Reject', style: TextStyle(color: AppColors.danger)),
+                    onPressed: busy ? null : () => _review(req, approve: false),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.dangerInk, minimumSize: const Size(0, 44)),
+                    child: const Text('Reject'),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
-                    onPressed: () => _review(req, approve: true),
-                    child: const Text('Approve'),
+                    onPressed: busy ? null : () => _review(req, approve: true),
+                    style: ElevatedButton.styleFrom(minimumSize: const Size(0, 44)),
+                    child: busy
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('Approve'),
                   ),
                 ],
               ),

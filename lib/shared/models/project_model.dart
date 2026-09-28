@@ -126,15 +126,6 @@ class TaskStatusColumn {
       orderIndex: (json['order_index'] as num?)?.toInt() ?? 0,
     );
   }
-
-  static List<TaskStatusColumn> fallbackColumns() {
-    return const [
-      TaskStatusColumn(key: 'todo', title: 'To Do', color: AppColors.textSecondary, statusCategory: 'todo', isDefault: true, orderIndex: 0),
-      TaskStatusColumn(key: 'in_progress', title: 'In Progress', color: AppColors.info, statusCategory: 'in_progress', orderIndex: 1),
-      TaskStatusColumn(key: 'review', title: 'Review', color: AppColors.warning, statusCategory: 'in_progress', orderIndex: 2),
-      TaskStatusColumn(key: 'done', title: 'Done', color: AppColors.success, statusCategory: 'done', orderIndex: 3),
-    ];
-  }
 }
 
 class TaskComment {
@@ -201,6 +192,7 @@ class TaskAttachment {
   final String? url;
   final String? description;
   final String? uploadedByName;
+  final String? uploadedById;
   final String? commentId;
   final DateTime createdAt;
 
@@ -213,6 +205,7 @@ class TaskAttachment {
     this.url,
     this.description,
     this.uploadedByName,
+    this.uploadedById,
     this.commentId,
     required this.createdAt,
   });
@@ -233,6 +226,7 @@ class TaskAttachment {
       url: json['download_url']?.toString(),
       description: json['description']?.toString(),
       uploadedByName: json['user_name']?.toString(),
+      uploadedById: json['user_id']?.toString(),
       commentId: json['comment_id']?.toString(),
       createdAt: parseDate(json['created_at']),
     );
@@ -390,9 +384,10 @@ class TaskModel {
       createdByName: json['created_by_name']?.toString() ?? json['creator_name']?.toString(),
       isOverdue: json['is_overdue'] == true ||
           (due != null && due.isBefore(DateTime.now()) && kanbanStatus != KanbanStatus.completed),
-      canEdit: json['can_edit'] is bool ? json['can_edit'] as bool : true,
-      canMove: json['can_move'] is bool ? json['can_move'] as bool : true,
-      canDelete: json['can_delete'] is bool ? json['can_delete'] as bool : true,
+      // Permissions come from the API; when a flag is missing the action is hidden, not guessed.
+      canEdit: json['can_edit'] == true,
+      canMove: json['can_move'] == true,
+      canDelete: json['can_delete'] == true,
       commentCount: (json['comment_count'] as num?)?.toInt() ?? parsedComments.length,
       attachmentCount: (json['attachment_count'] as num?)?.toInt() ?? parsedAttachments.length,
       assigneeNames: names,

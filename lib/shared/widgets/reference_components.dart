@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_avatar.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/constants/app_typography.dart';
@@ -107,19 +108,7 @@ class GridFeatureCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: isFeaturedYellow ? AppColors.surface : AppColors.butter,
-                      backgroundImage: (avatarUrl != null && avatarUrl!.isNotEmpty)
-                          ? NetworkImage(avatarUrl!)
-                          : null,
-                      child: (avatarUrl == null || avatarUrl!.isEmpty)
-                          ? Text(
-                              initials ?? (title.isNotEmpty ? title[0] : 'U'),
-                              style: AppTypography.bodyStrong.copyWith(fontSize: 13),
-                            )
-                          : null,
-                    ),
+                    AppAvatar(url: avatarUrl, size: 40, fallbackText: initials ?? title),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -254,7 +243,15 @@ class InteractionHistoryCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(dateText, style: AppTypography.caption.copyWith(color: AppColors.ink.withValues(alpha: 0.7))),
+                    Expanded(
+                      child: Text(
+                        dateText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.caption.copyWith(color: AppColors.ink.withValues(alpha: 0.7)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Container(
                       width: 36,
                       height: 36,
@@ -264,13 +261,20 @@ class InteractionHistoryCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text(title, style: AppTypography.section),
+                Text(title, maxLines: 3, overflow: TextOverflow.ellipsis, style: AppTypography.section),
                 const SizedBox(height: 22),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(metricValue, style: AppTypography.title.copyWith(fontSize: 24, fontWeight: FontWeight.w700)),
+                    Flexible(
+                      child: Text(
+                        metricValue,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.title.copyWith(fontSize: 24, fontWeight: FontWeight.w700),
+                      ),
+                    ),
                     if (avatarUrls.isNotEmpty) AvatarStack(avatarUrls: avatarUrls, size: 32),
                   ],
                 ),
@@ -359,21 +363,28 @@ class PillFilter extends StatelessWidget {
           final isSelected = index == selectedIndex;
           return Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => onSelected(index),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppSpacing.rPill),
-                ),
-                child: Text(
-                  options[index],
-                  style: AppTypography.bodyStrong.copyWith(
-                    fontSize: 13,
-                    color: isSelected ? AppColors.onPrimary : AppColors.textSecondary,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            child: Semantics(
+              button: true,
+              selected: isSelected,
+              child: InkWell(
+                onTap: () => onSelected(index),
+                borderRadius: BorderRadius.circular(AppSpacing.rPill),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  constraints: const BoxConstraints(minHeight: 44),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primary : AppColors.surface,
+                    borderRadius: BorderRadius.circular(AppSpacing.rPill),
+                  ),
+                  child: Text(
+                    options[index],
+                    style: AppTypography.bodyStrong.copyWith(
+                      fontSize: 13,
+                      color: isSelected ? AppColors.onPrimary : AppColors.textSecondary,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
@@ -386,6 +397,7 @@ class PillFilter extends StatelessWidget {
 }
 
 /// White circular icon button (back, close, "more", trailing actions).
+/// Pass [tooltip] for icon-only buttons: it is the long-press hint and the screen-reader label.
 class CircularIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
@@ -393,6 +405,7 @@ class CircularIconButton extends StatelessWidget {
   final Color? iconColor;
   final double size;
   final double iconSize;
+  final String? tooltip;
 
   const CircularIconButton({
     super.key,
@@ -400,12 +413,19 @@ class CircularIconButton extends StatelessWidget {
     this.onTap,
     this.backgroundColor,
     this.iconColor,
-    this.size = 42,
+    this.size = 44,
     this.iconSize = 20,
+    this.tooltip,
   });
 
   @override
   Widget build(BuildContext context) {
+    final button = _circle();
+    final labelled = Semantics(button: true, label: tooltip, excludeSemantics: tooltip != null, child: button);
+    return tooltip == null ? labelled : Tooltip(message: tooltip!, child: labelled);
+  }
+
+  Widget _circle() {
     return Container(
       width: size,
       height: size,
@@ -450,7 +470,7 @@ class PrimaryActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = backgroundColor ?? AppColors.primary;
-    final fg = bg.computeLuminance() > 0.45 ? AppColors.ink : Colors.white;
+    final fg = bg.computeLuminance() > 0.45 ? AppColors.ink : AppColors.surface;
 
     return SizedBox(
       width: width ?? double.infinity,
@@ -502,9 +522,10 @@ class SectionHeader extends StatelessWidget {
       children: [
         Flexible(child: Text(title, style: AppTypography.section)),
         if (actionText != null && onActionTap != null)
-          GestureDetector(
-            onTap: onActionTap,
-            child: Text(actionText!, style: AppTypography.caption.copyWith(color: AppColors.ink, fontSize: 13)),
+          TextButton(
+            onPressed: onActionTap,
+            style: TextButton.styleFrom(foregroundColor: AppColors.primaryInk, minimumSize: const Size(44, 44)),
+            child: Text(actionText!, style: AppTypography.caption.copyWith(color: AppColors.primaryInk, fontSize: 13)),
           ),
       ],
     );
@@ -555,76 +576,23 @@ class ListItemCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(title, style: AppTypography.bodyStrong),
+                      Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.bodyStrong),
                       if (subtitle != null) ...[
                         const SizedBox(height: 3),
-                        Text(subtitle!, style: AppTypography.caption),
+                        Text(subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.caption),
                       ],
                     ],
                   ),
                 ),
-                if (trailingText != null)
-                  Text(trailingText!, style: AppTypography.label.copyWith(color: AppColors.textTertiary, fontWeight: FontWeight.w500))
+                if (trailingText != null) ...[
+                  const SizedBox(width: 8),
+                  Text(trailingText!, style: AppTypography.label.copyWith(fontWeight: FontWeight.w500)),
+                ]
                 else ?trailing,
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Floating capsule with settings / add / edit buttons.
-class FloatingMiniActionCapsule extends StatelessWidget {
-  final VoidCallback? onSettingsTap;
-  final VoidCallback? onAddTap;
-  final VoidCallback? onEditTap;
-
-  const FloatingMiniActionCapsule({
-    super.key,
-    this.onSettingsTap,
-    this.onAddTap,
-    this.onEditTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.rPill),
-        boxShadow: AppShadows.raised,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildCapsuleIconButton(icon: Icons.settings_outlined, onTap: onSettingsTap),
-          const SizedBox(width: 8),
-          _buildCapsuleIconButton(icon: Icons.add_rounded, onTap: onAddTap, isHighlight: true),
-          const SizedBox(width: 8),
-          _buildCapsuleIconButton(icon: Icons.edit_outlined, onTap: onEditTap),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCapsuleIconButton({
-    required IconData icon,
-    required VoidCallback? onTap,
-    bool isHighlight = false,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: isHighlight ? AppColors.primary : AppColors.surfaceMuted,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, size: 18, color: isHighlight ? Colors.white : AppColors.ink),
       ),
     );
   }
@@ -665,18 +633,13 @@ class CustomerHeroHeader extends StatelessWidget {
             border: Border.all(color: AppColors.surface, width: 3),
             boxShadow: AppShadows.soft,
           ),
-          child: ClipOval(
-            child: (avatarUrl != null && avatarUrl!.isNotEmpty)
-                ? Image.network(
-                    avatarUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => _buildFallbackAvatar(),
-                  )
-                : _buildFallbackAvatar(),
-          ),
+          child: AppAvatar(url: avatarUrl, size: 90, fallbackText: name),
         ),
         const SizedBox(height: 16),
-        Text(name, textAlign: TextAlign.center, style: AppTypography.title),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(name, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTypography.title),
+        ),
         const SizedBox(height: 4),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -709,14 +672,4 @@ class CustomerHeroHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildFallbackAvatar() {
-    return Container(
-      color: AppColors.butter,
-      alignment: Alignment.center,
-      child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : 'U',
-        style: AppTypography.metric.copyWith(fontSize: 36, color: AppColors.butterInk),
-      ),
-    );
-  }
 }

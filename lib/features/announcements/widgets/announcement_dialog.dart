@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/models/announcement_model.dart';
 import '../announcements_repository.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
 
 class AnnouncementDialog extends StatefulWidget {
   final Announcement? announcement; // If provided, edit mode
@@ -27,6 +29,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
 
   bool _isSubmitting = false;
   String? _titleError;
+  String? _submitError;
   String? _bodyError;
 
   bool get isEditing => widget.announcement != null;
@@ -56,10 +59,10 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
   String? _validateTitle(String val) {
     final trimmed = val.trim();
     if (trimmed.isEmpty) {
-      return 'Title is required';
+      return 'Enter a title';
     }
     if (trimmed.length > 100) {
-      return 'Title cannot exceed 100 characters';
+      return 'Use 100 characters or fewer';
     }
     return null;
   }
@@ -67,10 +70,10 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
   String? _validateBody(String val) {
     final trimmed = val.trim();
     if (trimmed.isEmpty) {
-      return 'Body is required';
+      return 'Write the message';
     }
     if (trimmed.length > 3000) {
-      return 'Body cannot exceed 3000 characters';
+      return 'Use 3000 characters or fewer';
     }
     return null;
   }
@@ -84,19 +87,13 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
       _bodyError = bodyErr;
     });
 
-    if (titleErr != null || bodyErr != null) {
-      final firstErr = titleErr ?? bodyErr;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(firstErr!),
-          backgroundColor: AppColors.dangerInk,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
+    // The field errors already show under each field.
+    if (titleErr != null || bodyErr != null) return;
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _submitError = null;
+    });
 
     try {
       final repo = AnnouncementsRepository();
@@ -120,14 +117,10 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception:', '').trim()),
-            backgroundColor: AppColors.dangerInk,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        setState(() {
+          _isSubmitting = false;
+          _submitError = apiErrorMessage(e);
+        });
       }
     }
   }
@@ -138,7 +131,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
     final bodyLength = _bodyController.text.length;
 
     final borderColor = AppColors.border;
-    final cardBg = Colors.white;
+    final cardBg = AppColors.surface;
 
     return Dialog(
       backgroundColor: cardBg,
@@ -156,78 +149,35 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
             children: [
               // Header Row: Title + Close Button
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    isEditing ? 'Edit Announcement' : 'New Announcement',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink,
+                  Expanded(
+                    child: Text(
+                      isEditing ? 'Edit announcement' : 'New announcement',
+                      style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                     ),
                   ),
-                  InkWell(
-                    onTap: _isSubmitting ? null : () => Navigator.of(context).pop(),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.border,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: 20,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
 
               // ANNOUNCEMENT TITLE *
-              Row(
-                children: [
-                  Text(
-                    'ANNOUNCEMENT TITLE',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Text(
-                    '*',
-                    style: TextStyle(
-                      color: AppColors.danger,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
+              Text('Title', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
               const SizedBox(height: 8),
               TextField(
                 controller: _titleController,
                 maxLength: 100,
                 buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: AppColors.ink,
-                ),
+                style: AppTypography.body.copyWith(color: AppColors.ink),
                 decoration: InputDecoration(
                   hintText: 'e.g., Q3 Project Showcase Schedule',
-                  hintStyle: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary.withValues(alpha: 0.6),
-                  ),
+                  hintStyle: AppTypography.body.copyWith(color: AppColors.textSecondary.withValues(alpha: 0.6)),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppColors.surface,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -254,16 +204,13 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                     if (_titleError != null)
                       Text(
                         _titleError!,
-                        style: const TextStyle(color: AppColors.danger, fontSize: 12),
+                        style: AppTypography.caption.copyWith(color: AppColors.dangerInk),
                       )
                     else
                       const SizedBox.shrink(),
                     Text(
                       '$titleLength/100',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: titleLength > 100 ? AppColors.danger : AppColors.textSecondary,
-                      ),
+                      style: AppTypography.caption.copyWith(color: titleLength > 100 ? AppColors.dangerInk : AppColors.textSecondary),
                     ),
                   ],
                 ),
@@ -271,28 +218,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
               const SizedBox(height: 18),
 
               // MESSAGE CONTENT *
-              Row(
-                children: [
-                  Text(
-                    'MESSAGE CONTENT',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Text(
-                    '*',
-                    style: TextStyle(
-                      color: AppColors.danger,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
+              Text('Message', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
               const SizedBox(height: 8),
               TextField(
                 controller: _bodyController,
@@ -300,18 +226,12 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                 maxLines: 8,
                 maxLength: 3000,
                 buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: AppColors.ink,
-                ),
+                style: AppTypography.body.copyWith(color: AppColors.ink),
                 decoration: InputDecoration(
                   hintText: 'Provide detailed information, instructions, or links...',
-                  hintStyle: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary.withValues(alpha: 0.6),
-                  ),
+                  hintStyle: AppTypography.body.copyWith(color: AppColors.textSecondary.withValues(alpha: 0.6)),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppColors.surface,
                   contentPadding: const EdgeInsets.all(16),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -338,16 +258,13 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                     if (_bodyError != null)
                       Text(
                         _bodyError!,
-                        style: const TextStyle(color: AppColors.danger, fontSize: 12),
+                        style: AppTypography.caption.copyWith(color: AppColors.dangerInk),
                       )
                     else
                       const SizedBox.shrink(),
                     Text(
                       '$bodyLength/3000',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: bodyLength > 3000 ? AppColors.danger : AppColors.textSecondary,
-                      ),
+                      style: AppTypography.caption.copyWith(color: bodyLength > 3000 ? AppColors.dangerInk : AppColors.textSecondary),
                     ),
                   ],
                 ),
@@ -372,19 +289,12 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                         children: [
                           Text(
                             'Pin to top',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.ink,
-                            ),
+                            style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'Keep this announcement highlighted at the top of the feed',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
+                            style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                           ),
                         ],
                       ),
@@ -392,7 +302,7 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                     const SizedBox(width: 12),
                     Switch(
                       value: _isPinned,
-                      activeThumbColor: Colors.black,
+                      activeThumbColor: AppColors.ink,
                       activeTrackColor: AppColors.primary,
                       onChanged: _isSubmitting
                           ? null
@@ -412,10 +322,12 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
               ),
               const SizedBox(height: 20),
 
-              // Action Buttons Row: Cancel & Publish
-              Wrap(
-                alignment: WrapAlignment.end,
-                runSpacing: 8,
+              if (_submitError != null) ...[
+                Text(_submitError!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
+                const SizedBox(height: 12),
+              ],
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   OutlinedButton(
                     onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
@@ -428,27 +340,21 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      minimumSize: const Size(0, 44),
                     ),
-                    child: Text(
-                      'Cancel',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: const Text('Cancel'),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
                     onPressed: _isSubmitting ? null : _handleSubmit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.black,
+                      foregroundColor: AppColors.onPrimary,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      minimumSize: const Size(0, 44),
                     ),
                     child: _isSubmitting
                         ? const SizedBox(
@@ -456,16 +362,10 @@ class _AnnouncementDialogState extends State<AnnouncementDialog> {
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.onPrimary),
                             ),
                           )
-                        : Text(
-                            isEditing ? 'Save Changes' : 'Publish Announcement',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                        : Text(isEditing ? 'Save' : 'Post'),
                   ),
                 ],
               ),
@@ -509,7 +409,7 @@ class _DeleteAnnouncementDialogState extends State<DeleteAnnouncementDialog> {
         setState(() => _isDeleting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceAll('Exception:', '').trim()),
+            content: Text(apiErrorMessage(e)),
             backgroundColor: AppColors.dangerInk,
             behavior: SnackBarBehavior.floating,
           ),
@@ -522,31 +422,31 @@ class _DeleteAnnouncementDialogState extends State<DeleteAnnouncementDialog> {
   Widget build(BuildContext context) {
 
     return AlertDialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
+      insetPadding: const EdgeInsets.all(16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       title: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.danger.withValues(alpha: 0.12),
+              color: AppColors.dangerSoft,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.delete_outline_rounded, color: AppColors.danger, size: 24),
+            child: const Icon(Icons.delete_outline_rounded, color: AppColors.dangerInk, size: 24),
           ),
           const SizedBox(width: 12),
-          Text(
-            'Delete Announcement',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          Expanded(
+            child: Text(
+              'Delete announcement?',
+              style: AppTypography.section.copyWith(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
       content: Text(
-        'Are you sure you want to delete "${widget.announcement.title}"? This action cannot be undone.',
-        style: TextStyle(
-          fontSize: 14,
-          color: AppColors.textSecondary,
-        ),
+        '"${widget.announcement.title}" disappears for everyone. You can restore it from the recycle bin.',
+        style: AppTypography.body.copyWith(color: AppColors.textSecondary),
       ),
       actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       actions: [
@@ -560,7 +460,7 @@ class _DeleteAnnouncementDialogState extends State<DeleteAnnouncementDialog> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.danger,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.surface,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           ),
           onPressed: _isDeleting ? null : _handleDelete,
@@ -568,7 +468,7 @@ class _DeleteAnnouncementDialogState extends State<DeleteAnnouncementDialog> {
               ? const SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.surface),
                 )
               : const Text('Delete'),
         ),

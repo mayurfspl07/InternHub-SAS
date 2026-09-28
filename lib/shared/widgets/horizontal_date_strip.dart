@@ -36,13 +36,22 @@ class _HorizontalDateStripState extends State<HorizontalDateStrip> {
     );
   }
 
+  @override
+  void didUpdateWidget(covariant HorizontalDateStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!DateUtils.isSameDay(oldWidget.selectedDate, widget.selectedDate)) {
+      _currentWeekStart = widget.selectedDate.subtract(Duration(days: widget.selectedDate.weekday - 1));
+    }
+  }
+
   void _shiftWeek(int days) {
     setState(() => _currentWeekStart = _currentWeekStart.add(Duration(days: days)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final monthLabel = DateFormat('MMMM yyyy').format(widget.selectedDate);
+    // The month of the week on screen (Thursday decides, so a week spanning two months reads naturally).
+    final monthLabel = DateFormat('MMMM yyyy').format(_currentWeekStart.add(const Duration(days: 3)));
     final days = List.generate(7, (index) => _currentWeekStart.add(Duration(days: index)));
 
     return Padding(
@@ -52,9 +61,11 @@ class _HorizontalDateStripState extends State<HorizontalDateStrip> {
           if (widget.showMonthHeader) Row(
             children: [
               Expanded(child: Text(monthLabel, style: AppTypography.cardTitle.copyWith(fontSize: 16))),
-              CircularIconButton(icon: Icons.chevron_left_rounded, size: 34, iconSize: 18, onTap: () => _shiftWeek(-7)),
+              CircularIconButton(
+                  icon: Icons.chevron_left_rounded, iconSize: 18, tooltip: 'Previous week', onTap: () => _shiftWeek(-7)),
               const SizedBox(width: 8),
-              CircularIconButton(icon: Icons.chevron_right_rounded, size: 34, iconSize: 18, onTap: () => _shiftWeek(7)),
+              CircularIconButton(
+                  icon: Icons.chevron_right_rounded, iconSize: 18, tooltip: 'Next week', onTap: () => _shiftWeek(7)),
             ],
           ),
           if (widget.showMonthHeader) const SizedBox(height: 14),
@@ -93,7 +104,7 @@ class _HorizontalDateStripState extends State<HorizontalDateStrip> {
                         DateFormat('d').format(date),
                         style: AppTypography.bodyStrong.copyWith(
                           fontSize: 15,
-                          color: isSelected ? Colors.white : AppColors.ink,
+                          color: AppColors.ink,
                         ),
                       ),
                     ),

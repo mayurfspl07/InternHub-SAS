@@ -5,6 +5,9 @@ import '../mail_repository.dart';
 import '../models/mail_models.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
+import '../../../shared/widgets/pagination_bar.dart';
 
 class MailLogsPanel extends StatefulWidget {
   final MailRepository repository;
@@ -27,22 +30,23 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
   int _pageSize = 20;
 
   final List<Map<String, String>> _emailTypes = const [
-    {'value': 'all', 'label': 'All Types'},
+    {'value': 'all', 'label': 'All emails'},
     {'value': 'welcome', 'label': 'Welcome'},
-    {'value': 'leave_request', 'label': 'Leave Req'},
-    {'value': 'leave_decision', 'label': 'Leave Dec'},
-    {'value': 'assignment_new', 'label': 'New Task/Assign'},
-    {'value': 'assignment_submit', 'label': 'Submitted'},
-    {'value': 'assignment_grade', 'label': 'Graded'},
-    {'value': 'task_assigned', 'label': 'Task Assigned'},
-    {'value': 'test', 'label': 'Test'},
+    {'value': 'leave_request', 'label': 'Leave request'},
+    {'value': 'leave_decision', 'label': 'Leave decision'},
+    {'value': 'assignment_new', 'label': 'New assignment'},
+    {'value': 'assignment_submit', 'label': 'Assignment submitted'},
+    {'value': 'assignment_grade', 'label': 'Assignment graded'},
+    {'value': 'task_assigned', 'label': 'Task assigned'},
+    {'value': 'test', 'label': 'Test email'},
   ];
 
   final List<Map<String, String>> _statuses = const [
-    {'value': 'all', 'label': 'All Statuses'},
+    {'value': 'all', 'label': 'All'},
     {'value': 'sent', 'label': 'Sent'},
     {'value': 'failed', 'label': 'Failed'},
-    {'value': 'simulated', 'label': 'Simulated'},
+    // Logged but not sent because outgoing mail is switched off.
+    {'value': 'simulated', 'label': 'Not sent (mail off)'},
   ];
 
   @override
@@ -73,7 +77,7 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _errorMessage = apiErrorMessage(e);
           _isLoading = false;
         });
       }
@@ -129,7 +133,7 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
             children: [
               Text(
                 'Log Details #${log.id}',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                style: AppTypography.section.copyWith(fontWeight: FontWeight.w700),
               ),
               _buildStatusBadge(log.status),
             ],
@@ -139,13 +143,13 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildDetailRow('Event Type', log.typeDisplay),
+                _buildDetailRow('Email', log.typeDisplay),
                 _buildDetailRow('Recipient', log.recipientName != null ? '${log.recipientName} (${log.recipientEmail})' : log.recipientEmail),
                 _buildDetailRow('Subject', log.subject),
-                _buildDetailRow('Sent At', _formatDateTime(log.sentAt)),
+                _buildDetailRow('Sent', _formatDateTime(log.sentAt)),
                 if (log.errorMessage != null && log.errorMessage!.trim().isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  const Text('Error Message:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                  Text('Error Message:', style: AppTypography.caption.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 4),
                   Container(
                     width: double.infinity,
@@ -157,7 +161,7 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
                     ),
                     child: SelectableText(
                       log.errorMessage!,
-                      style: const TextStyle(fontSize: 12, color: AppColors.danger, fontFamily: 'monospace'),
+                      style: AppTypography.mono.copyWith(fontSize: 12, color: AppColors.danger),
                     ),
                   ),
                 ],
@@ -174,7 +178,7 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
                   );
                 },
                 icon: const Icon(Icons.copy_rounded, size: 16),
-                label: const Text('Copy Error'),
+                label: const Text('Copy error'),
               ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
@@ -192,9 +196,9 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary, fontWeight: FontWeight.w500)),
+          Text(label, style: AppTypography.label.copyWith(color: AppColors.textTertiary, fontWeight: FontWeight.w500)),
           const SizedBox(height: 2),
-          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          Text(value, style: AppTypography.caption.copyWith(color: AppColors.ink, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -202,7 +206,7 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = Colors.white;
+    final cardBg = AppColors.surface;
     final borderColor = AppColors.border;
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
@@ -228,7 +232,7 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
                   children: [
                     Text(
                       'Delivery Filters',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: primaryTextColor),
+                      style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                     ),
                     IconButton(
                       icon: const Icon(Icons.refresh_rounded, size: 20),
@@ -238,15 +242,15 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Row(
+                // Type gets its own row so full labels fit; status and rows share the next.
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Email Type Filter
-                    Expanded(
-                      flex: 3,
+                    SizedBox(
                       child: DropdownButtonFormField<String>(
                         initialValue: _selectedEmailType,
                         decoration: _filterInputDecoration('Type', borderColor),
-                        style: TextStyle(fontSize: 12, color: primaryTextColor),
+                        style: AppTypography.caption.copyWith(color: primaryTextColor),
                         isExpanded: true,
                         items: _emailTypes.map((t) {
                           return DropdownMenuItem<String>(
@@ -257,14 +261,14 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
                         onChanged: _onEmailTypeChanged,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // Status Filter
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
                     Expanded(
-                      flex: 2,
                       child: DropdownButtonFormField<String>(
                         initialValue: _selectedStatus,
                         decoration: _filterInputDecoration('Status', borderColor),
-                        style: TextStyle(fontSize: 12, color: primaryTextColor),
+                        style: AppTypography.caption.copyWith(color: primaryTextColor),
                         isExpanded: true,
                         items: _statuses.map((s) {
                           return DropdownMenuItem<String>(
@@ -282,7 +286,7 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
                       child: DropdownButtonFormField<int>(
                         initialValue: _pageSize,
                         decoration: _filterInputDecoration('Rows', borderColor),
-                        style: TextStyle(fontSize: 12, color: primaryTextColor),
+                        style: AppTypography.caption.copyWith(color: primaryTextColor),
                         items: const [
                           DropdownMenuItem<int>(value: 10, child: Text('10')),
                           DropdownMenuItem<int>(value: 20, child: Text('20')),
@@ -290,6 +294,8 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
                         ],
                         onChanged: _onPageSizeChanged,
                       ),
+                    ),
+                      ],
                     ),
                   ],
                 ),
@@ -324,7 +330,7 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 4),
-                    Text(_errorMessage!, style: TextStyle(fontSize: 12, color: secondaryTextColor), textAlign: TextAlign.center),
+                    Text(_errorMessage!, style: AppTypography.caption.copyWith(color: secondaryTextColor), textAlign: TextAlign.center),
                     const SizedBox(height: 12),
                     ElevatedButton(
                       onPressed: _fetchLogs,
@@ -357,12 +363,12 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
                   const SizedBox(height: 14),
                   Text(
                     'No email delivery logs found',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: primaryTextColor),
+                    style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Emails dispatched by your organization will appear here.',
-                    style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                    style: AppTypography.caption.copyWith(color: secondaryTextColor),
                   ),
                 ],
               ),
@@ -406,18 +412,14 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
                             const SizedBox(width: 8),
                             Text(
                               _formatDateTime(log.sentAt),
-                              style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                              style: AppTypography.label.copyWith(color: secondaryTextColor),
                             ),
                           ],
                         ),
                         const SizedBox(height: 10),
                         Text(
                           log.subject,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: primaryTextColor,
-                          ),
+                          style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -431,7 +433,7 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
                                 log.recipientName != null
                                     ? '${log.recipientName} (${log.recipientEmail})'
                                     : log.recipientEmail,
-                                style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                                style: AppTypography.caption.copyWith(color: secondaryTextColor),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -448,7 +450,7 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
                             ),
                             child: Text(
                               log.errorMessage!,
-                              style: const TextStyle(fontSize: 11, color: AppColors.danger),
+                              style: AppTypography.label.copyWith(color: AppColors.danger),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -468,42 +470,16 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
               children: [
                 Text(
                   'Page ${_response!.page} of ${_response!.totalPages} (${_response!.total} logs)',
-                  style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                  style: AppTypography.caption.copyWith(color: secondaryTextColor),
                 ),
-                Row(
-                  children: [
-                    OutlinedButton(
-                      onPressed: _currentPage > 1
-                          ? () {
-                              setState(() {
-                                _currentPage--;
-                              });
-                              _fetchLogs();
-                            }
-                          : null,
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: const Text('Previous'),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: _currentPage < _response!.totalPages
-                          ? () {
-                              setState(() {
-                                _currentPage++;
-                              });
-                              _fetchLogs();
-                            }
-                          : null,
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: const Text('Next'),
-                    ),
-                  ],
+                PaginationBar(
+                  page: _currentPage,
+                  totalPages: _response!.totalPages,
+                  isLoading: _isLoading,
+                  onPageChanged: (p) {
+                    setState(() => _currentPage = p);
+                    _fetchLogs();
+                  },
                 ),
               ],
             ),
@@ -549,11 +525,7 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: fg,
-        ),
+        style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: fg),
       ),
     );
   }
@@ -567,11 +539,7 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppColors.primaryInk,
-        ),
+        style: AppTypography.label.copyWith(color: AppColors.primaryInk),
       ),
     );
   }
@@ -579,7 +547,7 @@ class _MailLogsPanelState extends State<MailLogsPanel> {
   InputDecoration _filterInputDecoration(String label, Color borderColor) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(fontSize: 12),
+      labelStyle: AppTypography.caption.copyWith(color: AppColors.ink),
       isDense: true,
       filled: true,
       fillColor: AppColors.surfaceMuted,

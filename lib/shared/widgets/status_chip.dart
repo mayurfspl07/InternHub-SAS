@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/constants/app_typography.dart';
+import '../../core/utils/formatters.dart';
 import '../models/attendance_model.dart';
 import '../models/project_model.dart';
 import '../models/leave_model.dart';
@@ -80,13 +81,13 @@ class StatusChip extends StatelessWidget {
         );
       case AttendanceStatus.late:
         return const StatusChip(
-          label: 'Late Check-in',
+          label: 'Late',
           statusType: StatusType.warning,
           icon: Icons.access_time_rounded,
         );
       case AttendanceStatus.halfDay:
         return const StatusChip(
-          label: 'Half Day',
+          label: 'Half day',
           backgroundColor: AppColors.peach,
           textColor: AppColors.peachInk,
           icon: Icons.timelapse_rounded,
@@ -100,7 +101,7 @@ class StatusChip extends StatelessWidget {
       case AttendanceStatus.leave:
       case AttendanceStatus.onLeave:
         return const StatusChip(
-          label: 'On Leave',
+          label: 'On leave',
           backgroundColor: AppColors.lavender,
           textColor: AppColors.lavenderInk,
           icon: Icons.beach_access_rounded,
@@ -115,15 +116,15 @@ class StatusChip extends StatelessWidget {
         return const StatusChip(label: 'Off', statusType: StatusType.neutral);
       case AttendanceStatus.notJoined:
         return const StatusChip(
-          label: 'Not Joined',
+          label: 'Not joined',
           backgroundColor: AppColors.neutralSoft,
-          textColor: AppColors.textTertiary,
+          textColor: AppColors.textSecondary,
         );
       case AttendanceStatus.upcoming:
         return const StatusChip(
           label: 'Upcoming',
           backgroundColor: AppColors.neutralSoft,
-          textColor: AppColors.textTertiary,
+          textColor: AppColors.textSecondary,
         );
     }
   }
@@ -131,11 +132,11 @@ class StatusChip extends StatelessWidget {
   factory StatusChip.fromKanban(KanbanStatus status) {
     switch (status) {
       case KanbanStatus.todo:
-        return const StatusChip(label: 'To Do', statusType: StatusType.neutral);
+        return const StatusChip(label: 'To do', statusType: StatusType.neutral);
       case KanbanStatus.inProgress:
-        return const StatusChip(label: 'In Progress', statusType: StatusType.info);
+        return const StatusChip(label: 'In progress', statusType: StatusType.info);
       case KanbanStatus.inReview:
-        return const StatusChip(label: 'In Review', statusType: StatusType.warning);
+        return const StatusChip(label: 'In review', statusType: StatusType.warning);
       case KanbanStatus.completed:
         return const StatusChip(label: 'Completed', statusType: StatusType.success);
     }
@@ -164,7 +165,7 @@ class StatusChip extends StatelessWidget {
     switch (status) {
       case LeaveStatus.pending:
         return const StatusChip(
-          label: 'Pending Approval',
+          label: 'Pending',
           statusType: StatusType.warning,
           icon: Icons.hourglass_top_rounded,
         );
@@ -183,11 +184,11 @@ class StatusChip extends StatelessWidget {
     }
   }
 
-  factory StatusChip.onTrack({String label = 'On Track'}) {
+  factory StatusChip.onTrack({String label = 'On track'}) {
     return StatusChip(label: label, statusType: StatusType.success, icon: Icons.check_circle_rounded);
   }
 
-  factory StatusChip.atRisk({String label = 'At Risk'}) {
+  factory StatusChip.atRisk({String label = 'At risk'}) {
     return StatusChip(label: label, statusType: StatusType.danger, icon: Icons.warning_amber_rounded);
   }
 
@@ -199,8 +200,51 @@ class StatusChip extends StatelessWidget {
     return StatusChip(label: label, statusType: StatusType.success, icon: Icons.done_all_rounded);
   }
 
-  factory StatusChip.inProgress({String label = 'In Progress'}) {
+  factory StatusChip.inProgress({String label = 'In progress'}) {
     return StatusChip(label: label, statusType: StatusType.info, icon: Icons.timelapse_rounded);
+  }
+
+  /// Any status string from the API (task, project, leave, attendance, assignment, submission, user, mail log):
+  /// "in_progress" → "In progress" in the matching color. [label] overrides the text.
+  factory StatusChip.fromString(String? raw, {String? label, IconData? icon}) {
+    final key = (raw ?? '').trim().toLowerCase().replaceAll(RegExp(r'[\s\-]+'), '_');
+    final text = label ?? _statusLabels[key] ?? humanize(raw);
+    if (const {'on_leave', 'leave'}.contains(key)) {
+      return StatusChip(
+        label: text,
+        backgroundColor: AppColors.lavender,
+        textColor: AppColors.lavenderInk,
+        icon: icon,
+      );
+    }
+    return StatusChip(label: text.isEmpty ? 'Unknown' : text, statusType: statusTypeFor(key), icon: icon);
+  }
+
+  static const Map<String, String> _statusLabels = {
+    'todo': 'To do',
+    'in_progress': 'In progress',
+    'in_review': 'In review',
+    'review': 'In review',
+    'testing': 'In review',
+    'done': 'Done',
+    'on_hold': 'On hold',
+    'half_day': 'Half day',
+    'on_leave': 'On leave',
+    'needs_revision': 'Needs revision',
+    'not_checked_in': 'Not checked in',
+  };
+
+  /// Color family for a status key (see [StatusChip.fromString]).
+  static StatusType statusTypeFor(String key) {
+    const success = {'done', 'completed', 'complete', 'approved', 'present', 'active', 'sent', 'reviewed', 'graded', 'published', 'delivered', 'success'};
+    const info = {'in_progress', 'doing', 'ongoing', 'submitted', 'open', 'scheduled'};
+    const warning = {'review', 'in_review', 'testing', 'pending', 'late', 'on_hold', 'resubmitted', 'needs_revision', 'half_day', 'planning', 'simulated', 'queued'};
+    const danger = {'rejected', 'absent', 'failed', 'overdue', 'inactive', 'cancelled', 'canceled', 'error', 'bounced', 'expired'};
+    if (success.contains(key)) return StatusType.success;
+    if (info.contains(key)) return StatusType.info;
+    if (warning.contains(key)) return StatusType.warning;
+    if (danger.contains(key)) return StatusType.danger;
+    return StatusType.neutral;
   }
 
   @override
@@ -224,6 +268,7 @@ class StatusChip extends StatelessWidget {
           Flexible(
             child: Text(
               label,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTypography.label.copyWith(color: text),
             ),

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/models/leave_model.dart';
 import '../leave_repository.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
+import '../../../core/utils/formatters.dart';
 
 class ReviewLeaveDialog extends StatefulWidget {
   final LeaveRequest request;
@@ -40,13 +43,13 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
   late TextEditingController _commentController;
   bool _isSubmitting = false;
   String? _serverError;
+  String? _commentError;
 
   @override
   void initState() {
     super.initState();
-    _commentController = TextEditingController(
-      text: widget.isApprove ? 'Approved. Enjoy your time off.' : '',
-    );
+    // Starts empty: an unedited canned comment would be sent to the intern as the reviewer's words.
+    _commentController = TextEditingController();
   }
 
   @override
@@ -56,7 +59,13 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
   }
 
   Future<void> _handleReview() async {
+    // A rejection needs a reason the intern can act on.
+    if (!widget.isApprove && _commentController.text.trim().isEmpty) {
+      setState(() => _commentError = 'Tell the intern why this is rejected');
+      return;
+    }
     setState(() {
+      _commentError = null;
       _isSubmitting = true;
       _serverError = null;
     });
@@ -76,11 +85,9 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              widget.isApprove
-                  ? '✅ Leave request approved successfully!'
-                  : '❌ Leave request rejected.',
+              widget.isApprove ? 'Leave approved.' : 'Leave rejected.',
             ),
-            backgroundColor: widget.isApprove ? AppColors.success : AppColors.danger,
+            backgroundColor: widget.isApprove ? AppColors.success : AppColors.ink,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -90,7 +97,7 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
-          _serverError = e.toString().replaceAll('Exception:', '').trim();
+          _serverError = apiErrorMessage(e);
         });
       }
     }
@@ -102,7 +109,7 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
     final isApprove = widget.isApprove;
 
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: ConstrainedBox(
@@ -126,7 +133,7 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                     ),
                     child: Icon(
                       isApprove ? Icons.check_rounded : Icons.close_rounded,
-                      color: isApprove ? Colors.black : AppColors.danger,
+                      color: isApprove ? AppColors.ink : AppColors.danger,
                       size: 22,
                     ),
                   ),
@@ -136,30 +143,22 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isApprove ? 'Approve Leave Request' : 'Reject Leave Request',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
-                          ),
+                          isApprove ? 'Approve leave' : 'Reject leave',
+                          style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Review leave request for ${req.userName}.',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: AppColors.textSecondary,
-                          ),
+                          style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, size: 22),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    tooltip: 'Close',
                     color: AppColors.textSecondary,
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: _isSubmitting ? null : () => Navigator.pop(context),
                   ),
                 ],
               ),
@@ -179,33 +178,25 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildSummaryRow(
-                      label: 'Duration:',
-                      value: '${req.start_date} → ${req.end_date} (${req.days} day(s))',
+                      label: 'Dates',
+                      value: '${formatDateRange(req.start_date, req.end_date)} · ${plural(req.days, 'day')}',
                     ),
                     const SizedBox(height: 8),
                     _buildSummaryRow(
-                      label: 'Type:',
+                      label: 'Type',
                       value: req.typeLabel,
                     ),
                     const SizedBox(height: 8),
                     Divider(height: 1, color: AppColors.border),
                     const SizedBox(height: 8),
                     Text(
-                      'Reason:',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
+                      'Reason',
+                      style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       '"${req.reason}"',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontStyle: FontStyle.italic,
-                        color: AppColors.ink,
-                      ),
+                      style: AppTypography.caption.copyWith(fontStyle: FontStyle.italic, color: AppColors.ink),
                     ),
                   ],
                 ),
@@ -222,12 +213,8 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'Reviewer Comment (Optional)',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
-                    ),
+                    isApprove ? 'Comment for the intern (optional)' : 'Reason for rejecting',
+                    style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
                   ),
                 ],
               ),
@@ -235,20 +222,14 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
               TextField(
                 controller: _commentController,
                 maxLines: 3,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  color: AppColors.ink,
-                ),
+                textCapitalization: TextCapitalization.sentences,
+                style: AppTypography.caption.copyWith(color: AppColors.ink),
                 decoration: InputDecoration(
-                  hintText: isApprove
-                      ? 'Add any comments for the intern...'
-                      : 'Provide a reason for rejection...',
-                  hintStyle: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textTertiary,
-                  ),
+                  hintText: isApprove ? 'e.g. Approved, enjoy your time off' : 'e.g. We have a client demo that week',
+                  errorText: _commentError,
+                  hintStyle: AppTypography.caption.copyWith(color: AppColors.textTertiary),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppColors.surface,
                   contentPadding: const EdgeInsets.all(12),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -272,7 +253,7 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                 const SizedBox(height: 10),
                 Text(
                   _serverError!,
-                  style: const TextStyle(color: AppColors.danger, fontSize: 12),
+                  style: AppTypography.caption.copyWith(color: AppColors.danger),
                 ),
               ],
               const SizedBox(height: 22),
@@ -289,19 +270,13 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     ),
                     onPressed: _isSubmitting ? null : () => Navigator.pop(context),
-                    child: Text(
-                      'Cancel',
-                      style: TextStyle(
-                        color: AppColors.ink,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: Text('Cancel', style: AppTypography.bodyStrong),
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isApprove ? AppColors.primary : AppColors.danger,
-                      foregroundColor: isApprove ? Colors.black : Colors.white,
+                      foregroundColor: isApprove ? AppColors.ink : AppColors.surface,
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -313,15 +288,12 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: isApprove ? Colors.black : Colors.white,
+                              color: isApprove ? AppColors.ink : AppColors.surface,
                             ),
                           )
                         : Text(
-                            isApprove ? 'Confirm Approval' : 'Confirm Rejection',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13.5,
-                            ),
+                            isApprove ? 'Approve' : 'Reject',
+                            style: AppTypography.bodyStrong.copyWith(color: isApprove ? AppColors.ink : AppColors.surface),
                           ),
                   ),
                 ],
@@ -337,25 +309,12 @@ class _ReviewLeaveDialogState extends State<ReviewLeaveDialog> {
     required String label,
     required String value,
   }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: AppColors.ink,
-          ),
-        ),
+        Text(label, style: AppTypography.label),
+        const SizedBox(height: 2),
+        Text(value, style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink)),
       ],
     );
   }

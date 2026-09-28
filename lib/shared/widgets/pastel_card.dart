@@ -82,7 +82,8 @@ class PastelCard extends StatelessWidget {
                     style: AppTypography.caption.copyWith(color: AppColors.ink.withValues(alpha: 0.7)),
                   ),
                 ],
-                const Spacer(),
+                // Push the footer to the bottom when the card has a fixed height; otherwise a Spacer would throw.
+                if (height != null) const Spacer() else const SizedBox(height: 12),
                 if (footer != null || tag != null)
                   Row(
                     children: [

@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../attendance_repository.dart';
+import '../../../core/constants/app_typography.dart';
 
 class StaffAttendanceExportDialog extends StatefulWidget {
   final bool isMentor;
@@ -43,7 +44,6 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
   late DateTime _fromDate;
   late DateTime _toDate;
   String _selectedStatus = 'All';
-  final _departmentController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -55,19 +55,13 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
     _fromDate = now.subtract(const Duration(days: 30));
   }
 
-  @override
-  void dispose() {
-    _departmentController.dispose();
-    super.dispose();
-  }
-
   Future<void> _pickDate({required bool isFrom}) async {
     final initial = isFrom ? _fromDate : _toDate;
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      lastDate: DateTime.now(),
     );
     if (picked != null && mounted) {
       setState(() {
@@ -96,7 +90,6 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
 
     final fromStr = DateFormat('yyyy-MM-dd').format(_fromDate);
     final toStr = DateFormat('yyyy-MM-dd').format(_toDate);
-    final dept = _departmentController.text.trim();
 
     try {
       final bytes = await AttendanceRepository().exportStaffAttendance(
@@ -104,7 +97,6 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
         fromDate: fromStr,
         toDate: toStr,
         userId: widget.userId,
-        department: dept.isNotEmpty ? dept : null,
         status: _selectedStatus != 'All' ? _selectedStatus : null,
       );
 
@@ -138,7 +130,8 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
     final dateFormat = DateFormat('dd/MM/yyyy');
 
     return Dialog(
-      backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.all(16),
+      backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppSpacing.r24),
         side: BorderSide(
@@ -156,35 +149,25 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    widget.studentName != null
-                        ? 'Export (${widget.studentName})'
-                        : 'Export Attendance',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink,
+                  Expanded(
+                    child: Text(
+                      'Export attendance',
+                      style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                     ),
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: Icon(
-                      Icons.close,
-                      size: 20,
-                      color: AppColors.textSecondary,
-                    ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    tooltip: 'Close',
+                    icon: const Icon(Icons.close, size: 20, color: AppColors.textSecondary),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
               Text(
-                'Filter and export attendance records to CSV / Excel.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
+                widget.studentName != null
+                    ? '${widget.studentName} · saved as a CSV file'
+                    : 'Saved as a CSV file you can open in Excel or Sheets.',
+                style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 20),
 
@@ -195,12 +178,8 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'FROM',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textSecondary,
-                          ),
+                          'From',
+                          style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                         ),
                         const SizedBox(height: 6),
                         InkWell(
@@ -209,7 +188,7 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppColors.surface,
                               borderRadius: BorderRadius.circular(AppSpacing.r12),
                               border: Border.all(
                                 color: AppColors.border,
@@ -220,11 +199,7 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                               children: [
                                 Text(
                                   dateFormat.format(_fromDate),
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.ink,
-                                  ),
+                                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
                                 ),
                                 Icon(
                                   Icons.calendar_today_outlined,
@@ -244,12 +219,8 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'TO',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textSecondary,
-                          ),
+                          'To',
+                          style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                         ),
                         const SizedBox(height: 6),
                         InkWell(
@@ -258,7 +229,7 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppColors.surface,
                               borderRadius: BorderRadius.circular(AppSpacing.r12),
                               border: Border.all(
                                 color: AppColors.border,
@@ -269,11 +240,7 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                               children: [
                                 Text(
                                   dateFormat.format(_toDate),
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.ink,
-                                  ),
+                                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
                                 ),
                                 Icon(
                                   Icons.calendar_today_outlined,
@@ -296,18 +263,14 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'STATUS',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
-                    ),
+                    'Status',
+                    style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.surface,
                       borderRadius: BorderRadius.circular(AppSpacing.r12),
                       border: Border.all(
                         color: AppColors.border,
@@ -317,7 +280,7 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                       child: DropdownButton<String>(
                         value: _selectedStatus,
                         isExpanded: true,
-                        dropdownColor: Colors.white,
+                        dropdownColor: AppColors.surface,
                         items: const [
                           DropdownMenuItem(value: 'All', child: Text('All statuses')),
                           DropdownMenuItem(value: 'present', child: Text('Present')),
@@ -340,11 +303,7 @@ class _StaffAttendanceExportDialogState extends State<StaffAttendanceExportDialo
                 const SizedBox(height: 12),
                 Text(
                   _errorMessage!,
-                  style: const TextStyle(
-                    color: AppColors.danger,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: AppTypography.caption.copyWith(color: AppColors.danger),
                 ),
               ],
               const SizedBox(height: 24),

@@ -1,43 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/utils/formatters.dart';
 import '../../activity_audit/models/activity_models.dart';
 import '../../../shared/widgets/load_error_view.dart';
+import '../../attendance/widgets/authed_attendance_image.dart';
 
 // ==========================================
 // 1) SHARED HELPER FUNCTIONS
 // ==========================================
 
-String formatShortDate(dynamic dt) {
-  if (dt == null) return '';
-  DateTime? parsed;
-  if (dt is DateTime) {
-    parsed = dt;
-  } else {
-    parsed = DateTime.tryParse(dt.toString());
-  }
-  if (parsed == null) return dt.toString();
-  return DateFormat('MMM d, yyyy').format(parsed);
-}
+String formatShortDate(dynamic dt) => formatDate(dt);
 
 String formatRelativeTime(dynamic dt) {
-  if (dt == null) return 'Just now';
-  DateTime? parsed;
-  if (dt is DateTime) {
-    parsed = dt;
-  } else {
-    parsed = DateTime.tryParse(dt.toString());
-  }
-  if (parsed == null) return 'Just now';
-
-  final diff = DateTime.now().difference(parsed);
-  if (diff.inSeconds < 45) return 'Just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-  if (diff.inHours < 24) return '${diff.inHours}h ago';
-  if (diff.inDays < 7) return '${diff.inDays}d ago';
-  return DateFormat('MMM d').format(parsed);
+  final text = formatRelative(dt);
+  return text.isEmpty ? 'Just now' : text;
 }
 
 String getInitials(String name) {
@@ -66,6 +44,8 @@ IconData getActivityIcon(String action) {
   return Icons.notifications_none_rounded;
 }
 
+/// Full-size check-in photo. Loads through the authenticated endpoint when the
+/// photo isn't on the CDN, so it works with either storage backend.
 void showPhotoModal(BuildContext context, String? photoUrl, String title) {
   if (photoUrl == null || photoUrl.trim().isEmpty) return;
 
@@ -73,51 +53,40 @@ void showPhotoModal(BuildContext context, String? photoUrl, String title) {
     context: context,
     builder: (ctx) {
       return Dialog(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.surface,
         insetPadding: const EdgeInsets.all(16),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-        boxShadow: AppShadows.soft,
-      ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
                       title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () => Navigator.of(ctx).pop(),
-                    ),
-                  ],
-                ),
-              ),
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-                child: Image.network(
-                  photoUrl,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 200,
-                    color: AppColors.surfaceMuted,
-                    child: const Center(child: Icon(Icons.broken_image_outlined, size: 40, color: AppColors.textTertiary)),
                   ),
-                ),
+                  IconButton(
+                    tooltip: 'Close',
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            AuthedAttendanceImage(
+              photoUrl: photoUrl,
+              height: MediaQuery.sizeOf(ctx).height * 0.55,
+              borderRadius: BorderRadius.zero,
+              fallbackLabel: 'No photo',
+            ),
+          ],
         ),
       );
     },
@@ -166,11 +135,7 @@ class DashboardSectionTitle extends StatelessWidget {
                   ),
                   child: Text(
                     '$count',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                   ),
                 ),
               ],
@@ -218,7 +183,7 @@ class DashboardKpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = backgroundColor ?? Colors.white;
+    final cardBg = backgroundColor ?? AppColors.surface;
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
 
@@ -249,7 +214,7 @@ class DashboardKpiCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: secondaryTextColor),
+                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: secondaryTextColor),
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.end,
                 ),
@@ -257,19 +222,22 @@ class DashboardKpiCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: primaryTextColor,
+          // Long values ("120.5h", "12/40") shrink to fit narrow two-column grids.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
             ),
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
             Text(
               subtitle!,
-              style: TextStyle(fontSize: 11, color: secondaryTextColor),
+              maxLines: 1,
+              style: AppTypography.label.copyWith(color: secondaryTextColor),
               overflow: TextOverflow.ellipsis,
             ),
           ],
@@ -300,7 +268,7 @@ class DashboardEmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = Colors.white;
+    final cardBg = AppColors.surface;
     final secondaryTextColor = AppColors.textSecondary;
 
     return Container(
@@ -326,18 +294,14 @@ class DashboardEmptyCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               title,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppColors.ink,
-              ),
+              style: AppTypography.cardTitle.copyWith(color: AppColors.ink),
               textAlign: TextAlign.center,
             ),
             if (subtitle != null) ...[
               const SizedBox(height: 4),
               Text(
                 subtitle!,
-                style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                style: AppTypography.caption.copyWith(color: secondaryTextColor),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -482,7 +446,7 @@ class _DashboardActivityTimelineState extends State<DashboardActivityTimeline> {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = Colors.white;
+    final cardBg = AppColors.surface;
     final borderColor = AppColors.border;
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
@@ -539,10 +503,7 @@ class _DashboardActivityTimelineState extends State<DashboardActivityTimeline> {
                         children: [
                           Text.rich(
                             TextSpan(
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: primaryTextColor,
-                              ),
+                              style: AppTypography.caption.copyWith(color: primaryTextColor),
                               children: [
                                 TextSpan(
                                   text: act.actorName,
@@ -559,7 +520,7 @@ class _DashboardActivityTimelineState extends State<DashboardActivityTimeline> {
                           const SizedBox(height: 2),
                           Text(
                             timeAgo,
-                            style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                            style: AppTypography.label.copyWith(color: secondaryTextColor),
                           ),
                         ],
                       ),
@@ -584,11 +545,7 @@ class _DashboardActivityTimelineState extends State<DashboardActivityTimeline> {
                 alignment: Alignment.center,
                 child: Text(
                   _expanded ? 'Show Less' : 'Show ${widget.activities.length - widget.initialCount} More',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryInk,
-                  ),
+                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.primaryInk),
                 ),
               ),
             ),

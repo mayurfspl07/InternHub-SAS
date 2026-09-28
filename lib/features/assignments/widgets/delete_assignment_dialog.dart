@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../shared/models/assignment_model.dart';
 import '../assignments_repository.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
 
 class DeleteAssignmentDialog extends StatefulWidget {
   final AssignmentItem assignment;
@@ -43,28 +45,20 @@ class _DeleteAssignmentDialogState extends State<DeleteAssignmentDialog> {
         Navigator.of(context).pop();
         widget.onSuccess();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Assignment "${widget.assignment.title}" deleted successfully'),
-            backgroundColor: AppColors.success,
-          ),
+          SnackBar(content: Text('"${widget.assignment.title}" deleted')),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isDeleting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete assignment: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
+        showApiError(context, e, prefix: "Couldn't delete the assignment");
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final dialogBg = Colors.white;
+    final dialogBg = AppColors.surface;
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
 
@@ -82,33 +76,25 @@ class _DeleteAssignmentDialogState extends State<DeleteAssignmentDialog> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: AppColors.danger.withValues(alpha: 0.1),
+                  color: AppColors.dangerSoft,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.delete_outline_rounded,
-                  color: AppColors.danger,
+                  color: AppColors.dangerInk,
                   size: 28,
                 ),
               ),
               const SizedBox(height: 18),
               Text(
-                'Delete Assignment?',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: primaryTextColor,
-                ),
+                'Delete "${widget.assignment.title}"?',
+                style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
               ),
               const SizedBox(height: 10),
               Text(
-                'Are you sure you want to delete "${widget.assignment.title}"? Any intern submissions and grades will also be permanently removed.',
+                'Interns will no longer see it, and its submissions and grades go with it.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: secondaryTextColor,
-                  height: 1.4,
-                ),
+                style: AppTypography.body.copyWith(color: secondaryTextColor, height: 1.4),
               ),
               const SizedBox(height: 24),
               Row(
@@ -121,7 +107,7 @@ class _DeleteAssignmentDialogState extends State<DeleteAssignmentDialog> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         side: BorderSide(color: AppColors.border),
                       ),
-                      child: Text('Cancel', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
+                      child: Text('Cancel', style: TextStyle(color: primaryTextColor)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -130,13 +116,13 @@ class _DeleteAssignmentDialogState extends State<DeleteAssignmentDialog> {
                       onPressed: _isDeleting ? null : _delete,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.danger,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppColors.surface,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 13),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                       child: _isDeleting
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.surface))
                           : const Text('Delete', style: TextStyle(fontWeight: FontWeight.w700)),
                     ),
                   ),

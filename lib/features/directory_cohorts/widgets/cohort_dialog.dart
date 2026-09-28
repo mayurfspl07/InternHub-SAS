@@ -3,6 +3,9 @@ import 'package:intl/intl.dart';
 import '../../../shared/models/cohort_model.dart';
 import '../cohorts_repository.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
+import '../../../core/utils/formatters.dart';
 
 class CohortDialog extends StatefulWidget {
   final Cohort? cohort; // If null, Create mode; else Edit mode
@@ -42,6 +45,8 @@ class _CohortDialogState extends State<CohortDialog> {
   DateTime? _endDate;
   bool _isSaving = false;
   String? _dateError;
+  String? _nameError;
+  String? _saveError;
 
   bool get isEdit => widget.cohort != null;
 
@@ -88,19 +93,6 @@ class _CohortDialogState extends State<CohortDialog> {
       initialDate: initialDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2040),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: AppColors.primary,
-              onPrimary: AppColors.ink,
-              surface: Colors.white,
-              onSurface: AppColors.ink,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
 
     if (picked != null) {
@@ -118,19 +110,6 @@ class _CohortDialogState extends State<CohortDialog> {
       initialDate: initialDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2040),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: AppColors.primary,
-              onPrimary: AppColors.ink,
-              surface: Colors.white,
-              onSurface: AppColors.ink,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
 
     if (picked != null) {
@@ -143,35 +122,14 @@ class _CohortDialogState extends State<CohortDialog> {
 
   Future<void> _submit() async {
     final nameTrimmed = _nameController.text.trim();
-    if (nameTrimmed.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cohort name is required')),
-      );
-      return;
-    }
-
-    if (nameTrimmed.length > 100) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cohort name must be at most 100 characters')),
-      );
-      return;
-    }
-
+    // Errors show next to the field; a snackbar would sit behind this dialog.
+    setState(() {
+      _nameError = nameTrimmed.isEmpty ? 'Enter a cohort name' : null;
+      _saveError = null;
+      _validateDates();
+    });
+    if (_nameError != null || _dateError != null) return;
     final descTrimmed = _descriptionController.text.trim();
-    if (descTrimmed.length > 1000) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Description must be at most 1000 characters')),
-      );
-      return;
-    }
-
-    _validateDates();
-    if (_dateError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_dateError!)),
-      );
-      return;
-    }
 
     setState(() => _isSaving = true);
 
@@ -200,46 +158,36 @@ class _CohortDialogState extends State<CohortDialog> {
         Navigator.of(context).pop();
         widget.onSuccess();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isEdit
-                  ? 'Cohort updated successfully'
-                  : 'Cohort created successfully',
-            ),
-            backgroundColor: AppColors.success,
-          ),
+          SnackBar(content: Text(isEdit ? 'Cohort updated' : 'Cohort created')),
         );
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to ${isEdit ? "update" : "create"} cohort: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
+        setState(() {
+          _isSaving = false;
+          _saveError = apiErrorMessage(e);
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final dialogBg = Colors.white;
+    final dialogBg = AppColors.surface;
     final borderColor = AppColors.border;
-    final fieldBg = Colors.white;
+    final fieldBg = AppColors.surface;
     final primaryTextColor = AppColors.ink;
     final secondaryTextColor = AppColors.textSecondary;
 
-    final isFormValid = _nameController.text.trim().isNotEmpty &&
-        _nameController.text.trim().length <= 100 &&
+    // An empty name is reported inline on Save, so it doesn't disable the button.
+    final isFormValid = _nameController.text.trim().length <= 100 &&
         _descriptionController.text.trim().length <= 1000 &&
         _dateError == null;
 
     return Dialog(
       backgroundColor: dialogBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      insetPadding: const EdgeInsets.all(16),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 540),
         child: SingleChildScrollView(
@@ -254,30 +202,14 @@ class _CohortDialogState extends State<CohortDialog> {
                 children: [
                   Expanded(
                     child: Text(
-                      isEdit ? 'Edit Cohort' : 'Create New Cohort',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: primaryTextColor,
-                        letterSpacing: -0.3,
-                      ),
+                      isEdit ? 'Edit cohort' : 'New cohort',
+                      style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor, letterSpacing: -0.3),
                     ),
                   ),
-                  InkWell(
-                    onTap: () => Navigator.of(context).pop(),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: borderColor),
-                      ),
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: 20,
-                        color: secondaryTextColor,
-                      ),
-                    ),
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.close_rounded, color: secondaryTextColor),
                   ),
                 ],
               ),
@@ -290,38 +222,18 @@ class _CohortDialogState extends State<CohortDialog> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // COHORT NAME *
-                    Row(
-                      children: [
-                        Text(
-                          'COHORT NAME',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.8,
-                            color: primaryTextColor,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Text(
-                          '*',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.danger,
-                          ),
-                        ),
-                      ],
-                    ),
+                    Text('Name', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _nameController,
                       maxLength: 100,
                       textCapitalization: TextCapitalization.words,
-                      onChanged: (_) => setState(() {}),
-                      style: TextStyle(color: primaryTextColor, fontSize: 14),
+                      onChanged: (_) => setState(() => _nameError = null),
+                      style: AppTypography.body.copyWith(color: primaryTextColor),
                       decoration: InputDecoration(
-                        hintText: 'e.g., Summer 2026 Batch - Engineering',
-                        hintStyle: TextStyle(color: secondaryTextColor, fontSize: 14),
+                        errorText: _nameError,
+                        hintText: 'e.g. Summer 2026 engineering',
+                        hintStyle: AppTypography.body.copyWith(color: secondaryTextColor),
                         filled: true,
                         fillColor: fieldBg,
                         counterText: '',
@@ -343,26 +255,19 @@ class _CohortDialogState extends State<CohortDialog> {
                     const SizedBox(height: 20),
 
                     // DESCRIPTION
-                    Text(
-                      'DESCRIPTION',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: primaryTextColor,
-                      ),
-                    ),
+                    Text('Description (optional)', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _descriptionController,
                       maxLines: 4,
                       minLines: 3,
                       maxLength: 1000,
+                      textCapitalization: TextCapitalization.sentences,
                       onChanged: (_) => setState(() {}),
-                      style: TextStyle(color: primaryTextColor, fontSize: 14),
+                      style: AppTypography.body.copyWith(color: primaryTextColor),
                       decoration: InputDecoration(
-                        hintText: 'Details on batch focus, track, curriculum, or cohort expectations...',
-                        hintStyle: TextStyle(color: secondaryTextColor, fontSize: 14),
+                        hintText: 'Focus, track or what this group works on',
+                        hintStyle: AppTypography.body.copyWith(color: secondaryTextColor),
                         filled: true,
                         fillColor: fieldBg,
                         counterText: '',
@@ -391,21 +296,14 @@ class _CohortDialogState extends State<CohortDialog> {
                         final startPickerWidget = Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'START DATE',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: primaryTextColor,
-                              ),
-                            ),
+                            Text('Start date (optional)', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
                             const SizedBox(height: 8),
                             InkWell(
                               onTap: _pickStartDate,
                               borderRadius: BorderRadius.circular(16),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                constraints: const BoxConstraints(minHeight: 50),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: fieldBg,
                                   borderRadius: BorderRadius.circular(16),
@@ -415,27 +313,19 @@ class _CohortDialogState extends State<CohortDialog> {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        _startDate != null
-                                            ? DateFormat('dd/MM/yyyy').format(_startDate!)
-                                            : 'dd/mm/yyyy',
-                                        style: TextStyle(
-                                          color: _startDate != null ? primaryTextColor : secondaryTextColor,
-                                          fontSize: 14,
-                                        ),
+                                        _startDate != null ? formatDate(_startDate) : 'Not set',
+                                        style: AppTypography.body.copyWith(color: _startDate != null ? primaryTextColor : secondaryTextColor),
                                       ),
                                     ),
                                     if (_startDate != null)
-                                      InkWell(
-                                        onTap: () {
-                                          setState(() {
-                                            _startDate = null;
-                                            _validateDates();
-                                          });
-                                        },
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(right: 6),
-                                          child: Icon(Icons.clear_rounded, size: 16, color: secondaryTextColor),
-                                        ),
+                                      IconButton(
+                                        tooltip: 'Clear date',
+                                        visualDensity: VisualDensity.compact,
+                                        onPressed: () => setState(() {
+                                          _startDate = null;
+                                          _validateDates();
+                                        }),
+                                        icon: Icon(Icons.clear_rounded, size: 16, color: secondaryTextColor),
                                       ),
                                     Icon(
                                       Icons.calendar_today_outlined,
@@ -452,21 +342,14 @@ class _CohortDialogState extends State<CohortDialog> {
                         final endPickerWidget = Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'END DATE',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: primaryTextColor,
-                              ),
-                            ),
+                            Text('End date (optional)', style: AppTypography.bodyStrong.copyWith(fontSize: 13)),
                             const SizedBox(height: 8),
                             InkWell(
                               onTap: _pickEndDate,
                               borderRadius: BorderRadius.circular(16),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                constraints: const BoxConstraints(minHeight: 50),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: fieldBg,
                                   borderRadius: BorderRadius.circular(16),
@@ -476,27 +359,19 @@ class _CohortDialogState extends State<CohortDialog> {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        _endDate != null
-                                            ? DateFormat('dd/MM/yyyy').format(_endDate!)
-                                            : 'dd/mm/yyyy',
-                                        style: TextStyle(
-                                          color: _endDate != null ? primaryTextColor : secondaryTextColor,
-                                          fontSize: 14,
-                                        ),
+                                        _endDate != null ? formatDate(_endDate) : 'Not set',
+                                        style: AppTypography.body.copyWith(color: _endDate != null ? primaryTextColor : secondaryTextColor),
                                       ),
                                     ),
                                     if (_endDate != null)
-                                      InkWell(
-                                        onTap: () {
-                                          setState(() {
-                                            _endDate = null;
-                                            _validateDates();
-                                          });
-                                        },
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(right: 6),
-                                          child: Icon(Icons.clear_rounded, size: 16, color: secondaryTextColor),
-                                        ),
+                                      IconButton(
+                                        tooltip: 'Clear date',
+                                        visualDensity: VisualDensity.compact,
+                                        onPressed: () => setState(() {
+                                          _endDate = null;
+                                          _validateDates();
+                                        }),
+                                        icon: Icon(Icons.clear_rounded, size: 16, color: secondaryTextColor),
                                       ),
                                     Icon(
                                       Icons.calendar_today_outlined,
@@ -534,56 +409,46 @@ class _CohortDialogState extends State<CohortDialog> {
                       const SizedBox(height: 8),
                       Text(
                         _dateError!,
-                        style: const TextStyle(color: AppColors.danger, fontSize: 12),
+                        style: AppTypography.caption.copyWith(color: AppColors.dangerInk),
                       ),
                     ],
+                    if (_saveError != null) ...[
+                      const SizedBox(height: 12),
+                      Text(_saveError!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
+                    ],
 
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
 
-                    // Actions: Cancel & Create / Save
-                    Wrap(
-                      alignment: WrapAlignment.end,
-                      runSpacing: 8,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         OutlinedButton(
                           onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: primaryTextColor,
                             side: BorderSide(color: borderColor),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
+                            minimumSize: const Size(0, 44),
+                            shape: const StadiumBorder(),
                           ),
-                          child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+                          child: const Text('Cancel'),
                         ),
                         const SizedBox(width: 12),
                         ElevatedButton(
                           onPressed: (_isSaving || !isFormValid) ? null : _submit,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primarySoft,
-                            foregroundColor: AppColors.ink,
-                            disabledBackgroundColor: AppColors.surfaceMuted,
-                            disabledForegroundColor: AppColors.textTertiary,
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.onPrimary,
                             elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              side: BorderSide(
-                                color: isFormValid ? AppColors.primary : Colors.transparent,
-                              ),
-                            ),
+                            minimumSize: const Size(0, 44),
+                            shape: const StadiumBorder(),
                           ),
                           child: _isSaving
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.ink),
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary),
                                 )
-                              : Text(
-                                  isEdit ? 'Save Changes' : 'Create Cohort',
-                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                                ),
+                              : Text(isEdit ? 'Save' : 'Create cohort'),
                         ),
                       ],
                     ),

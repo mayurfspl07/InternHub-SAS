@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'core/constants/app_colors.dart';
+import 'core/constants/app_typography.dart';
 import 'core/theme/app_theme.dart';
 import 'core/state/app_state_provider.dart';
 import 'shared/models/user_model.dart';
 import 'shared/models/project_model.dart';
 import 'shared/models/attendance_model.dart';
+import 'shared/widgets/page_header.dart';
 import 'splash_screen.dart';
 import 'features/auth/login_screen.dart';
-import 'features/auth/signup_screen.dart';
 import 'features/auth/join_invite_screen.dart';
 import 'features/dashboard/main_navigation_wrapper.dart';
 import 'features/attendance/attendance_home_screen.dart';
@@ -51,6 +53,9 @@ void main() {
   );
 }
 
+/// `/join/<token>`, or the full invite link as Android delivers it on a cold start.
+bool _isInviteRoute(String name) => (Uri.tryParse(name)?.path ?? name).startsWith('/join/');
+
 class InternHubApp extends ConsumerWidget {
   final String? initialRoute;
   const InternHubApp({super.key, this.initialRoute});
@@ -62,11 +67,23 @@ class InternHubApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       initialRoute: initialRoute,
-      home: initialRoute == null ? const SplashScreen() : null,
+      // The splash is the first page. Opened from an invite link (https://…/join/<token>), the join
+      // screen goes on top of it, without the extra empty '/join' page Flutter would otherwise stack.
+      // (Flutter doesn't allow `home` together with onGenerateInitialRoutes.)
+      onGenerateInitialRoutes: initialRoute != null
+          ? null
+          : (name) => [
+                MaterialPageRoute(builder: (_) => const SplashScreen(), settings: const RouteSettings(name: '/')),
+                // On a cold start Android passes the whole link (https://host/join/<token>), not just the path.
+                if (_isInviteRoute(name))
+                  MaterialPageRoute(
+                    builder: (_) => JoinInviteScreen(initialToken: inviteTokenFrom(name)),
+                    settings: RouteSettings(name: name),
+                  ),
+              ],
       routes: {
         // Public / Auth
         '/login': (_) => const LoginScreen(),
-        '/signup': (_) => const SignupScreen(),
         '/join': (_) => const JoinInviteScreen(),
 
         // Tenant Core
@@ -160,10 +177,9 @@ class InternHubApp extends ConsumerWidget {
         if (name == null || name.isEmpty) return null;
 
         // Dynamic 1: /join/:token (Public)
-        if (name.startsWith('/join/')) {
-          final token = name.substring('/join/'.length);
+        if (_isInviteRoute(name)) {
           return MaterialPageRoute(
-            builder: (_) => JoinInviteScreen(initialToken: token),
+            builder: (_) => JoinInviteScreen(initialToken: inviteTokenFrom(name)),
             settings: settings,
           );
         }
@@ -211,9 +227,14 @@ class InternHubApp extends ConsumerWidget {
           );
         }
 
-        // Unknown route fallback -> Dashboard or Login
+        // Unknown route: say so instead of stacking a second copy of the app.
         return MaterialPageRoute(
-          builder: (_) => const GuardedRoute(child: MainNavigationWrapper()),
+          builder: (_) => const GuardedRoute(
+            child: _RouteMessagePage(
+              title: 'Page not found',
+              message: "This page doesn't exist in the app.",
+            ),
+          ),
           settings: settings,
         );
       },
@@ -245,13 +266,47 @@ class GuardedRoute extends ConsumerWidget {
       return const LoginScreen();
     }
     final roles = allowedRoles;
-    if (roles != null && !roles.contains(state.currentUser.role)) {
-      // Role restricted -> Redirect to dashboard
-      return const MainNavigationWrapper();
-    }
-    if (platformAdminOnly && !state.currentUser.isPlatformAdmin) {
-      return const MainNavigationWrapper();
+    final roleDenied = roles != null && !roles.contains(state.currentUser.role);
+    if (roleDenied || (platformAdminOnly && !state.currentUser.isPlatformAdmin)) {
+      return const _RouteMessagePage(
+        title: 'No access',
+        message: "Your role doesn't include this page. Ask an admin if you need it.",
+      );
     }
     return child;
+  }
+}
+
+/// Shown for unknown routes and pages the user's role can't open; the button always leads Home.
+class _RouteMessagePage extends StatelessWidget {
+  final String title;
+  final String message;
+
+  const _RouteMessagePage({required this.title, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.canvas,
+      appBar: pageAppBar(context, title: title),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.lock_outline_rounded, size: 44, color: AppColors.textSecondary),
+              const SizedBox(height: 14),
+              Text(message, textAlign: TextAlign.center, style: AppTypography.body),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil('/dashboard', (_) => false),
+                child: const Text('Go to Home'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

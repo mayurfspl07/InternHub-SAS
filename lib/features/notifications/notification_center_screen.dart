@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../../shared/models/cohort_model.dart';
 import '../../shared/widgets/load_error_view.dart';
+import '../../core/constants/app_typography.dart';
+import '../../core/utils/formatters.dart';
 
 class NotificationCenterScreen extends ConsumerStatefulWidget {
   const NotificationCenterScreen({super.key});
@@ -22,10 +23,16 @@ class _NotificationCenterScreenState
 
   Widget _buildSegmentedTab(String label, String value) {
     final isSelected = _selectedFilter == value;
-    return GestureDetector(
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      child: InkWell(
       onTap: () => setState(() => _selectedFilter = value),
+      borderRadius: BorderRadius.circular(AppSpacing.rPill),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
+        constraints: const BoxConstraints(minHeight: 40),
+        alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
@@ -35,32 +42,13 @@ class _NotificationCenterScreenState
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected
+          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: isSelected
                 ? AppColors.onPrimary
-                : AppColors.textSecondary,
-          ),
+                : AppColors.textSecondary),
         ),
       ),
+      ),
     );
-  }
-
-  String _formatRelative(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-    if (diff.inMinutes < 60) {
-      final m = diff.inMinutes;
-      return m <= 1 ? 'just now' : '${m}m ago';
-    }
-    if (diff.inHours < 24) {
-      return '${diff.inHours}h ago';
-    }
-    if (diff.inDays < 7) {
-      return '${diff.inDays}d ago';
-    }
-    return DateFormat('MMM d').format(dt);
   }
 
   /// Route inside the app for a notification's `link` (null when the app has no screen for it).
@@ -77,9 +65,9 @@ class _NotificationCenterScreenState
       case 'leave':
         return (Icons.event_note_rounded, AppColors.peachInk, AppColors.peach);
       case 'task':
-        return (Icons.task_alt_rounded, AppColors.info, AppColors.infoSoft);
+        return (Icons.task_alt_rounded, AppColors.infoInk, AppColors.infoSoft);
       case 'assignment':
-        return (Icons.assignment_outlined, AppColors.info, AppColors.infoSoft);
+        return (Icons.assignment_outlined, AppColors.infoInk, AppColors.infoSoft);
       case 'review':
         return (Icons.star_rounded, AppColors.warningInk, AppColors.warningSoft);
       case 'signup':
@@ -95,19 +83,37 @@ class _NotificationCenterScreenState
     final messenger = ScaffoldMessenger.of(context);
     try {
       await ref.read(appStateProvider.notifier).markAllNotificationsRead();
-      messenger.showSnackBar(const SnackBar(content: Text('All notifications marked as read')));
+      messenger.showSnackBar(const SnackBar(content: Text('All marked as read')));
     } catch (e) {
-      if (mounted) showApiError(context, e, prefix: 'Could not mark notifications as read');
+      if (mounted) showApiError(context, e, prefix: "Couldn't mark notifications as read");
     }
   }
 
-  Future<void> _delete(NotificationItem notif) async {
-    try {
-      await ref.read(appStateProvider.notifier).deleteNotification(notif.id);
-    } catch (e) {
-      if (mounted) showApiError(context, e, prefix: 'Could not delete the notification');
-      await ref.read(appStateProvider.notifier).fetchNotifications();
-    }
+  /// Swipe-to-delete: the item leaves the list at once (Dismissible requires it), and the
+  /// server delete runs only if the Undo snackbar closes without Undo being tapped.
+  void _delete(NotificationItem notif) {
+    final notifier = ref.read(appStateProvider.notifier);
+    final index = ref.read(appStateProvider).notifications.indexWhere((n) => n.id == notif.id);
+    notifier.hideNotification(notif.id);
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    final controller = messenger.showSnackBar(
+      SnackBar(
+        content: const Text('Notification deleted'),
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(label: 'Undo', onPressed: () => notifier.restoreNotification(notif, index)),
+      ),
+    );
+    controller.closed.then((reason) async {
+      if (reason == SnackBarClosedReason.action) return;
+      try {
+        await notifier.deleteNotification(notif.id);
+      } catch (e) {
+        notifier.restoreNotification(notif, index);
+        messenger.showSnackBar(SnackBar(content: Text("Couldn't delete the notification. ${apiErrorMessage(e)}")));
+      }
+    });
   }
 
   @override
@@ -136,15 +142,21 @@ class _NotificationCenterScreenState
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(height: MediaQuery.of(context).size.height * 0.22),
-          const Center(
+          Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.notifications_none_rounded, size: 48, color: AppColors.textSecondary),
                 SizedBox(height: 16),
-                Text('All caught up!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.ink)),
+                Text(
+                  _selectedFilter == 'Unread' ? 'All caught up' : 'No notifications yet',
+                  style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
+                ),
                 SizedBox(height: 6),
-                Text('No notifications to show here.', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                Text(
+                  _selectedFilter == 'Unread' ? "You've read everything." : 'Updates about your work will appear here.',
+                  style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+                ),
               ],
             ),
           ),
@@ -167,18 +179,19 @@ class _NotificationCenterScreenState
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.symmetric(horizontal: 20),
               decoration: BoxDecoration(color: AppColors.danger, borderRadius: BorderRadius.circular(20)),
-              child: const Icon(Icons.delete_outline, color: Colors.white),
+              child: const Icon(Icons.delete_outline, color: AppColors.surface),
             ),
             onDismissed: (_) => _delete(notif),
-            child: GestureDetector(
+            child: Container(
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), boxShadow: AppShadows.soft),
+              child: Material(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              child: InkWell(
+              borderRadius: BorderRadius.circular(20),
               onTap: route == null ? null : () => Navigator.of(context).pushNamed(route),
-              child: Container(
+              child: Padding(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: AppShadows.soft,
-                ),
                 child: Row(
                   children: [
                     Container(
@@ -194,12 +207,7 @@ class _NotificationCenterScreenState
                         notif.message,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          height: 1.35,
-                          fontWeight: notif.isRead ? FontWeight.w500 : FontWeight.w700,
-                          color: AppColors.ink,
-                        ),
+                        style: AppTypography.caption.copyWith(height: 1.35, color: AppColors.ink),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -207,21 +215,31 @@ class _NotificationCenterScreenState
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          _formatRelative(notif.createdAt),
-                          style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                          formatRelative(notif.createdAt),
+                          style: AppTypography.label.copyWith(color: AppColors.textSecondary, fontWeight: FontWeight.w500),
                         ),
                         if (!notif.isRead) ...[
                           const SizedBox(height: 6),
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                          Semantics(
+                            label: 'Unread',
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                            ),
                           ),
                         ],
                       ],
                     ),
+                    // Chevron only on notifications that open a screen.
+                    if (route != null) ...[
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textTertiary),
+                    ],
                   ],
                 ),
+              ),
+              ),
               ),
             ),
           );

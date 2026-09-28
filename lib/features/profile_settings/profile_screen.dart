@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/api/api_config.dart';
 import '../../core/constants/app_colors.dart';
 import '../../shared/widgets/page_header.dart';
 import '../../core/constants/app_spacing.dart';
@@ -12,8 +11,13 @@ import '../../shared/models/user_model.dart';
 import '../../shared/widgets/load_error_view.dart';
 import 'change_password_dialog.dart';
 import 'profile_repository.dart';
-import 'settings_screen.dart';
 import 'widgets/edit_profile_dialog.dart';
+import '../../core/constants/app_typography.dart';
+import '../../core/utils/formatters.dart';
+import '../../shared/widgets/app_avatar.dart';
+import '../../shared/widgets/status_chip.dart';
+import '../../shared/widgets/logout_confirm_dialog.dart';
+import '../projects_tasks/project_detail_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final bool showBackButton;
@@ -31,6 +35,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   bool _isLoadingProfile = true;
   bool _isLoadingOverview = false;
+  bool _uploadingPhoto = false;
   String? _errorMessage;
 
   UserModel get _activeUser => _profileUser ?? ref.read(appStateProvider).currentUser;
@@ -65,7 +70,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted) {
         setState(() {
           _isLoadingProfile = false;
-          _errorMessage = e.toString();
+          _errorMessage = apiErrorMessage(e);
         });
       }
     }
@@ -99,65 +104,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  void _confirmLogout() {
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.r28),
-        ),
-        title: const Text('Are you sure?', style: TextStyle(fontWeight: FontWeight.w700)),
-        content: const Text(
-          'You will be logged out from your account and returned to the login screen.',
-          style: TextStyle(fontSize: 14),
-        ),
-        actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.danger,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.rPill),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-            ),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await ref.read(appStateProvider.notifier).logout();
-              if (mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-              }
-            },
-            child: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _changePhoto() async {
+    if (_uploadingPhoto) return;
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 800, imageQuality: 85);
     if (picked == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
+    setState(() => _uploadingPhoto = true);
     try {
       await ref.read(appStateProvider.notifier).uploadAvatar(File(picked.path));
       if (mounted) setState(() => _profileUser = _profileUser?.copyWith(avatarUrl: ref.read(appStateProvider).currentUser.avatarUrl));
       messenger.showSnackBar(const SnackBar(content: Text('Profile photo updated')));
     } catch (e) {
-      if (mounted) showApiError(context, e, prefix: 'Could not upload the photo');
+      if (mounted) showApiError(context, e, prefix: "Couldn't upload the photo");
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
     }
   }
 
@@ -176,7 +136,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildHeaderCard(Color cardBg, Color borderColor, Color primaryTextColor, Color secondaryTextColor) {
     final user = _activeUser;
-    final initial = user.name.isNotEmpty ? user.name[0].toUpperCase() : '?';
     final headerStats = _headerStats(user);
     final avatarUrl = user.avatarUrl ?? ref.watch(appStateProvider).currentUser.avatarUrl;
 
@@ -193,68 +152,91 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           child: Column(
             children: [
-              // Centered Avatar with Edit camera badge
-              Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 46,
-                    backgroundColor: AppColors.primary,
-                    backgroundImage: avatarUrl != null ? NetworkImage(ApiConfig.mediaUrl(avatarUrl)) : null,
-                    child: avatarUrl != null
-                        ? null
-                        : Text(
-                            initial,
-                            style: TextStyle(
-                              fontSize: 34,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.warningInk,
+              // Avatar with a camera badge; the badge's tap area is 44px even though it looks smaller.
+              SizedBox(
+                width: 104,
+                height: 100,
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          AppAvatar(url: avatarUrl, fallbackText: user.name, size: 92),
+                          if (_uploadingPhoto)
+                            Container(
+                              width: 92,
+                              height: 92,
+                              decoration: BoxDecoration(
+                                color: AppColors.ink.withValues(alpha: 0.45),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.surface),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Semantics(
+                        button: true,
+                        label: 'Change profile photo',
+                        child: Tooltip(
+                          message: 'Change photo',
+                          child: InkResponse(
+                            onTap: _uploadingPhoto ? null : _changePhoto,
+                            radius: 24,
+                            child: SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: Center(
+                                child: Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: cardBg, width: 2.5),
+                                  ),
+                                  child: const Icon(Icons.camera_alt_rounded, size: 16, color: AppColors.onPrimary),
+                                ),
+                              ),
                             ),
                           ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: GestureDetector(
-                      onTap: _changePhoto,
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: cardBg, width: 2.5),
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt_rounded,
-                          size: 15,
-                          color: Colors.white,
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 14),
 
               // Name
               Text(
                 user.name,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: primaryTextColor,
-                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
               ),
               const SizedBox(height: 4),
 
               // Role & Department Subtitle
               Text(
-                [user.roleTitle, if ((user.department ?? '').isNotEmpty) user.department!].join(' • '),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: secondaryTextColor,
-                ),
+                [user.roleTitle, if ((user.department ?? '').isNotEmpty) user.department!].join(' · '),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: secondaryTextColor),
               ),
               const SizedBox(height: 20),
 
@@ -287,27 +269,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             children: [
               _buildOptionItem(
                 icon: Icons.person_outline_rounded,
-                title: 'My Profile',
+                title: 'Edit profile',
                 primaryTextColor: primaryTextColor,
                 secondaryTextColor: secondaryTextColor,
                 onTap: _openEditDialog,
               ),
               Divider(height: 1, color: borderColor),
               _buildOptionItem(
-                icon: Icons.settings_outlined,
-                title: 'Settings',
-                primaryTextColor: primaryTextColor,
-                secondaryTextColor: secondaryTextColor,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                  );
-                },
-              ),
-              Divider(height: 1, color: borderColor),
-              _buildOptionItem(
                 icon: Icons.lock_outline_rounded,
-                title: 'Change Password',
+                title: 'Change password',
                 primaryTextColor: primaryTextColor,
                 secondaryTextColor: secondaryTextColor,
                 onTap: () => ChangePasswordDialog.show(context),
@@ -318,27 +288,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         const SizedBox(height: 18),
 
-        // 3. Bottom Coral/Red Pill Button: Log Out (Screen 14 & 21 in Reference UI)
         SizedBox(
           width: double.infinity,
           height: 52,
-          child: ElevatedButton(
-            onPressed: _confirmLogout,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.danger, // Coral / Red from reference
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.rPill),
-              ),
-            ),
-            child: Text(
-              'Log Out',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
+          child: OutlinedButton.icon(
+            onPressed: () => showLogoutConfirmDialog(context, ref),
+            icon: const Icon(Icons.logout_rounded, size: 20),
+            label: const Text('Log out'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.dangerInk,
+              side: const BorderSide(color: AppColors.danger),
+              textStyle: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.rPill)),
             ),
           ),
         ),
@@ -356,22 +317,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
       child: Column(
         children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: primaryTextColor,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
             ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: secondaryTextColor,
-            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.label.copyWith(color: secondaryTextColor),
           ),
         ],
       ),
@@ -397,11 +357,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Expanded(
               child: Text(
                 title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: primaryTextColor,
-                ),
+                style: AppTypography.bodyStrong.copyWith(color: primaryTextColor),
               ),
             ),
             Icon(Icons.chevron_right_rounded, size: 18, color: secondaryTextColor),
@@ -411,6 +367,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Widget _editButton() => TextButton.icon(
+        onPressed: _openEditDialog,
+        icon: const Icon(Icons.edit_outlined, size: 16),
+        label: const Text('Edit'),
+        style: TextButton.styleFrom(foregroundColor: AppColors.primaryInk, minimumSize: const Size(44, 44)),
+      );
+
   Widget _buildDetailRow(String label, String value, IconData icon, Color primaryTextColor, Color secondaryTextColor) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -419,103 +382,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         children: [
           Icon(icon, size: 16, color: AppColors.primaryInk),
           const SizedBox(width: 12),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-              color: secondaryTextColor,
-            ),
-          ),
-          const Spacer(),
-          Flexible(
+          Text(label, style: AppTypography.caption),
+          const SizedBox(width: 12),
+          Expanded(
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: value.startsWith('Not ') ? secondaryTextColor : primaryTextColor,
-              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: value.startsWith('Not ') ? secondaryTextColor : primaryTextColor),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  // Quick metrics bar for Interns
-  Widget _buildInternMetricsBar(Color cardBg, Color borderColor, Color primaryTextColor, Color secondaryTextColor) {
-    final ov = _overview;
-    final totalProjects = ov?.totalProjectsCount ?? 0;
-    final activeTasks = ov?.activeTasksCount ?? 0;
-    final completedTasks = ov?.completedTasksCount ?? 0;
-    final attSummary = ov?.resolvedAttendanceSummary;
-    final presentDays = attSummary?.present ?? 0;
-
-    final metrics = [
-      {'label': 'Assigned Projects', 'value': '$totalProjects', 'icon': Icons.folder_special_outlined, 'color': AppColors.info},
-      {'label': 'Active Tasks', 'value': '$activeTasks', 'icon': Icons.check_circle_outline_rounded, 'color': AppColors.primary},
-      {'label': 'Completed Tasks', 'value': '$completedTasks', 'icon': Icons.task_alt_rounded, 'color': AppColors.success},
-      {'label': 'Present (30d)', 'value': '$presentDays days', 'icon': Icons.calendar_today_rounded, 'color': AppColors.lavenderInk},
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth > 600;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: isWide ? 4 : 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: isWide ? 2.0 : 1.7,
-          ),
-          itemCount: metrics.length,
-          itemBuilder: (context, idx) {
-            final m = metrics[idx];
-            return Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(18),
-        boxShadow: AppShadows.soft,
-      ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        m['label'] as String,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: secondaryTextColor,
-                        ),
-                      ),
-                      Icon(m['icon'] as IconData, size: 16, color: m['color'] as Color),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    m['value'] as String,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: primaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
     );
   }
 
@@ -543,48 +422,45 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        _isIntern ? 'Professional Details' : 'Contact & Account Information',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: primaryTextColor,
-                        ),
+                        'Details',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: _openEditDialog,
-                icon: const Icon(Icons.edit_outlined, size: 13),
-                label: const Text('Edit Details', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: primaryTextColor,
-                  side: BorderSide(color: borderColor),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
+              _editButton(),
             ],
           ),
           const SizedBox(height: 16),
-          _buildDetailRow('PHONE NUMBER', user.phone ?? 'Not configured', Icons.phone_outlined, primaryTextColor, secondaryTextColor),
+          _buildDetailRow('Phone', user.phone ?? 'Not added', Icons.phone_outlined, primaryTextColor, secondaryTextColor),
           Divider(height: 1, color: borderColor),
-          _buildDetailRow('DEPARTMENT', user.department ?? 'Not assigned', Icons.business_outlined, primaryTextColor, secondaryTextColor),
+          _buildDetailRow('Department', user.department ?? 'Not set', Icons.business_outlined, primaryTextColor, secondaryTextColor),
           Divider(height: 1, color: borderColor),
-          _buildDetailRow('JOB TITLE', user.jobTitle ?? 'Not specified', Icons.badge_outlined, primaryTextColor, secondaryTextColor),
+          _buildDetailRow('Job title', user.jobTitle ?? 'Not set', Icons.badge_outlined, primaryTextColor, secondaryTextColor),
           Divider(height: 1, color: borderColor),
-          _buildDetailRow('JOINING DATE', user.joiningDate ?? 'Not set', Icons.calendar_month_outlined, primaryTextColor, secondaryTextColor),
+          _buildDetailRow('Joined', formatDate(user.joiningDate, fallback: 'Not set'), Icons.calendar_month_outlined, primaryTextColor, secondaryTextColor),
+          if (_isIntern && user.internshipDurationMonths != null) ...[
+            Divider(height: 1, color: borderColor),
+            _buildDetailRow(
+              'Internship',
+              plural(user.internshipDurationMonths!, 'month') +
+                  ((user.internshipEndDate ?? '').isNotEmpty ? ' · ends ${formatDate(user.internshipEndDate)}' : ''),
+              Icons.hourglass_bottom_rounded,
+              primaryTextColor,
+              secondaryTextColor,
+            ),
+          ],
           if (_isIntern) ...[
             Divider(height: 1, color: borderColor),
-            _buildDetailRow('ASSIGNED MENTOR', user.mentorName ?? 'Not assigned', Icons.school_outlined, primaryTextColor, secondaryTextColor),
+            _buildDetailRow('Mentor', user.mentorName ?? 'Not assigned', Icons.school_outlined, primaryTextColor, secondaryTextColor),
           ],
           if (user.organizationName != null && user.organizationName!.isNotEmpty) ...[
             Divider(height: 1, color: borderColor),
-            _buildDetailRow('ORGANIZATION', user.organizationName!, Icons.corporate_fare_outlined, primaryTextColor, secondaryTextColor),
+            _buildDetailRow('Organization', user.organizationName!, Icons.corporate_fare_outlined, primaryTextColor, secondaryTextColor),
           ],
         ],
       ),
@@ -608,35 +484,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.military_tech_outlined, size: 20, color: AppColors.primaryInk),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Skills & Competencies',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: primaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-              InkWell(
-                onTap: _openEditDialog,
-                borderRadius: BorderRadius.circular(10),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  child: Text(
-                    'Add / Edit',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: secondaryTextColor,
-                    ),
-                  ),
+              Icon(Icons.military_tech_outlined, size: 20, color: AppColors.primaryInk),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Skills',
+                  style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                 ),
               ),
+              _editButton(),
             ],
           ),
           const SizedBox(height: 16),
@@ -655,7 +511,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     Icon(Icons.add_rounded, size: 16, color: secondaryTextColor),
                     const SizedBox(width: 6),
-                    Text('+ Add skills', style: TextStyle(fontSize: 13, color: secondaryTextColor)),
+                    Text('Add skills', style: AppTypography.caption.copyWith(color: secondaryTextColor)),
                   ],
                 ),
               ),
@@ -674,11 +530,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                   child: Text(
                     s,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: primaryTextColor,
-                    ),
+                    style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: primaryTextColor),
                   ),
                 );
               }).toList(),
@@ -705,48 +557,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.description_outlined, size: 18, color: AppColors.primaryInk),
-                  const SizedBox(width: 8),
-                  Text(
-                    _isIntern ? 'About & Summary' : 'About & Professional Summary',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: primaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-              InkWell(
-                onTap: _openEditDialog,
-                borderRadius: BorderRadius.circular(10),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  child: Text(
-                    'Edit',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: secondaryTextColor,
-                    ),
-                  ),
+              Icon(Icons.description_outlined, size: 18, color: AppColors.primaryInk),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'About',
+                  style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                 ),
               ),
+              _editButton(),
             ],
           ),
           const SizedBox(height: 14),
           Text(
             (bio != null && bio.trim().isNotEmpty)
                 ? bio.trim()
-                : 'No professional summary provided yet. Click Edit to add details about your experience and background.',
-            style: TextStyle(
-              fontSize: 13,
-              color: (bio != null && bio.trim().isNotEmpty) ? primaryTextColor : secondaryTextColor,
-              fontStyle: (bio != null && bio.trim().isNotEmpty) ? FontStyle.normal : FontStyle.italic,
-              height: 1.5,
-            ),
+                : 'Add a short summary of your background and what you work on.',
+            style: AppTypography.caption.copyWith(color: (bio != null && bio.trim().isNotEmpty) ? primaryTextColor : secondaryTextColor, fontStyle: (bio != null && bio.trim().isNotEmpty) ? FontStyle.normal : FontStyle.italic, height: 1.5),
           ),
         ],
       ),
@@ -793,12 +620,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   Icon(Icons.folder_outlined, size: 18, color: AppColors.primaryInk),
                   const SizedBox(width: 8),
-                  Text(
-                    'Assigned Projects (${projects.length})',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: primaryTextColor,
+                  Expanded(
+                    child: Text(
+                      'Projects (${projects.length})',
+                      style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                     ),
                   ),
                 ],
@@ -808,8 +633,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Text(
-                    'No projects assigned currently.',
-                    style: TextStyle(fontSize: 13, color: secondaryTextColor, fontStyle: FontStyle.italic),
+                    "You aren't on any projects yet.",
+                    style: AppTypography.caption.copyWith(color: secondaryTextColor, fontStyle: FontStyle.italic),
                   ),
                 )
               else
@@ -820,7 +645,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   separatorBuilder: (_, _) => Divider(height: 20, color: borderColor),
                   itemBuilder: (context, idx) {
                     final p = projects[idx];
-                    return Column(
+                    final column = Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
@@ -829,28 +654,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             Expanded(
                               child: Text(
                                 p.name,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: primaryTextColor,
-                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceMuted,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                p.status.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: secondaryTextColor,
-                                ),
-                              ),
-                            ),
+                            const SizedBox(width: 8),
+                            StatusChip.fromString(p.status),
                           ],
                         ),
                         const SizedBox(height: 8),
@@ -860,7 +670,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             value: (p.progress / 100).clamp(0.0, 1.0),
                             minHeight: 6,
                             backgroundColor: AppColors.border,
-                            color: AppColors.success,
+                            color: AppColors.primary,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -868,17 +678,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              '${p.progress.toInt()}% completed',
-                              style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                              '${p.progress.toInt()}% done',
+                              style: AppTypography.label.copyWith(color: secondaryTextColor),
                             ),
                             if (p.endDate != null && p.endDate!.isNotEmpty)
                               Text(
-                                'Target: ${p.endDate}',
-                                style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                                'Due ${formatDate(p.endDate)}',
+                                style: AppTypography.label.copyWith(color: secondaryTextColor),
                               ),
                           ],
                         ),
                       ],
+                    );
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => ProjectDetailScreen(projectId: p.id)),
+                      ),
+                      child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: column),
                     );
                   },
                 ),
@@ -903,12 +720,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Icon(Icons.access_time_rounded, size: 18, color: AppColors.primaryInk),
                   const SizedBox(width: 8),
                   Text(
-                    'Attendance (Last 30 Days)',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: primaryTextColor,
-                    ),
+                    'Attendance · last 30 days',
+                    style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                   ),
                 ],
               ),
@@ -916,19 +729,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _buildAttendanceStatTile('Present', '${attSummary?.present ?? 0}', AppColors.success),
+                    child: _buildAttendanceStatTile('Present', '${attSummary?.present ?? 0}', AppColors.successInk),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _buildAttendanceStatTile('Late', '${attSummary?.late ?? 0}', AppColors.warning),
+                    child: _buildAttendanceStatTile('Late', '${attSummary?.late ?? 0}', AppColors.warningInk),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _buildAttendanceStatTile('Half-Day', '${attSummary?.halfDay ?? 0}', AppColors.info),
+                    child: _buildAttendanceStatTile('Half day', '${attSummary?.halfDay ?? 0}', AppColors.infoInk),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _buildAttendanceStatTile('Absent/Leave', '${attSummary?.absentIncludingLeave ?? 0}', AppColors.danger),
+                    child: _buildAttendanceStatTile('Absent or leave', '${attSummary?.absentIncludingLeave ?? 0}', AppColors.dangerInk),
                   ),
                 ],
               ),
@@ -953,38 +766,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Icon(Icons.beach_access_outlined, size: 18, color: AppColors.primaryInk),
                   const SizedBox(width: 8),
                   Text(
-                    'Leave Overview',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: primaryTextColor,
-                    ),
+                    'Leave',
+                    style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(child: _buildLeaveStatTile('Total Applied', '${leaveSummary?.total ?? 0}', primaryTextColor, secondaryTextColor)),
-                  Expanded(child: _buildLeaveStatTile('Approved', '${leaveSummary?.approved ?? 0}', AppColors.success, secondaryTextColor)),
-                  Expanded(child: _buildLeaveStatTile('Pending', '${leaveSummary?.pending ?? 0}', AppColors.warning, secondaryTextColor)),
-                  Expanded(child: _buildLeaveStatTile('Rejected', '${leaveSummary?.rejected ?? 0}', AppColors.danger, secondaryTextColor)),
+                  Expanded(child: _buildLeaveStatTile('Requested', '${leaveSummary?.total ?? 0}', primaryTextColor, secondaryTextColor)),
+                  Expanded(child: _buildLeaveStatTile('Approved', '${leaveSummary?.approved ?? 0}', AppColors.successInk, secondaryTextColor)),
+                  Expanded(child: _buildLeaveStatTile('Pending', '${leaveSummary?.pending ?? 0}', AppColors.warningInk, secondaryTextColor)),
+                  Expanded(child: _buildLeaveStatTile('Rejected', '${leaveSummary?.rejected ?? 0}', AppColors.dangerInk, secondaryTextColor)),
                 ],
               ),
               if (balance != null) ...[
                 const SizedBox(height: 18),
                 Divider(height: 1, color: borderColor),
                 const SizedBox(height: 14),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  spacing: 12,
+                  runSpacing: 4,
                   children: [
                     Text(
-                      'Leave Quota Utilization',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: secondaryTextColor),
+                      'Leave balance',
+                      style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: secondaryTextColor),
                     ),
                     Text(
                       '${balance.remaining} of ${balance.quota} days left',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: primaryTextColor),
+                      style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                     ),
                   ],
                 ),
@@ -1008,7 +819,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildAttendanceStatTile(String label, String count, Color accentColor) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
       decoration: BoxDecoration(
         color: accentColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
@@ -1016,23 +827,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
       child: Column(
         children: [
-          Text(
-            count,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: accentColor,
-            ),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(count, style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: accentColor)),
           ),
           const SizedBox(height: 4),
           Text(
             label,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: accentColor,
-            ),
+            maxLines: 2,
+            style: AppTypography.label.copyWith(color: accentColor),
           ),
         ],
       ),
@@ -1044,20 +848,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       children: [
         Text(
           value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: valueColor,
-          ),
+          style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: valueColor),
         ),
         const SizedBox(height: 4),
         Text(
           label,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 11,
-            color: secondaryTextColor,
-          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.label.copyWith(color: secondaryTextColor),
         ),
       ],
     );
@@ -1090,13 +889,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         title: 'Profile',
                         showBack: widget.showBackButton && Navigator.canPop(context),
                         padding: EdgeInsets.zero,
-                        actions: [
-                          HeaderAction(icon: Icons.settings_outlined, tooltip: 'Settings', onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                              );
-                            }),
-                        ],
                       ),
                     ],
                   ),
@@ -1114,25 +906,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               else if (_errorMessage != null && _profileUser == null)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 48),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Failed to load profile',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryTextColor),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(_errorMessage!, style: TextStyle(fontSize: 13, color: secondaryTextColor)),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadProfileData,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
+                  child: LoadErrorView(
+                    title: "Couldn't load your profile",
+                    message: _errorMessage!,
+                    onRetry: _loadProfileData,
                   ),
                 )
               else
@@ -1145,12 +922,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         // Shared Header Card
                         _buildHeaderCard(cardBg, borderColor, primaryTextColor, secondaryTextColor),
                         const SizedBox(height: 20),
-
-                        // Intern Metrics Bar (if intern)
-                        if (_isIntern) ...[
-                          _buildInternMetricsBar(cardBg, borderColor, primaryTextColor, secondaryTextColor),
-                          const SizedBox(height: 20),
-                        ],
 
                         // Main Layout: Two Column on wider screens, stacked on mobile
                         LayoutBuilder(

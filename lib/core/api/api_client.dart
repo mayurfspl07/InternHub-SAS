@@ -1,6 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'api_config.dart';
 import 'api_exception.dart';
@@ -90,19 +91,32 @@ class ApiClient {
     );
   }
 
+  // Without a limit a request on a dead connection hangs and the screen spins forever.
+  static const _timeout = Duration(seconds: 30);
+  static const _uploadTimeout = Duration(minutes: 2);
+  static const _timeoutMessage = 'The server took too long to respond. Check your connection and try again.';
+
+  /// Anything that isn't an HTTP or network error (e.g. a malformed response): log the detail, show a plain message.
+  static ApiException _unexpected(Object error) {
+    debugPrint('Unexpected API client error: $error');
+    return ApiException(statusCode: 500, message: 'Something went wrong. Please try again.');
+  }
+
   Future<dynamic> get(String path, {Map<String, dynamic>? queryParameters}) async {
     try {
       final uri = _buildUri(path, queryParameters);
       final headers = await _buildHeaders();
-      final response = await _client.get(uri, headers: headers);
+      final response = await _client.get(uri, headers: headers).timeout(_timeout);
       return _handleResponse(response);
     } on SocketException {
       throw ApiException.networkError();
     } on http.ClientException {
       throw ApiException.networkError();
+    } on TimeoutException {
+      throw ApiException.networkError(_timeoutMessage);
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(statusCode: 500, message: e.toString());
+      throw _unexpected(e);
     }
   }
 
@@ -111,15 +125,17 @@ class ApiClient {
       final uri = _buildUri(path, queryParameters);
       final headers = await _buildHeaders();
       final payload = body != null ? (body is String ? body : jsonEncode(body)) : null;
-      final response = await _client.post(uri, headers: headers, body: payload);
+      final response = await _client.post(uri, headers: headers, body: payload).timeout(_timeout);
       return _handleResponse(response);
     } on SocketException {
       throw ApiException.networkError();
     } on http.ClientException {
       throw ApiException.networkError();
+    } on TimeoutException {
+      throw ApiException.networkError(_timeoutMessage);
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(statusCode: 500, message: e.toString());
+      throw _unexpected(e);
     }
   }
 
@@ -128,15 +144,17 @@ class ApiClient {
       final uri = _buildUri(path, queryParameters);
       final headers = await _buildHeaders();
       final payload = body != null ? (body is String ? body : jsonEncode(body)) : null;
-      final response = await _client.put(uri, headers: headers, body: payload);
+      final response = await _client.put(uri, headers: headers, body: payload).timeout(_timeout);
       return _handleResponse(response);
     } on SocketException {
       throw ApiException.networkError();
     } on http.ClientException {
       throw ApiException.networkError();
+    } on TimeoutException {
+      throw ApiException.networkError(_timeoutMessage);
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(statusCode: 500, message: e.toString());
+      throw _unexpected(e);
     }
   }
 
@@ -145,15 +163,17 @@ class ApiClient {
       final uri = _buildUri(path, queryParameters);
       final headers = await _buildHeaders();
       final payload = body != null ? (body is String ? body : jsonEncode(body)) : null;
-      final response = await _client.patch(uri, headers: headers, body: payload);
+      final response = await _client.patch(uri, headers: headers, body: payload).timeout(_timeout);
       return _handleResponse(response);
     } on SocketException {
       throw ApiException.networkError();
     } on http.ClientException {
       throw ApiException.networkError();
+    } on TimeoutException {
+      throw ApiException.networkError(_timeoutMessage);
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(statusCode: 500, message: e.toString());
+      throw _unexpected(e);
     }
   }
 
@@ -162,15 +182,17 @@ class ApiClient {
       final uri = _buildUri(path, queryParameters);
       final headers = await _buildHeaders();
       final payload = body != null ? (body is String ? body : jsonEncode(body)) : null;
-      final response = await _client.delete(uri, headers: headers, body: payload);
+      final response = await _client.delete(uri, headers: headers, body: payload).timeout(_timeout);
       return _handleResponse(response);
     } on SocketException {
       throw ApiException.networkError();
     } on http.ClientException {
       throw ApiException.networkError();
+    } on TimeoutException {
+      throw ApiException.networkError(_timeoutMessage);
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(statusCode: 500, message: e.toString());
+      throw _unexpected(e);
     }
   }
 
@@ -178,7 +200,7 @@ class ApiClient {
     try {
       final uri = _buildUri(path, queryParameters);
       final headers = await _buildHeaders(isJson: false);
-      final response = await _client.get(uri, headers: headers);
+      final response = await _client.get(uri, headers: headers).timeout(_timeout);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return response.bodyBytes;
       }
@@ -190,9 +212,11 @@ class ApiClient {
       throw ApiException.networkError();
     } on http.ClientException {
       throw ApiException.networkError();
+    } on TimeoutException {
+      throw ApiException.networkError(_timeoutMessage);
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(statusCode: 500, message: e.toString());
+      throw _unexpected(e);
     }
   }
 
@@ -217,16 +241,18 @@ class ApiClient {
         request.files.addAll(files);
       }
 
-      final streamedResponse = await _client.send(request);
+      final streamedResponse = await _client.send(request).timeout(_uploadTimeout);
       final response = await http.Response.fromStream(streamedResponse);
       return _handleResponse(response);
     } on SocketException {
       throw ApiException.networkError();
     } on http.ClientException {
       throw ApiException.networkError();
+    } on TimeoutException {
+      throw ApiException.networkError(_timeoutMessage);
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(statusCode: 500, message: e.toString());
+      throw _unexpected(e);
     }
   }
 }

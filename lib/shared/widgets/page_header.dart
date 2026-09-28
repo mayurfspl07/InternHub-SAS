@@ -29,7 +29,7 @@ class PageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canPop = showBack ?? (onBack != null || (ModalRoute.of(context)?.canPop ?? false));
-    const slot = 42.0;
+    const slot = 44.0;
     final actionWidth = actions.isEmpty ? slot : actions.length * slot + (actions.length - 1) * 8;
     final sideWidth = actionWidth > slot ? actionWidth : slot;
 
@@ -45,6 +45,7 @@ class PageHeader extends StatelessWidget {
                   ? CircularIconButton(
                       icon: Icons.arrow_back_ios_new_rounded,
                       iconSize: 18,
+                      tooltip: 'Back',
                       onTap: onBack ?? () => Navigator.maybePop(context),
                     )
                   : null,
@@ -95,18 +96,18 @@ class PageHeader extends StatelessWidget {
 }
 
 /// Round white action for [PageHeader] / [pageAppBar] (refresh, export, "more").
+/// [tooltip] is required: it names the icon for long-press and screen readers.
 class HeaderAction extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
-  final String? tooltip;
+  final String tooltip;
   final Color? color;
 
-  const HeaderAction({super.key, required this.icon, this.onTap, this.tooltip, this.color});
+  const HeaderAction({super.key, required this.icon, required this.tooltip, this.onTap, this.color});
 
   @override
   Widget build(BuildContext context) {
-    final button = CircularIconButton(icon: icon, onTap: onTap, iconSize: 19, iconColor: color ?? AppColors.ink);
-    return tooltip == null ? button : Tooltip(message: tooltip!, child: button);
+    return CircularIconButton(icon: icon, onTap: onTap, iconSize: 19, iconColor: color ?? AppColors.ink, tooltip: tooltip);
   }
 }
 
@@ -134,6 +135,7 @@ PreferredSizeWidget pageAppBar(
               child: CircularIconButton(
                 icon: Icons.arrow_back_ios_new_rounded,
                 iconSize: 18,
+                tooltip: 'Back',
                 onTap: onBack ?? () => Navigator.maybePop(context),
               ),
             ),

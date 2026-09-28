@@ -14,6 +14,11 @@ import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/custom_text_field.dart';
 import '../../shared/widgets/user_360_profile_dialog.dart';
 import '../../shared/widgets/reference_components.dart';
+import '../../core/constants/app_typography.dart';
+import '../../core/utils/formatters.dart';
+import '../../shared/widgets/app_avatar.dart';
+import '../../shared/widgets/status_chip.dart';
+import '../../shared/widgets/pagination_bar.dart';
 
 class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
@@ -102,16 +107,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       initialDate: initial,
       firstDate: DateTime(1990),
       lastDate: today,
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-                  colorScheme: const ColorScheme.light(
-                    primary: AppColors.primary,
-                  ),
-                ),
-          child: child!,
-        );
-      },
     );
 
     if (picked != null) {
@@ -121,13 +116,13 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
   String? _validateFullName(String name) {
     if (name.isEmpty) {
-      return 'Full name is required';
+      return 'Enter a full name';
     }
     if (name.length < 2) {
-      return 'Full name must be at least 2 characters';
+      return 'Use at least 2 characters';
     }
     if (name.length > 100) {
-      return 'Full name must be at most 100 characters';
+      return 'Use 100 characters or fewer';
     }
     // Letters (incl. Unicode), spaces, - ' . only
     final hasInvalid = name.split('').any((char) {
@@ -138,20 +133,20 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       return !isAsciiLetter && !isUnicodeLetter;
     });
     if (hasInvalid) {
-      return "Full name can only contain letters, spaces, and - ' .";
+      return "Use letters, spaces, and - ' . only";
     }
     return null;
   }
 
   String? _validateEmail(String email) {
     if (email.isEmpty) {
-      return 'Email is required';
+      return 'Enter an email';
     }
     if (email.length > 254) {
       return 'Email must be at most 254 characters';
     }
     if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email)) {
-      return 'Please enter a valid email address';
+      return 'Enter a valid email';
     }
     return null;
   }
@@ -175,17 +170,17 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
   String? _validatePhone(String phone) {
     if (phone.isEmpty) {
-      return 'Phone number is required';
+      return 'Enter a mobile number';
     }
     if (_extractNationalPhoneDigits(phone) == null) {
-      return 'Invalid phone number';
+      return 'Enter a valid 10-digit mobile number';
     }
     return null;
   }
 
   String? _validateJobTitle(String title) {
     if (title.isEmpty) {
-      return 'Job title is required';
+      return 'Enter a job title';
     }
     if (title.length > 100) {
       return 'Job title must be at most 100 characters';
@@ -198,7 +193,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
   String? _validateDepartment(String dept) {
     if (dept.isEmpty) {
-      return 'Department is required';
+      return 'Enter a department';
     }
     if (dept.length > 100) {
       return 'Department must be at most 100 characters';
@@ -215,26 +210,26 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     }
     final trimmed = dateStr.trim();
     if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(trimmed)) {
-      return 'Please enter a valid date';
+      return 'Pick a valid date';
     }
     DateTime? parsed;
     try {
       parsed = DateTime.parse(trimmed);
     } catch (_) {
-      return 'Please enter a valid date';
+      return 'Pick a valid date';
     }
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final inputDate = DateTime(parsed.year, parsed.month, parsed.day);
     if (inputDate.isAfter(today)) {
-      return 'Joining date cannot be in the future';
+      return "Joining date can't be in the future";
     }
     return null;
   }
 
   String? _validatePassword(String password) {
     if (password.isEmpty) {
-      return 'Password is required';
+      return 'Enter a password';
     }
     if (password.length < 8) {
       return 'Password must be at least 8 characters';
@@ -250,10 +245,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
   String? _validateConfirmPassword(String confirmPassword, String password) {
     if (confirmPassword.isEmpty) {
-      return 'Please confirm your password';
+      return 'Re-enter the password';
     }
     if (confirmPassword != password) {
-      return 'Passwords do not match';
+      return "Passwords don't match";
     }
     return null;
   }
@@ -272,6 +267,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     String? selectedMentorId;
     List<UserModel> mentors = [];
     bool isLoadingMentors = false;
+    bool mentorsRequested = false;
     bool obscurePassword = true;
     bool obscureConfirm = true;
     bool isCreating = false;
@@ -304,13 +300,21 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
           // Fetch mentors list via GET /api/admin/users?page=1&page_size=20&role=mentor
           void loadMentorsIfNeeded() async {
-            if (mentors.isEmpty && !isLoadingMentors && selectedRole == UserRole.intern && !isMentorActor) {
+            if (!mentorsRequested && selectedRole == UserRole.intern && !isMentorActor) {
+              mentorsRequested = true;
               setModalState(() => isLoadingMentors = true);
-              final fetched = await ref.read(appStateProvider.notifier).fetchMentorsForPicker(pageSize: 20);
-              setModalState(() {
-                mentors = fetched;
-                isLoadingMentors = false;
-              });
+              List<UserModel> fetched = const [];
+              try {
+                fetched = await ref.read(appStateProvider.notifier).fetchMentorsForPicker(pageSize: 20);
+              } catch (_) {
+                // The picker just offers "No mentor"; the admin can assign one later.
+              }
+              if (ctx.mounted) {
+                setModalState(() {
+                  mentors = fetched;
+                  isLoadingMentors = false;
+                });
+              }
             }
           }
 
@@ -326,9 +330,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               top: 16,
               bottom: MediaQuery.of(context).viewInsets.bottom + 24,
             ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -342,7 +346,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       height: 4,
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
-                        color: Colors.black12,
+                        color: AppColors.border,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -350,19 +354,17 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Header
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Create New User',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.ink,
+                      Expanded(
+                        child: Text(
+                          'New user',
+                          style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                         ),
                       ),
                       IconButton(
+                        tooltip: 'Close',
                         icon: const Icon(Icons.close_rounded),
-                        onPressed: () => Navigator.pop(ctx),
+                        onPressed: isCreating ? null : () => Navigator.pop(ctx),
                         color: AppColors.textSecondary,
                       ),
                     ],
@@ -374,18 +376,17 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.danger.withValues(alpha: 0.12),
+                        color: AppColors.dangerSoft,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 20),
+                          const Icon(Icons.error_outline_rounded, color: AppColors.dangerInk, size: 20),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               apiError!,
-                              style: const TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w500),
+                              style: AppTypography.caption.copyWith(color: AppColors.dangerInk),
                             ),
                           ),
                         ],
@@ -396,7 +397,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Full Name (required)
                   CustomTextField(
-                    label: 'Full Name *',
+                    label: 'Full name',
                     hintText: 'e.g. Asha Patel',
                     controller: nameController,
                     errorText: nameError,
@@ -411,7 +412,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Email (required)
                   CustomTextField(
-                    label: 'Email Address *',
+                    label: 'Email',
                     hintText: 'asha.patel@example.com',
                     controller: emailController,
                     errorText: emailError,
@@ -427,8 +428,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Initial Password (required)
                   CustomTextField(
-                    label: 'Initial Password *',
-                    hintText: 'Min 8 chars',
+                    label: 'Password',
+                    hintText: 'At least 8 characters, with a number',
                     controller: passwordController,
                     errorText: passwordError,
                     obscureText: obscurePassword,
@@ -442,6 +443,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       });
                     },
                     suffixIcon: IconButton(
+                      tooltip: obscurePassword ? 'Show password' : 'Hide password',
                       icon: Icon(
                         obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                         size: 20,
@@ -454,7 +456,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Confirm Password (FE-only check)
                   CustomTextField(
-                    label: 'Confirm Password *',
+                    label: 'Confirm password',
                     hintText: 'Re-enter password',
                     controller: confirmPasswordController,
                     errorText: confirmPasswordError,
@@ -466,6 +468,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       });
                     },
                     suffixIcon: IconButton(
+                      tooltip: obscureConfirm ? 'Show password' : 'Hide password',
                       icon: Icon(
                         obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                         size: 20,
@@ -478,12 +481,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Role
                   Text(
-                    'Assigned Role *',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink,
-                    ),
+                    'Role',
+                    style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<UserRole>(
@@ -501,12 +500,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       return DropdownMenuItem(
                         value: r,
                         child: Text(
-                          r.toApiValue().toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.ink,
-                          ),
+                          r.label,
+                          style: AppTypography.bodyStrong.copyWith(color: AppColors.ink),
                         ),
                       );
                     }).toList(),
@@ -531,12 +526,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Assign Mentor (Optional)',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
-                          ),
+                          'Mentor (optional)',
+                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                         ),
                         if (isLoadingMentors)
                           const SizedBox(
@@ -550,7 +541,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     DropdownButtonFormField<String?>(
                       initialValue: selectedMentorId,
                       decoration: InputDecoration(
-                        hintText: isLoadingMentors ? 'Loading mentors...' : 'Select Mentor (or None)',
+                        hintText: isLoadingMentors ? 'Loading mentors…' : 'Choose a mentor',
                         filled: true,
                         fillColor: AppColors.surfaceMuted,
                         border: OutlineInputBorder(
@@ -562,7 +553,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       items: [
                         const DropdownMenuItem<String?>(
                           value: null,
-                          child: Text('None (Unassigned)'),
+                          child: Text('No mentor'),
                         ),
                         ...mentors.map((m) {
                           return DropdownMenuItem<String?>(
@@ -588,7 +579,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Phone (Required)
                   CustomTextField(
-                    label: 'Phone *',
+                    label: 'Mobile number',
                     hintText: '9876543210',
                     controller: phoneController,
                     errorText: phoneError,
@@ -604,7 +595,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Department (Required - forbids <>_+-=)
                   CustomTextField(
-                    label: 'Department *',
+                    label: 'Department',
                     hintText: 'e.g. Engineering',
                     controller: deptController,
                     errorText: deptError,
@@ -620,7 +611,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Job Title (Required - forbids <>_+-=)
                   CustomTextField(
-                    label: 'Job Title *',
+                    label: 'Job title',
                     hintText: 'e.g. Frontend Intern',
                     controller: titleController,
                     errorText: titleError,
@@ -636,14 +627,15 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Joining Date (Optional - YYYY-MM-DD)
                   CustomTextField(
-                    label: 'Joining Date (Optional)',
-                    hintText: 'YYYY-MM-DD (e.g. 2026-09-01)',
+                    label: 'Joining date (optional)',
+                    hintText: 'Pick a date',
                     controller: joiningDateController,
                     errorText: dateError,
                     readOnly: true,
                     prefixIcon: Icons.calendar_month_outlined,
                     suffixIcon: joiningDateController.text.isNotEmpty
                         ? IconButton(
+                            tooltip: 'Clear date',
                             icon: const Icon(Icons.clear, size: 18),
                             onPressed: () => setModalState(() {
                               joiningDateController.clear();
@@ -662,7 +654,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Create Button
                   CustomButton(
-                    text: 'Create User',
+                    text: 'Create user',
                     isLoading: isCreating,
                     onPressed: () async {
                       final name = nameController.text.trim();
@@ -750,10 +742,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         await ref.read(appStateProvider.notifier).createUser(payload);
                         nav.pop();
                         scaffoldMessenger.showSnackBar(
-                          SnackBar(
-                            content: Text('User $name created successfully'),
-                            backgroundColor: AppColors.success,
-                          ),
+                          SnackBar(content: Text('$name added')),
                         );
                         if (mounted) {
                           _loadUsers(page: 1);
@@ -780,6 +769,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     final emailController = TextEditingController();
     final isMentorActor = ref.read(appStateProvider).currentUser.role == UserRole.mentor;
     UserRole role = UserRole.intern;
+    final terms = InternTerms();
     String? error;
     bool saving = false;
 
@@ -788,19 +778,21 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlg) => AlertDialog(
           title: const Text('Add existing account'),
+          scrollable: true,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Adds someone who already has an InternHub account (for example a public sign-up) to your organization.',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 14),
               TextField(
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'E-mail'),
+                autocorrect: false,
+                decoration: const InputDecoration(labelText: 'Email'),
               ),
               if (!isMentorActor) ...[
                 const SizedBox(height: 12),
@@ -813,21 +805,29 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   onChanged: (v) => setDlg(() => role = v ?? role),
                 ),
               ],
+              if (role == UserRole.intern) ...[
+                const SizedBox(height: 12),
+                InternTermsSection(terms: terms),
+              ],
               if (error != null) ...[
                 const SizedBox(height: 12),
-                Text(error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                Text(error!, style: AppTypography.caption.copyWith(color: AppColors.dangerInk)),
               ],
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(onPressed: saving ? null : () => Navigator.pop(ctx), child: const Text('Cancel')),
             ElevatedButton(
               onPressed: saving
                   ? null
                   : () async {
                       final email = emailController.text.trim().toLowerCase();
                       if (!email.contains('@')) {
-                        setDlg(() => error = 'Enter the account\'s e-mail address.');
+                        setDlg(() => error = "Enter the account's email.");
+                        return;
+                      }
+                      if (role == UserRole.intern && terms.problem != null) {
+                        setDlg(() => error = terms.problem);
                         return;
                       }
                       setDlg(() {
@@ -837,22 +837,30 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       final nav = Navigator.of(ctx);
                       final messenger = ScaffoldMessenger.of(context);
                       try {
+                        // The server ignores `name` for an existing account; it is only a required key.
                         await ref.read(appStateProvider.notifier).addOrganizationMember({
-                          'name': email,
+                          'name': '',
                           'email': email,
                           'role': role.toApiValue(),
+                          if (role == UserRole.intern) ...terms.toPayload(),
                         });
                         nav.pop();
                         messenger.showSnackBar(SnackBar(content: Text('$email added to your organization')));
                         _loadUsers(page: 1);
                       } catch (e) {
+                        final message = apiErrorMessage(e);
                         setDlg(() {
                           saving = false;
-                          error = apiErrorMessage(e);
+                          // No account with that email: the server asks for a password to create one.
+                          error = message.toLowerCase().contains('password is required')
+                              ? 'No InternHub account uses that email. Use "New user" to create one.'
+                              : message;
                         });
                       }
                     },
-              child: const Text('Add'),
+              child: saving
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Add'),
             ),
           ],
         ),
@@ -871,6 +879,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     String? selectedMentorId = user.mentorId;
     List<UserModel> mentors = [];
     bool isLoadingMentors = false;
+    bool mentorsRequested = false;
     bool isSaving = false;
     UserRole selectedRole = user.role;
     final terms = InternTerms(
@@ -897,13 +906,21 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
           // Fetch mentors list via GET /api/admin/users?page=1&page_size=20&role=mentor
           void loadMentorsIfNeeded() async {
-            if (mentors.isEmpty && !isLoadingMentors && user.role == UserRole.intern) {
+            if (!mentorsRequested && selectedRole == UserRole.intern) {
+              mentorsRequested = true;
               setModalState(() => isLoadingMentors = true);
-              final fetched = await ref.read(appStateProvider.notifier).fetchMentorsForPicker(pageSize: 20);
-              setModalState(() {
-                mentors = fetched;
-                isLoadingMentors = false;
-              });
+              List<UserModel> fetched = const [];
+              try {
+                fetched = await ref.read(appStateProvider.notifier).fetchMentorsForPicker(pageSize: 20);
+              } catch (_) {
+                // Keep the current mentor selectable even if the list fails.
+              }
+              if (ctx.mounted) {
+                setModalState(() {
+                  mentors = fetched;
+                  isLoadingMentors = false;
+                });
+              }
             }
           }
 
@@ -919,9 +936,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               top: 16,
               bottom: MediaQuery.of(context).viewInsets.bottom + 24,
             ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -935,7 +952,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       height: 4,
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
-                        color: Colors.black12,
+                        color: AppColors.border,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -943,32 +960,25 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Header
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Edit User',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.ink,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Edit ${user.name}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                             ),
-                          ),
-                          Text(
-                            user.role.toApiValue().toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primaryInk,
-                            ),
-                          ),
-                        ],
+                            Text(user.role.label, style: AppTypography.caption.copyWith(color: AppColors.primaryInk)),
+                          ],
+                        ),
                       ),
                       IconButton(
+                        tooltip: 'Close',
                         icon: const Icon(Icons.close_rounded),
-                        onPressed: () => Navigator.pop(ctx),
+                        onPressed: isSaving ? null : () => Navigator.pop(ctx),
                         color: AppColors.textSecondary,
                       ),
                     ],
@@ -980,18 +990,17 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.danger.withValues(alpha: 0.12),
+                        color: AppColors.dangerSoft,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 20),
+                          const Icon(Icons.error_outline_rounded, color: AppColors.dangerInk, size: 20),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               apiError!,
-                              style: const TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w500),
+                              style: AppTypography.caption.copyWith(color: AppColors.dangerInk),
                             ),
                           ),
                         ],
@@ -1002,7 +1011,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Full Name (required)
                   CustomTextField(
-                    label: 'Full Name *',
+                    label: 'Full name',
                     hintText: 'e.g. Asha Patel',
                     controller: nameController,
                     errorText: nameError,
@@ -1017,7 +1026,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Email (required)
                   CustomTextField(
-                    label: 'Email Address *',
+                    label: 'Email',
                     hintText: 'asha.patel@example.com',
                     controller: emailController,
                     errorText: emailError,
@@ -1032,17 +1041,13 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   const SizedBox(height: 12),
 
                   // Mentor Picker (Only for intern)
-                  if (user.role == UserRole.intern) ...[
+                  if (selectedRole == UserRole.intern) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Assign Mentor (Optional)',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
-                          ),
+                          'Mentor (optional)',
+                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                         ),
                         if (isLoadingMentors)
                           const SizedBox(
@@ -1056,7 +1061,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     DropdownButtonFormField<String?>(
                       initialValue: selectedMentorId,
                       decoration: InputDecoration(
-                        hintText: isLoadingMentors ? 'Loading mentors...' : 'Select Mentor (or None)',
+                        hintText: isLoadingMentors ? 'Loading mentors…' : 'Choose a mentor',
                         filled: true,
                         fillColor: AppColors.surfaceMuted,
                         border: OutlineInputBorder(
@@ -1068,7 +1073,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       items: [
                         const DropdownMenuItem<String?>(
                           value: null,
-                          child: Text('None (Unassigned)'),
+                          child: Text('No mentor'),
                         ),
                         ...mentors.map((m) {
                           return DropdownMenuItem<String?>(
@@ -1079,6 +1084,11 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             ),
                           );
                         }),
+                        if (selectedMentorId != null && !mentors.any((m) => m.id == selectedMentorId))
+                          DropdownMenuItem<String?>(
+                            value: selectedMentorId,
+                            child: Text(user.mentorName ?? 'Current mentor', overflow: TextOverflow.ellipsis),
+                          ),
                       ],
                       onChanged: (val) {
                         setModalState(() => selectedMentorId = val);
@@ -1089,7 +1099,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Role (admins only, never their own account)
                   if (ref.read(appStateProvider).currentUser.isAdmin && ref.read(appStateProvider).currentUser.id != user.id) ...[
-                    const Text('Role', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.ink)),
+                    Text('Role', style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink)),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<UserRole>(
                       initialValue: selectedRole == UserRole.superadmin ? UserRole.admin : selectedRole,
@@ -1107,14 +1117,14 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     const SizedBox(height: 12),
                   ],
 
-                  if (user.role == UserRole.intern) ...[
+                  if (selectedRole == UserRole.intern) ...[
                     InternTermsSection(terms: terms),
                     const SizedBox(height: 12),
                   ],
 
                   // Phone (Required)
                   CustomTextField(
-                    label: 'Phone *',
+                    label: 'Mobile number',
                     hintText: '9876543210',
                     controller: phoneController,
                     errorText: phoneError,
@@ -1130,7 +1140,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Department (Required - forbids <>_+-=)
                   CustomTextField(
-                    label: 'Department *',
+                    label: 'Department',
                     hintText: 'e.g. Engineering',
                     controller: deptController,
                     errorText: deptError,
@@ -1146,7 +1156,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Job Title (Required - forbids <>_+-=)
                   CustomTextField(
-                    label: 'Job Title *',
+                    label: 'Job title',
                     hintText: 'e.g. Frontend Intern',
                     controller: titleController,
                     errorText: titleError,
@@ -1162,14 +1172,15 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Joining Date (Optional - YYYY-MM-DD)
                   CustomTextField(
-                    label: 'Joining Date (Optional)',
-                    hintText: 'YYYY-MM-DD (e.g. 2026-09-01)',
+                    label: 'Joining date (optional)',
+                    hintText: 'Pick a date',
                     controller: joiningDateController,
                     errorText: dateError,
                     readOnly: true,
                     prefixIcon: Icons.calendar_month_outlined,
                     suffixIcon: joiningDateController.text.isNotEmpty
                         ? IconButton(
+                            tooltip: 'Clear date',
                             icon: const Icon(Icons.clear, size: 18),
                             onPressed: () => setModalState(() {
                               joiningDateController.clear();
@@ -1188,7 +1199,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                   // Save Changes Button (PUT /api/admin/users/{id} - No password)
                   CustomButton(
-                    text: 'Save Changes',
+                    text: 'Save changes',
                     isLoading: isSaving,
                     onPressed: () async {
                       final name = nameController.text.trim();
@@ -1226,12 +1237,21 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         return;
                       }
 
-                      if (user.role == UserRole.intern && terms.problem != null) {
+                      if (selectedRole == UserRole.intern && terms.problem != null) {
                         setModalState(() => apiError = terms.problem);
                         return;
                       }
 
                       final nationalPhoneDigits = _extractNationalPhoneDigits(phone)!;
+
+                      if (selectedRole == UserRole.admin && user.role != UserRole.admin && user.role != UserRole.superadmin) {
+                        final ok = await _confirm(
+                          title: 'Make ${user.name} an admin?',
+                          body: 'Admins can manage every user, project and setting in your organization.',
+                          action: 'Make admin',
+                        );
+                        if (!ok || !ctx.mounted || !context.mounted) return;
+                      }
 
                       setModalState(() {
                         isSaving = true;
@@ -1249,25 +1269,23 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           'job_title': title,
                           'department': dept,
                           'joining_date': joiningDate.isNotEmpty ? joiningDate : null,
-                          if (user.role == UserRole.intern) ...terms.toPayload(),
+                          if (selectedRole == UserRole.intern) ...terms.toPayload(),
                         };
 
-                        if (user.role == UserRole.intern) {
+                        if (selectedRole == UserRole.intern) {
                           payload['mentor_id'] = selectedMentorId != null
                               ? int.tryParse(selectedMentorId!) ?? selectedMentorId
                               : null;
                         }
 
-                        await ref.read(appStateProvider.notifier).updateUser(user.id, payload);
+                        // Role first: the server only accepts intern terms (duration, stipend) for an intern.
                         if (selectedRole != user.role && !(user.role == UserRole.superadmin && selectedRole == UserRole.admin)) {
                           await ref.read(appStateProvider.notifier).changeUserRole(user.id, selectedRole);
                         }
+                        await ref.read(appStateProvider.notifier).updateUser(user.id, payload);
                         nav.pop();
                         scaffoldMessenger.showSnackBar(
-                          SnackBar(
-                            content: Text('User $name updated successfully'),
-                            backgroundColor: AppColors.success,
-                          ),
+                          SnackBar(content: Text('$name updated')),
                         );
                         if (mounted) {
                           _loadUsers();
@@ -1289,67 +1307,202 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     );
   }
 
-  void _confirmDeleteUser(UserModel user) {
-    showDialog(
+  Future<bool> _confirm({required String title, required String body, required String action, bool destructive = false}) async {
+    final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(
-          'Delete User',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Text('Are you sure you want to delete ${user.name}? This user will be moved to the Recycle Bin.'),
+        title: Text(title),
+        content: Text(body),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final scaffoldMessenger = ScaffoldMessenger.of(context);
-              try {
-                await ref.read(appStateProvider.notifier).deleteUser(user.id);
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(
-                    content: Text('${user.name} moved to Recycle Bin'),
-                    backgroundColor: AppColors.danger,
-                  ),
-                );
-              } catch (e) {
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(
-                    content: Text('Failed to delete: $e'),
-                    backgroundColor: AppColors.danger,
-                  ),
-                );
-              }
-            },
-            child: const Text('Delete', style: TextStyle(color: AppColors.danger)),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: destructive
+                ? ElevatedButton.styleFrom(backgroundColor: AppColors.danger, foregroundColor: AppColors.surface)
+                : null,
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(action),
           ),
         ],
       ),
     );
+    return ok == true;
+  }
+
+  Future<void> _confirmDeleteUser(UserModel user) async {
+    final ok = await _confirm(
+      title: 'Delete ${user.name}?',
+      body: 'They lose access right away. You can restore them from the recycle bin.',
+      action: 'Delete',
+      destructive: true,
+    );
+    if (!ok || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(appStateProvider.notifier).deleteUser(user.id);
+      messenger.showSnackBar(SnackBar(content: Text('${user.name} moved to the recycle bin')));
+      if (mounted) _loadUsers();
+    } catch (e) {
+      if (mounted) showApiError(context, e, prefix: "Couldn't delete ${user.name}");
+    }
   }
 
   Future<void> _toggleUserActive(UserModel user) async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    if (user.isActive) {
+      final ok = await _confirm(
+        title: 'Deactivate ${user.name}?',
+        body: "They won't be able to sign in until you activate them again.",
+        action: 'Deactivate',
+        destructive: true,
+      );
+      if (!ok || !mounted) return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await ref.read(appStateProvider.notifier).toggleUserActive(user.id);
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('${user.name} is now ${user.isActive ? 'deactivated' : 'activated'}'),
-          backgroundColor: user.isActive ? AppColors.warning : AppColors.success,
-          duration: const Duration(seconds: 2),
-        ),
+      messenger.showSnackBar(
+        SnackBar(content: Text(user.isActive ? '${user.name} deactivated' : '${user.name} activated')),
       );
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Failed to toggle active status: $e'),
-          backgroundColor: AppColors.danger,
-        ),
-      );
+      if (mounted) showApiError(context, e, prefix: "Couldn't update ${user.name}");
     }
+  }
+
+  void _showUserActions(UserModel u, {required bool isAdmin, required String currentUserId}) {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.visibility_outlined),
+              title: const Text('View profile'),
+              onTap: () {
+                Navigator.pop(ctx);
+                User360ProfileDialog.show(context, userId: u.id, fallbackUser: u);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Edit'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showEditUserDialog(u);
+              },
+            ),
+            if (u.id != currentUserId)
+              ListTile(
+                leading: Icon(u.isActive ? Icons.block_flipped : Icons.check_circle_outline),
+                title: Text(u.isActive ? 'Deactivate' : 'Activate'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _toggleUserActive(u);
+                },
+              ),
+            if (isAdmin && u.id != currentUserId)
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: AppColors.dangerInk),
+                title: const Text('Delete', style: TextStyle(color: AppColors.dangerInk)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _confirmDeleteUser(u);
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddMenu() {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.person_add_alt_1_outlined),
+              title: const Text('New user'),
+              subtitle: const Text('Create an account with a password'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showCreateUserDialog();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.group_add_outlined),
+              title: const Text('Add existing account'),
+              subtitle: const Text('Someone who already uses InternHub'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showAddExistingDialog();
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _userCard(UserModel u, {required bool isAdmin, required String currentUserId}) {
+    return Container(
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(AppSpacing.rTile), boxShadow: AppShadows.soft),
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.rTile),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppSpacing.rTile),
+          onTap: () => User360ProfileDialog.show(context, userId: u.id, fallbackUser: u),
+          onLongPress: () => _showUserActions(u, isAdmin: isAdmin, currentUserId: currentUserId),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
+            child: Row(
+              children: [
+                AppAvatar(url: u.avatarUrl, fallbackText: u.name, size: 44),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(u.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.bodyStrong),
+                      const SizedBox(height: 2),
+                      Text(
+                        [
+                          if ((u.department ?? '').isNotEmpty) u.department! else u.email,
+                          if ((u.mentorName ?? '').isNotEmpty) 'Mentor: ${u.mentorName}',
+                        ].join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.caption,
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          StatusChip(label: u.role.label, statusType: StatusType.neutral),
+                          if (!u.isActive) StatusChip(label: 'Inactive', statusType: StatusType.warning),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Actions for ${u.name}',
+                  icon: const Icon(Icons.more_vert_rounded),
+                  onPressed: () => _showUserActions(u, isAdmin: isAdmin, currentUserId: currentUserId),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -1378,375 +1531,124 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     } else if (_selectedRoleFilter == 'admin') {
       currentPillIndex = 3;
     }
+    final hasQuery = _searchController.text.trim().isNotEmpty;
+
+    Widget list;
+    if (_isLoading && filtered.isEmpty) {
+      list = const Center(child: CircularProgressIndicator());
+    } else if (state.usersError != null && filtered.isEmpty) {
+      list = LoadErrorView(
+        title: "Couldn't load users",
+        message: state.usersError!,
+        onRetry: () => _loadUsers(page: _currentPage),
+      );
+    } else if (filtered.isEmpty) {
+      list = ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          const SizedBox(height: 80),
+          const Icon(Icons.person_search_outlined, size: 54, color: AppColors.textTertiary),
+          const SizedBox(height: 12),
+          Text(
+            hasQuery ? 'Nobody matches "${_searchController.text.trim()}"' : (isAdmin ? 'No users yet' : 'No interns yet'),
+            textAlign: TextAlign.center,
+            style: AppTypography.cardTitle.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            hasQuery ? 'Try another name or email.' : 'Tap + to add someone.',
+            textAlign: TextAlign.center,
+            style: AppTypography.caption,
+          ),
+        ],
+      );
+    } else {
+      list = ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 4, AppSpacing.p20, 16),
+        itemCount: filtered.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (context, i) => _userCard(filtered[i], isAdmin: isAdmin, currentUserId: currentUser.id),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
-        child: Stack(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 16, AppSpacing.p20, 12),
-                  child: PageHeader(
-                    title: 'User Directory',
-                    subtitle: 'Interns, mentors and admins',
-                    padding: EdgeInsets.zero,
-                    actions: [
-                      HeaderAction(
-                        icon: Icons.search_rounded,
-                        tooltip: 'Search members',
-                        onTap: () {
-                          showModalBottomSheet(
-                            context: context,
-                            showDragHandle: true,
-                            builder: (ctx) => Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  TextField(
-                                    controller: _searchController,
-                                    autofocus: true,
-                                    onChanged: _onSearchChanged,
-                                    decoration: const InputDecoration(
-                                      hintText: 'Search members...',
-                                      prefixIcon: Icon(Icons.search_rounded),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Horizontal Pill Filters (All, Interns, Mentors, Admins)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 4, AppSpacing.p20, 12),
-                  child: PillFilter(
-                    options: filterPillOptions,
-                    selectedIndex: currentPillIndex,
-                    onSelected: (index) {
-                      String newFilter = 'all';
-                      if (index == 1) {
-                        newFilter = 'intern';
-                      } else if (index == 2) {
-                        newFilter = 'mentor';
-                      } else if (index == 3) {
-                        newFilter = 'admin';
-                      }
-                      setState(() {
-                        _selectedRoleFilter = newFilter;
-                        _currentPage = 1;
-                      });
-                      _loadUsers(page: 1);
-                    },
-                  ),
-                ),
-
-                // 2-Column Grid Layout matching Image 1
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _loadUsers,
-                    child: _isLoading && filtered.isEmpty
-                        ? const Center(child: CircularProgressIndicator())
-                        : state.usersError != null && filtered.isEmpty
-                        ? LoadErrorView(
-                            title: "Couldn't load users",
-                            message: state.usersError!,
-                            onRetry: () => _loadUsers(page: _currentPage),
-                          )
-                        : filtered.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.person_search_outlined, size: 54, color: Colors.black26),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      'No users found',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Try adjusting your search or filters',
-                                      style: TextStyle(fontSize: 13, color: AppColors.textTertiary),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : GridView.builder(
-                                padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 6, AppSpacing.p20, 90),
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  crossAxisSpacing: 14,
-                                  mainAxisSpacing: 14,
-                                  childAspectRatio: 0.90,
-                                ),
-                                itemCount: filtered.length,
-                                itemBuilder: (context, i) {
-                                  final u = filtered[i];
-
-                                  return GestureDetector(
-                                    onLongPress: () {
-                                      showModalBottomSheet(
-                                        context: context,
-                                        backgroundColor: Colors.white,
-                                        shape: const RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                                        ),
-                                        builder: (ctx) => SafeArea(
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(vertical: 16),
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                ListTile(
-                                                  leading: const Icon(Icons.visibility_outlined),
-                                                  title: const Text('View 360° Profile'),
-                                                  onTap: () {
-                                                    Navigator.pop(ctx);
-                                                    User360ProfileDialog.show(context, userId: u.id, fallbackUser: u);
-                                                  },
-                                                ),
-                                                ListTile(
-                                                  leading: const Icon(Icons.edit_outlined),
-                                                  title: const Text('Edit User'),
-                                                  onTap: () {
-                                                    Navigator.pop(ctx);
-                                                    _showEditUserDialog(u);
-                                                  },
-                                                ),
-                                                ListTile(
-                                                  leading: Icon(u.isActive ? Icons.block_flipped : Icons.check_circle_outline),
-                                                  title: Text(u.isActive ? 'Deactivate User' : 'Activate User'),
-                                                  onTap: () {
-                                                    Navigator.pop(ctx);
-                                                    _toggleUserActive(u);
-                                                  },
-                                                ),
-                                                if (isAdmin && u.id != currentUser.id)
-                                                  ListTile(
-                                                    leading: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
-                                                    title: const Text('Delete User', style: TextStyle(color: AppColors.danger)),
-                                                    onTap: () {
-                                                      Navigator.pop(ctx);
-                                                      _confirmDeleteUser(u);
-                                                    },
-                                                  ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    child: GridFeatureCard(
-                                      title: u.name,
-                                      subtitle: (u.department ?? '').isNotEmpty ? u.department : u.email,
-                                      metricValue: u.role.label,
-                                      metricLabel: [
-                                        u.isActive ? 'Active' : 'Inactive',
-                                        if ((u.mentorName ?? '').isNotEmpty) 'Mentor: ${u.mentorName}',
-                                      ].join(' · '),
-                                      avatarUrl: u.avatarUrl,
-                                      initials: u.name.isNotEmpty ? u.name[0].toUpperCase() : '?',
-                                      isFeaturedYellow: false,
-                                      onTap: () => User360ProfileDialog.show(context, userId: u.id, fallbackUser: u),
-                                    ),
-                                  );
-                                },
-                              ),
-                  ),
-                ),
-              ],
-            ),
-
-            // Floating Mini Action Capsule matching Screen 1 bottom floating dock
-            Positioned(
-              bottom: 20,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Wrap(
-                  spacing: 10,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: _showAddExistingDialog,
-                      icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
-                      label: const Text('Add existing'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.surface,
-                        foregroundColor: AppColors.ink,
-                        elevation: 2,
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _showCreateUserDialog,
-                      icon: const Icon(Icons.add_rounded, size: 18),
-                      label: const Text('New user'),
-                      style: ElevatedButton.styleFrom(elevation: 2),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            top: BorderSide(
-              color: AppColors.border,
-              width: 1,
-            ),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, -3),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Page info
-              Text(
-                'Page $_currentPage of $_totalPages${_totalUsers > 0 ? ' ($_totalUsers total)' : ''}',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.ink,
-                ),
-              ),
-
-              // Navigation controls
-              Row(
-                children: [
-                  // Previous button
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      side: BorderSide(
-                        color: _currentPage > 1 && !_isLoading
-                            ? AppColors.border
-                            : Colors.transparent,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: _currentPage > 1 && !_isLoading
-                        ? () => _loadUsers(page: _currentPage - 1)
-                        : null,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.chevron_left_rounded,
-                          size: 18,
-                          color: _currentPage > 1 && !_isLoading
-                              ? AppColors.ink
-                              : Colors.black26,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          'Prev',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: _currentPage > 1 && !_isLoading
-                                ? AppColors.ink
-                                : Colors.black26,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Current Page Badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '$_currentPage',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.onPrimary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Next button
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      side: BorderSide(
-                        color: _currentPage < _totalPages && !_isLoading
-                            ? AppColors.border
-                            : Colors.transparent,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: _currentPage < _totalPages && !_isLoading
-                        ? () => _loadUsers(page: _currentPage + 1)
-                        : null,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Next',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: _currentPage < _totalPages && !_isLoading
-                                ? AppColors.ink
-                                : Colors.black26,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          size: 18,
-                          color: _currentPage < _totalPages && !_isLoading
-                              ? AppColors.ink
-                              : Colors.black26,
-                        ),
-                      ],
-                    ),
-                  ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 16, AppSpacing.p20, 12),
+              child: PageHeader(
+                title: isAdmin ? 'Users' : 'My interns',
+                subtitle: _totalUsers > 0 ? plural(_totalUsers, isAdmin ? 'person' : 'intern', isAdmin ? 'people' : null) : null,
+                padding: EdgeInsets.zero,
+                actions: [
+                  HeaderAction(icon: Icons.add_rounded, tooltip: 'Add user', onTap: _showAddMenu),
                 ],
               ),
-            ],
-          ),
+            ),
+            // Search stays visible so an active query is never hidden.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 0, AppSpacing.p20, 10),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (v) {
+                  setState(() {});
+                  _onSearchChanged(v);
+                },
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: isAdmin ? 'Search by name or email' : 'Search your interns',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: hasQuery
+                      ? IconButton(
+                          tooltip: 'Clear search',
+                          icon: const Icon(Icons.clear_rounded),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {});
+                            _loadUsers(page: 1);
+                          },
+                        )
+                      : null,
+                ),
+              ),
+            ),
+            // Mentors only ever see interns, so role filters are for admins.
+            if (isAdmin)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.p20, 0, AppSpacing.p20, 10),
+                child: PillFilter(
+                  options: filterPillOptions,
+                  selectedIndex: currentPillIndex,
+                  onSelected: (index) {
+                    const filters = ['all', 'intern', 'mentor', 'admin'];
+                    setState(() {
+                      _selectedRoleFilter = filters[index];
+                      _currentPage = 1;
+                    });
+                    _loadUsers(page: 1);
+                  },
+                ),
+              ),
+            if (_isLoading && filtered.isNotEmpty) const LinearProgressIndicator(minHeight: 2),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => _loadUsers(),
+                child: list,
+              ),
+            ),
+            PaginationBar(
+              page: _currentPage,
+              totalPages: _totalPages,
+              totalItems: _totalUsers,
+              itemLabel: 'users',
+              isLoading: _isLoading,
+              onPageChanged: (p) => _loadUsers(page: p),
+            ),
+          ],
         ),
       ),
     );

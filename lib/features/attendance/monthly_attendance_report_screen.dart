@@ -6,6 +6,7 @@ import '../../core/constants/app_spacing.dart';
 import '../../core/services/file_export_service.dart';
 import '../../shared/widgets/load_error_view.dart';
 import '../../shared/widgets/page_header.dart';
+import '../../core/constants/app_typography.dart';
 
 /// Month-by-month attendance summary per intern (`GET /api/attendance/report` → `monthly_summary`).
 /// Admins see the whole organization, mentors their own interns.
@@ -28,6 +29,7 @@ class _MonthlyAttendanceReportScreenState extends State<MonthlyAttendanceReportS
   bool _loading = true;
   String? _error;
   List<_Row> _rows = const [];
+  bool _exporting = false;
 
   @override
   void initState() {
@@ -78,7 +80,11 @@ class _MonthlyAttendanceReportScreenState extends State<MonthlyAttendanceReportS
     _load();
   }
 
+  bool get _isCurrentMonth => _month.year == DateTime.now().year && _month.month == DateTime.now().month;
+
   Future<void> _export() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
     try {
       await FileExportService.downloadAndShare(
         endpoint: '/api/attendance/export.csv',
@@ -87,14 +93,16 @@ class _MonthlyAttendanceReportScreenState extends State<MonthlyAttendanceReportS
       );
     } catch (e) {
       if (mounted) showApiError(context, e, prefix: 'Export failed');
+    } finally {
+      if (mounted) setState(() => _exporting = false);
     }
   }
 
   Widget _stat(String label, dynamic value, Color color) {
     return Expanded(
       child: Column(children: [
-        Text('${value ?? 0}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: color)),
-        Text(label, style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary)),
+        Text('${value ?? 0}', style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: color)),
+        Text(label, style: AppTypography.label.copyWith(color: AppColors.textSecondary)),
       ]),
     );
   }
@@ -106,7 +114,13 @@ class _MonthlyAttendanceReportScreenState extends State<MonthlyAttendanceReportS
       appBar: pageAppBar(
         context,
         title: 'Monthly report',
-        actions: [HeaderAction(icon: Icons.download_rounded, tooltip: 'Export CSV', onTap: _export)],
+        actions: [
+          HeaderAction(
+            icon: _exporting ? Icons.hourglass_top_rounded : Icons.download_rounded,
+            tooltip: 'Export CSV',
+            onTap: _exporting ? null : _export,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -115,9 +129,17 @@ class _MonthlyAttendanceReportScreenState extends State<MonthlyAttendanceReportS
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                IconButton(onPressed: () => _shiftMonth(-1), icon: const Icon(Icons.chevron_left_rounded)),
-                Text(DateFormat('MMMM yyyy').format(_month), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                IconButton(onPressed: () => _shiftMonth(1), icon: const Icon(Icons.chevron_right_rounded)),
+                IconButton(
+                  onPressed: () => _shiftMonth(-1),
+                  tooltip: 'Previous month',
+                  icon: const Icon(Icons.chevron_left_rounded),
+                ),
+                Text(DateFormat('MMMM yyyy').format(_month), style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700)),
+                IconButton(
+                  onPressed: _isCurrentMonth ? null : () => _shiftMonth(1),
+                  tooltip: 'Next month',
+                  icon: const Icon(Icons.chevron_right_rounded),
+                ),
               ],
             ),
           ),
@@ -127,7 +149,15 @@ class _MonthlyAttendanceReportScreenState extends State<MonthlyAttendanceReportS
                 : _error != null
                     ? LoadErrorView(title: "Couldn't load the report", message: _error!, onRetry: _load)
                     : _rows.isEmpty
-                        ? const Center(child: Text('No interns to report on.', style: TextStyle(color: AppColors.textSecondary)))
+                        ? RefreshIndicator(
+                            onRefresh: _load,
+                            child: ListView(
+                              children: [
+                                const SizedBox(height: 80),
+                                Center(child: Text('No interns to report on.', style: AppTypography.body)),
+                              ],
+                            ),
+                          )
                         : RefreshIndicator(
                             onRefresh: _load,
                             child: ListView.separated(
@@ -140,7 +170,7 @@ class _MonthlyAttendanceReportScreenState extends State<MonthlyAttendanceReportS
                                 return Container(
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: AppColors.surface,
                                     borderRadius: BorderRadius.circular(18),
                                     boxShadow: AppShadows.soft,
                                   ),
@@ -149,15 +179,15 @@ class _MonthlyAttendanceReportScreenState extends State<MonthlyAttendanceReportS
                                     children: [
                                       Row(children: [
                                         Expanded(
-                                          child: Text(r.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                                          child: Text(r.name, style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700)),
                                         ),
                                         Text(
                                           s == null ? 'No records' : '${(s['present_rate'] as num?)?.toStringAsFixed(0) ?? 0}% present',
-                                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                          style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                                         ),
                                       ]),
                                       if ((r.department ?? '').isNotEmpty)
-                                        Text(r.department!, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                                        Text(r.department!, style: AppTypography.caption.copyWith(color: AppColors.textTertiary)),
                                       if (s != null) ...[
                                         const SizedBox(height: 10),
                                         Row(children: [

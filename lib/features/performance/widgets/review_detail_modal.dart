@@ -4,6 +4,7 @@ import '../../../shared/models/performance_review_model.dart';
 import '../../../shared/models/user_model.dart';
 import 'performance_review_dialog.dart';
 import 'delete_review_dialog.dart';
+import '../../../core/constants/app_typography.dart';
 
 class ReviewDetailModal extends StatelessWidget {
   final PerformanceReview review;
@@ -17,13 +18,15 @@ class ReviewDetailModal extends StatelessWidget {
     required this.onDataChanged,
   });
 
-  static void show(
+  /// The sheet returns 'edit' or 'delete'; the follow-up dialog opens from the caller's
+  /// context, because the sheet's own context is gone once it closes.
+  static Future<void> show(
     BuildContext context, {
     required PerformanceReview review,
     required UserModel currentUser,
     required VoidCallback onDataChanged,
-  }) {
-    showModalBottomSheet(
+  }) async {
+    final action = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -33,6 +36,14 @@ class ReviewDetailModal extends StatelessWidget {
         onDataChanged: onDataChanged,
       ),
     );
+    if (action == null || !context.mounted) return;
+    final bool? changed;
+    if (action == 'edit') {
+      changed = await PerformanceReviewDialog.show(context, review: review);
+    } else {
+      changed = await DeleteReviewDialog.show(context, review);
+    }
+    if (changed == true) onDataChanged();
   }
 
   @override
@@ -45,11 +56,11 @@ class ReviewDetailModal extends StatelessWidget {
         maxHeight: MediaQuery.of(context).size.height * 0.88,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
+            color: AppColors.ink.withValues(alpha: 0.25),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -66,7 +77,7 @@ class ReviewDetailModal extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.black12,
+                  color: AppColors.border,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -86,15 +97,11 @@ class ReviewDetailModal extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.star_rounded, size: 14, color: Colors.black),
+                        const Icon(Icons.star_rounded, size: 14, color: AppColors.onPrimary),
                         const SizedBox(width: 4),
                         Text(
                           '${review.rating} / 5 Rating',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
-                          ),
+                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                         ),
                       ],
                     ),
@@ -116,16 +123,12 @@ class ReviewDetailModal extends StatelessWidget {
                           Icon(
                             Icons.folder_outlined,
                             size: 11,
-                            color: AppColors.info,
+                            color: AppColors.infoInk,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             review.projectName!,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.info,
-                            ),
+                            style: AppTypography.label.copyWith(color: AppColors.infoInk),
                           ),
                         ],
                       ),
@@ -135,6 +138,7 @@ class ReviewDetailModal extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.close_rounded, size: 22),
                     color: AppColors.textSecondary,
+                    tooltip: 'Close',
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -158,11 +162,7 @@ class ReviewDetailModal extends StatelessWidget {
                           backgroundColor: AppColors.primary,
                           child: Text(
                             review.internInitials,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black,
-                            ),
+                            style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -172,30 +172,18 @@ class ReviewDetailModal extends StatelessWidget {
                             children: [
                               Text(
                                 review.internDisplayName,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.3,
-                                  color: AppColors.ink,
-                                ),
+                                style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.3, color: AppColors.ink),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 'Reviewed by ${review.reviewerDisplayName} • ${review.formattedCreatedAt}',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: AppColors.textSecondary,
-                                ),
+                                style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                               ),
                               if (review.period != null && review.period!.isNotEmpty) ...[
                                 const SizedBox(height: 2),
                                 Text(
                                   'Period: ${review.period}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.warning,
-                                  ),
+                                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.warningInk),
                                 ),
                               ],
                             ],
@@ -238,28 +226,20 @@ class ReviewDetailModal extends StatelessWidget {
                     if (review.feedback != null && review.feedback!.trim().isNotEmpty) ...[
                       Text(
                         'Detailed Feedback',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink,
-                        ),
+                        style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                       ),
                       const SizedBox(height: 6),
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.surface,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: borderColor),
                         ),
                         child: SelectableText(
                           review.feedback!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 1.5,
-                            color: AppColors.textSecondary,
-                          ),
+                          style: AppTypography.body.copyWith(height: 1.5, color: AppColors.textSecondary),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -269,11 +249,7 @@ class ReviewDetailModal extends StatelessWidget {
                     if (review.strengths != null && review.strengths!.trim().isNotEmpty) ...[
                       Text(
                         'Key Strengths',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.success,
-                        ),
+                        style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: AppColors.successInk),
                       ),
                       const SizedBox(height: 6),
                       Container(
@@ -286,11 +262,7 @@ class ReviewDetailModal extends StatelessWidget {
                         ),
                         child: SelectableText(
                           review.strengths!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 1.5,
-                            color: AppColors.successInk,
-                          ),
+                          style: AppTypography.body.copyWith(height: 1.5, color: AppColors.successInk),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -300,11 +272,7 @@ class ReviewDetailModal extends StatelessWidget {
                     if (review.improvements != null && review.improvements!.trim().isNotEmpty) ...[
                       Text(
                         'Areas for Improvement',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.warning,
-                        ),
+                        style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: AppColors.warningInk),
                       ),
                       const SizedBox(height: 6),
                       Container(
@@ -317,11 +285,7 @@ class ReviewDetailModal extends StatelessWidget {
                         ),
                         child: SelectableText(
                           review.improvements!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 1.5,
-                            color: AppColors.warningInk,
-                          ),
+                          style: AppTypography.body.copyWith(height: 1.5, color: AppColors.warningInk),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -329,18 +293,11 @@ class ReviewDetailModal extends StatelessWidget {
 
                     // Actions if canManage
                     if (canManage) ...[
-                      Wrap(
-                        alignment: WrapAlignment.end,
-                        runSpacing: 8,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           OutlinedButton.icon(
-                            onPressed: () async {
-                              Navigator.pop(context);
-                              final res = await PerformanceReviewDialog.show(context, review: review);
-                              if (res == true) {
-                                onDataChanged();
-                              }
-                            },
+                            onPressed: () => Navigator.pop(context, 'edit'),
                             icon: const Icon(Icons.edit_outlined, size: 16),
                             label: const Text('Edit'),
                             style: OutlinedButton.styleFrom(
@@ -352,18 +309,12 @@ class ReviewDetailModal extends StatelessWidget {
                           ),
                           const SizedBox(width: 10),
                           ElevatedButton.icon(
-                            onPressed: () async {
-                              Navigator.pop(context);
-                              final res = await DeleteReviewDialog.show(context, review);
-                              if (res == true) {
-                                onDataChanged();
-                              }
-                            },
+                            onPressed: () => Navigator.pop(context, 'delete'),
                             icon: const Icon(Icons.delete_outline_rounded, size: 16),
                             label: const Text('Delete'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.dangerInk,
-                              foregroundColor: Colors.white,
+                              foregroundColor: AppColors.surface,
                               elevation: 0,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
@@ -387,25 +338,17 @@ class ReviewDetailModal extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textSecondary,
-          ),
+          style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary),
         ),
         const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.star_rounded, size: 14, color: AppColors.warning),
+            const Icon(Icons.star_rounded, size: 14, color: AppColors.warningInk),
             const SizedBox(width: 3),
             Text(
               '$rating / 5',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink,
-              ),
+              style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
             ),
           ],
         ),

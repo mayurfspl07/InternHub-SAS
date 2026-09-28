@@ -5,15 +5,24 @@ import '../../../shared/models/leave_model.dart';
 import '../leave_repository.dart';
 import 'leave_attachment_viewer.dart';
 import 'review_leave_dialog.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
+import '../../../shared/widgets/pagination_bar.dart';
+import '../../../shared/widgets/status_chip.dart';
+import '../../../shared/widgets/app_avatar.dart';
+import '../../../core/utils/formatters.dart';
 
 class ManageLeaveQueueWidget extends StatefulWidget {
   const ManageLeaveQueueWidget({super.key});
 
   @override
-  State<ManageLeaveQueueWidget> createState() => _ManageLeaveQueueWidgetState();
+  State<ManageLeaveQueueWidget> createState() => ManageLeaveQueueWidgetState();
 }
 
-class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
+class ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
+  /// Reload the current page (pull-to-refresh on the Approvals tab).
+  Future<void> reload() => _fetchQueue();
+
   String _activeStatus = 'pending'; // pending | approved | rejected
   int _currentPage = 1;
   bool _isLoading = false;
@@ -53,7 +62,7 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = e.toString().replaceAll('Exception:', '').trim();
+          _errorMessage = apiErrorMessage(e);
         });
       }
     }
@@ -73,47 +82,33 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: AppShadows.soft,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header Row & Segmented Tabs Pill
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  'Manage Leave Requests ($totalCount)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
-              // Segmented Status Pill
-              Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppColors.border,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildStatusTab('pending', 'Pending'),
-                    _buildStatusTab('approved', 'Approved'),
-                    _buildStatusTab('rejected', 'Rejected'),
-                  ],
-                ),
-              ),
-            ],
+          // Title, then the status filter on its own row so neither is squeezed on a phone.
+          Text(
+            'Leave requests ($totalCount)',
+            style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceMuted,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                _buildStatusTab('pending', 'Pending'),
+                _buildStatusTab('approved', 'Approved'),
+                _buildStatusTab('rejected', 'Rejected'),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -124,20 +119,11 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
               child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
             )
           else if (_errorMessage != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 30),
-              child: Column(
-                children: [
-                  const Icon(Icons.error_outline_rounded, size: 36, color: AppColors.danger),
-                  const SizedBox(height: 8),
-                  Text(_errorMessage!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: () => _fetchQueue(),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
+            LoadErrorView(
+              title: "Couldn't load leave requests",
+              message: _errorMessage!,
+              onRetry: () => _fetchQueue(),
+              compact: true,
             )
           else if (requests.isEmpty)
             Padding(
@@ -151,11 +137,8 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'No $_activeStatus leave requests found',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
+                    'No $_activeStatus leave requests',
+                    style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -177,61 +160,13 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
             Divider(height: 1, color: AppColors.border),
             const SizedBox(height: 14),
 
-            // Pagination Controls
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Page $_currentPage of $totalPages ($totalCount ${totalCount == 1 ? 'request' : 'requests'})',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                Row(
-                  children: [
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        minimumSize: Size.zero,
-                      ),
-                      onPressed: _currentPage > 1
-                          ? () => _fetchQueue(page: _currentPage - 1)
-                          : null,
-                      child: const Text('< Prev', style: TextStyle(fontSize: 11.5)),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '$_currentPage',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        minimumSize: Size.zero,
-                      ),
-                      onPressed: _currentPage < totalPages
-                          ? () => _fetchQueue(page: _currentPage + 1)
-                          : null,
-                      child: const Text('Next >', style: TextStyle(fontSize: 11.5)),
-                    ),
-                  ],
-                ),
-              ],
+            PaginationBar(
+              page: _currentPage,
+              totalPages: totalPages,
+              totalItems: totalCount,
+              itemLabel: 'requests',
+              isLoading: _isLoading,
+              onPageChanged: (p) => _fetchQueue(page: p),
             ),
           ],
         ],
@@ -242,24 +177,30 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
   Widget _buildStatusTab(String key, String label) {
     final isSelected = _activeStatus == key;
 
-    return GestureDetector(
-      onTap: () => _onTabChanged(key),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary
-              : Colors.transparent,
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        child: InkWell(
+          onTap: () => _onTabChanged(key),
           borderRadius: BorderRadius.circular(16),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected
-                ? AppColors.onPrimary
-                : AppColors.textSecondary,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 40),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.primary : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption.copyWith(
+                fontWeight: FontWeight.w700,
+                color: isSelected ? AppColors.onPrimary : AppColors.textSecondary,
+              ),
+            ),
           ),
         ),
       ),
@@ -267,10 +208,6 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
   }
 
   Widget _buildQueueCard(LeaveRequest req, int srNo) {
-    final initial = req.userName.isNotEmpty ? req.userName[0].toLowerCase() : 'i';
-    final statusColor = req.isApproved
-        ? AppColors.success
-        : (req.isRejected ? AppColors.danger : AppColors.warning);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -297,83 +234,38 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                 child: Center(
                   child: Text(
                     '$srNo',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink,
-                    ),
+                    style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
 
-              // Circular Avatar with initial
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.lavenderInk.withValues(alpha: 0.2),
-                  border: Border.all(color: AppColors.lavenderInk.withValues(alpha: 0.4)),
-                ),
-                child: Center(
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: AppColors.lavenderInk,
-                    ),
-                  ),
-                ),
-              ),
+              AppAvatar(size: 28, fallbackText: req.userName),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   req.userName,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                 ),
               ),
-
-              // Status Pill
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                ),
-                child: Text(
-                  req.status.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ),
+              const SizedBox(width: 8),
+              StatusChip.fromString(req.status),
             ],
           ),
           const SizedBox(height: 10),
 
-          // Row 2: Duration, Type, Days
-          Row(
+          // Dates, then type and length
+          Text(
+            formatDateRange(req.start_date, req.end_date),
+            style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
             children: [
-              Expanded(
-                child: Text(
-                  '${req.start_date} → ${req.end_date}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
@@ -382,10 +274,9 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                 ),
                 child: Text(
                   req.typeLabel,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  style: AppTypography.label.copyWith(color: AppColors.ink),
                 ),
               ),
-              const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
@@ -393,8 +284,8 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  '${req.days} day(s)',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                  plural(req.days, 'day'),
+                  style: AppTypography.label.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
                 ),
               ),
             ],
@@ -407,36 +298,34 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
             children: [
               Expanded(
                 child: Text(
-                  'Reason: "${req.reason}"',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontStyle: FontStyle.italic,
-                    color: AppColors.textSecondary,
-                  ),
+                  req.reason,
+                  style: AppTypography.caption.copyWith(fontStyle: FontStyle.italic, color: AppColors.textSecondary),
                 ),
               ),
               if (req.hasAttachment) ...[
                 const SizedBox(width: 8),
-                GestureDetector(
+                InkWell(
+                  borderRadius: BorderRadius.circular(8),
                   onTap: () => LeaveAttachmentViewer.openAttachment(
                     context,
                     leaveId: req.id,
                     filename: req.attachment_name,
                   ),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    constraints: const BoxConstraints(minHeight: 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.attach_file_rounded, size: 14, color: AppColors.primaryInk),
                         SizedBox(width: 3),
                         Text(
                           'Attachment',
-                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.primaryInk),
+                          style: AppTypography.label.copyWith(color: AppColors.primaryInk),
                         ),
                       ],
                     ),
@@ -459,11 +348,12 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                   color: AppColors.textTertiary,
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  'Reviewed by ${req.displayReviewer ?? 'Mentor'}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
+                Flexible(
+                  child: Text(
+                    'Reviewed by ${req.displayReviewer ?? 'a reviewer'}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.label.copyWith(color: AppColors.textSecondary),
                   ),
                 ),
                 if (req.displayComment.isNotEmpty) ...[
@@ -471,11 +361,7 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                   Expanded(
                     child: Text(
                       '("${req.displayComment}")',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontStyle: FontStyle.italic,
-                        color: AppColors.ink,
-                      ),
+                      style: AppTypography.label.copyWith(fontStyle: FontStyle.italic, color: AppColors.ink),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -495,16 +381,16 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.black,
+                    foregroundColor: AppColors.ink,
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    minimumSize: Size.zero,
+                    minimumSize: const Size(0, 44),
                   ),
-                  icon: const Icon(Icons.check_rounded, size: 16, color: Colors.black),
+                  icon: const Icon(Icons.check_rounded, size: 16, color: AppColors.ink),
                   label: Text(
                     'Approve',
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Colors.black),
+                    style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                   ),
                   onPressed: () {
                     ReviewLeaveDialog.show(
@@ -520,16 +406,16 @@ class _ManageLeaveQueueWidgetState extends State<ManageLeaveQueueWidget> {
                 // Reject Button (Outlined Red)
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.danger,
+                    foregroundColor: AppColors.dangerInk,
                     side: const BorderSide(color: AppColors.danger, width: 1.2),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    minimumSize: Size.zero,
+                    minimumSize: const Size(0, 44),
                   ),
-                  icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.danger),
+                  icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.dangerInk),
                   label: Text(
                     'Reject',
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.danger),
+                    style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.dangerInk),
                   ),
                   onPressed: () {
                     ReviewLeaveDialog.show(

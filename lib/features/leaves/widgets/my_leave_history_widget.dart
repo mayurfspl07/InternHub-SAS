@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/models/leave_model.dart';
 import 'leave_attachment_viewer.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/status_chip.dart';
+import '../../../core/utils/formatters.dart';
 
 class MyLeaveHistoryWidget extends StatefulWidget {
   final LeaveMineResponse mineData;
@@ -51,12 +53,7 @@ class _MyLeaveHistoryWidgetState extends State<MyLeaveHistoryWidget> {
       widget.mineData.rejected_requests?.length ??
       widget.mineData.requests.where((r) => r.status.toLowerCase() == 'rejected').length;
 
-  String _formatDate(String dateStr) {
-    if (dateStr.isEmpty) return '—';
-    final d = DateTime.tryParse(dateStr);
-    if (d == null) return dateStr;
-    return DateFormat('MMM d, yyyy').format(d);
-  }
+  String _formatDate(String dateStr) => formatDate(dateStr, fallback: '—');
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +62,7 @@ class _MyLeaveHistoryWidgetState extends State<MyLeaveHistoryWidget> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: AppShadows.soft,
       ),
@@ -78,19 +75,12 @@ class _MyLeaveHistoryWidgetState extends State<MyLeaveHistoryWidget> {
             children: [
               Text(
                 'My Leave History',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
-                ),
+                style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
               ),
               const SizedBox(height: 2),
               Text(
                 'Track status, approved duration, and mentor reviews.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
+                style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
               ),
             ],
           ),
@@ -131,10 +121,7 @@ class _MyLeaveHistoryWidgetState extends State<MyLeaveHistoryWidget> {
                   const SizedBox(height: 10),
                   Text(
                     'No leave requests found in this view',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -171,22 +158,15 @@ class _MyLeaveHistoryWidgetState extends State<MyLeaveHistoryWidget> {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected
+          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: isSelected
                 ? AppColors.onPrimary
-                : AppColors.textSecondary,
-          ),
+                : AppColors.textSecondary),
         ),
       ),
     );
   }
 
   Widget _buildRequestItem(LeaveRequest req, int srNo) {
-    final statusColor = req.isApproved
-        ? AppColors.success
-        : (req.isRejected ? AppColors.danger : AppColors.warning);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -213,23 +193,17 @@ class _MyLeaveHistoryWidgetState extends State<MyLeaveHistoryWidget> {
                 child: Center(
                   child: Text(
                     '$srNo',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink,
-                    ),
+                    style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '${req.start_date} → ${req.end_date}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                  ),
+                  formatDateRange(req.start_date, req.end_date),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                 ),
               ),
               Container(
@@ -240,31 +214,11 @@ class _MyLeaveHistoryWidgetState extends State<MyLeaveHistoryWidget> {
                 ),
                 child: Text(
                   '${req.days}d',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                  ),
+                  style: AppTypography.label.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                ),
-                child: Text(
-                  req.status.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ),
+              StatusChip.fromString(req.status),
             ],
           ),
           const SizedBox(height: 8),
@@ -281,49 +235,40 @@ class _MyLeaveHistoryWidgetState extends State<MyLeaveHistoryWidget> {
                 ),
                 child: Text(
                   req.typeLabel,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.ink,
-                  ),
+                  style: AppTypography.label.copyWith(color: AppColors.ink),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   req.reason,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: AppColors.textSecondary,
-                  ),
+                  style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                 ),
               ),
               if (req.hasAttachment) ...[
                 const SizedBox(width: 6),
-                GestureDetector(
+                InkWell(
+                  borderRadius: BorderRadius.circular(8),
                   onTap: () => LeaveAttachmentViewer.openAttachment(
                     context,
                     leaveId: req.id,
                     filename: req.attachment_name,
                   ),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    constraints: const BoxConstraints(minHeight: 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.attach_file_rounded, size: 14, color: AppColors.primaryInk),
                         SizedBox(width: 2),
                         Text(
-                          'File',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryInk,
-                          ),
+                          'Attachment',
+                          style: AppTypography.label.copyWith(color: AppColors.primaryInk),
                         ),
                       ],
                     ),
@@ -356,11 +301,7 @@ class _MyLeaveHistoryWidgetState extends State<MyLeaveHistoryWidget> {
                         req.displayReviewer != null
                             ? '${req.displayReviewer}${req.reviewed_at != null ? ' • ${_formatDate(req.reviewed_at!)}' : ''}'
                             : 'Pending review',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontStyle: req.displayReviewer == null ? FontStyle.italic : FontStyle.normal,
-                          color: AppColors.textSecondary,
-                        ),
+                        style: AppTypography.label.copyWith(fontStyle: req.displayReviewer == null ? FontStyle.italic : FontStyle.normal, color: AppColors.textSecondary),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -371,11 +312,8 @@ class _MyLeaveHistoryWidgetState extends State<MyLeaveHistoryWidget> {
 
               // Applied on
               Text(
-                'Applied: ${_formatDate(req.created_at)}',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  color: AppColors.textTertiary,
-                ),
+                'Applied ${_formatDate(req.created_at)}',
+                style: AppTypography.label,
               ),
             ],
           ),
@@ -386,7 +324,7 @@ class _MyLeaveHistoryWidgetState extends State<MyLeaveHistoryWidget> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.03),
+                color: AppColors.ink.withValues(alpha: 0.03),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Row(
@@ -400,11 +338,7 @@ class _MyLeaveHistoryWidgetState extends State<MyLeaveHistoryWidget> {
                   Expanded(
                     child: Text(
                       req.displayComment,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontStyle: FontStyle.italic,
-                        color: AppColors.ink,
-                      ),
+                      style: AppTypography.label.copyWith(fontStyle: FontStyle.italic, color: AppColors.ink),
                     ),
                   ),
                 ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/models/leave_model.dart';
+import '../../../core/constants/app_typography.dart';
 
 /// The intern's leave balance exactly as `GET /api/leave/mine` reports it.
 class LeaveBalanceCards extends StatelessWidget {
@@ -46,7 +47,7 @@ class LeaveBalanceCards extends StatelessWidget {
           Text(
             '${_days(afterPending)} days left if your pending requests are approved.',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+            style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ],
@@ -57,7 +58,7 @@ class LeaveBalanceCards extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.r24),
         boxShadow: AppShadows.soft,
       ),
@@ -65,12 +66,12 @@ class LeaveBalanceCards extends StatelessWidget {
         children: [
           Text(
             value,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.ink),
+            style: AppTypography.title.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
           ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+            style: AppTypography.label.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),

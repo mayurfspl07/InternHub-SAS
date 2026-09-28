@@ -1,9 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../../shared/models/cohort_model.dart';
 import '../../../shared/models/user_model.dart';
 import '../cohorts_repository.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_spacing.dart';
+import '../../../core/constants/app_typography.dart';
+import '../../../shared/widgets/load_error_view.dart';
+import '../../../core/utils/formatters.dart';
+import '../../../shared/widgets/status_chip.dart';
+import '../../../shared/widgets/app_avatar.dart';
 
 class CohortDetailModal extends StatefulWidget {
   final Cohort initialCohort;
@@ -50,6 +56,9 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
   bool _isLoadingInterns = false;
   final TextEditingController _internSearchController = TextEditingController();
   List<CohortInternOption> _internOptions = [];
+  Timer? _searchDebounce;
+  // Latest search sent; slower responses for older queries are dropped.
+  String _activeQuery = '';
 
   bool get canManage => canManageCohorts(widget.currentUser);
 
@@ -62,6 +71,7 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _internSearchController.dispose();
     super.dispose();
   }
@@ -84,7 +94,7 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = e.toString();
+          _errorMessage = apiErrorMessage(e);
         });
       }
     }
@@ -99,10 +109,17 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
     await _searchInterns('');
   }
 
+  void _onInternSearchChanged(String query) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () => _searchInterns(query));
+  }
+
   Future<void> _searchInterns(String query) async {
+    _activeQuery = query;
     setState(() => _isLoadingInterns = true);
     try {
       final options = await CohortsRepository().getInternOptions(search: query);
+      if (query != _activeQuery) return;
       // Filter OUT user_ids already enrolled in cohort
       final existingIds = (_cohort.members ?? []).map((m) => m.userId).toSet();
       final filtered = options.where((o) => !existingIds.contains(o.userId)).toList();
@@ -114,7 +131,7 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
         });
       }
     } catch (_) {
-      if (mounted) {
+      if (mounted && query == _activeQuery) {
         setState(() {
           _internOptions = [];
           _isLoadingInterns = false;
@@ -128,12 +145,7 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
     try {
       await CohortsRepository().addMember(_cohort.id, userId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Member added to cohort'),
-            backgroundColor: AppColors.success,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Added to the cohort')));
         setState(() {
           _showAddPicker = false;
           _isAddingMember = false;
@@ -144,12 +156,7 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
     } catch (e) {
       if (mounted) {
         setState(() => _isAddingMember = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to add member: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
+        showApiError(context, e, prefix: "Couldn't add them");
       }
     }
   }
@@ -159,12 +166,10 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Remove Member?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          title: Text('Remove ${member.displayName}?', style: AppTypography.section.copyWith(fontWeight: FontWeight.w700)),
           content: Text(
-            'Are you sure you want to remove "${member.displayName}" from "${_cohort.name}"?',
-            style: const TextStyle(fontSize: 14),
+            'They leave "${_cohort.name}". Their account and work are not affected.',
+            style: AppTypography.body.copyWith(color: AppColors.ink),
           ),
           actions: [
             TextButton(
@@ -175,8 +180,7 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
               onPressed: () => Navigator.of(ctx).pop(true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.danger,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                foregroundColor: AppColors.surface,
               ),
               child: const Text('Remove'),
             ),
@@ -189,68 +193,30 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
       try {
         await CohortsRepository().removeMember(_cohort.id, member.userId);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${member.displayName} removed from cohort'),
-              backgroundColor: AppColors.success,
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${member.displayName} removed')));
           await _fetchDetail();
           widget.onDataChanged();
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to remove member: $e'),
-              backgroundColor: AppColors.danger,
-            ),
-          );
+          showApiError(context, e, prefix: "Couldn't remove ${member.displayName}");
         }
       }
     }
   }
 
   Widget _buildStatusBadge(String status) {
-    Color bg;
-    Color fg;
-    switch (status) {
-      case 'Upcoming':
-        bg = AppColors.infoSoft;
-        fg = AppColors.info;
-        break;
-      case 'Completed':
-        bg = AppColors.surfaceMuted;
-        fg = AppColors.textSecondary;
-        break;
-      case 'Active Batch':
-      case 'Active':
-      default:
-        bg = AppColors.warningSoft;
-        fg = AppColors.warning;
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: fg,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
+    final type = switch (status) {
+      'Active' => StatusType.success,
+      'Upcoming' => StatusType.info,
+      _ => StatusType.neutral,
+    };
+    return StatusChip(label: status, statusType: type);
   }
 
   @override
   Widget build(BuildContext context) {
-    final surfaceColor = Colors.white;
+    final surfaceColor = AppColors.surface;
     final cardBg = AppColors.surfaceMuted;
     final borderColor = AppColors.border;
     final primaryTextColor = AppColors.ink;
@@ -259,7 +225,10 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
     final members = _cohort.members ?? [];
     final enrolledCount = members.isNotEmpty ? members.length : (_cohort.memberCount ?? 0);
 
-    return DraggableScrollableSheet(
+    // Lift the sheet above the keyboard while searching for interns.
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: DraggableScrollableSheet(
       initialChildSize: 0.85,
       minChildSize: 0.5,
       maxChildSize: 0.95,
@@ -268,13 +237,7 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
           decoration: BoxDecoration(
             color: surfaceColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 20,
-                spreadRadius: 2,
-              ),
-            ],
+            boxShadow: AppShadows.soft,
           ),
           child: Column(
             children: [
@@ -316,52 +279,36 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _cohort.name,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: primaryTextColor,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              _buildStatusBadge(_cohort.statusLabel),
-                            ],
+                          Text(
+                            _cohort.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.section.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                           ),
-                          const SizedBox(height: 4),
-                          Row(
+                          const SizedBox(height: 6),
+                          // Wraps on narrow phones instead of overflowing.
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              Icon(Icons.calendar_today_outlined, size: 13, color: secondaryTextColor),
-                              const SizedBox(width: 5),
-                              Text(
-                                _cohort.dateRangeFormatted,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: secondaryTextColor,
-                                ),
+                              _buildStatusBadge(_cohort.statusLabel),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.calendar_today_outlined, size: 13, color: secondaryTextColor),
+                                  const SizedBox(width: 5),
+                                  Text(_cohort.dateRangeFormatted, style: AppTypography.caption),
+                                ],
                               ),
-                              const SizedBox(width: 12),
-                              Icon(Icons.people_outline_rounded, size: 14, color: secondaryTextColor),
-                              const SizedBox(width: 5),
-                              Text(
-                                '$enrolledCount Enrolled',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: secondaryTextColor,
-                                ),
-                              ),
+                              Text(plural(enrolledCount, 'intern'), style: AppTypography.caption),
                             ],
                           ),
                         ],
                       ),
                     ),
                     IconButton(
+                      tooltip: 'Close',
                       icon: const Icon(Icons.close_rounded),
                       onPressed: () => Navigator.of(context).pop(),
                       color: secondaryTextColor,
@@ -386,11 +333,7 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                     ),
                     child: Text(
                       _cohort.description!.trim(),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                        height: 1.4,
-                      ),
+                      style: AppTypography.caption.copyWith(color: AppColors.textSecondary, height: 1.4),
                     ),
                   ),
                 ),
@@ -399,15 +342,12 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Members ($enrolledCount)',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: primaryTextColor,
-                      ),
+                    Expanded(
+                      child: Text(
+                      'Interns ($enrolledCount)',
+                      style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
+                    ),
                     ),
                     if (canManage)
                       TextButton.icon(
@@ -415,7 +355,8 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.butterInk,
                           backgroundColor: AppColors.primarySoft,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          minimumSize: const Size(0, 40),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         ),
                         icon: Icon(
@@ -424,8 +365,8 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                           color: AppColors.butterInk,
                         ),
                         label: Text(
-                          _showAddPicker ? 'Close Picker' : 'Add Member',
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                          _showAddPicker ? 'Done' : 'Add intern',
+                          style: AppTypography.caption.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
                         ),
                       ),
                   ],
@@ -447,25 +388,22 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Select Intern to Add',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: primaryTextColor,
-                          ),
+                          'Add an intern',
+                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                         ),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _internSearchController,
-                          onChanged: (val) => _searchInterns(val),
-                          style: TextStyle(fontSize: 13, color: primaryTextColor),
+                          onChanged: _onInternSearchChanged,
+                          textInputAction: TextInputAction.search,
+                          style: AppTypography.caption.copyWith(color: primaryTextColor),
                           decoration: InputDecoration(
-                            hintText: 'Search interns by name or email...',
-                            hintStyle: TextStyle(fontSize: 13, color: secondaryTextColor),
+                            hintText: 'Search by name or email',
+                            hintStyle: AppTypography.caption.copyWith(color: secondaryTextColor),
                             isDense: true,
                             prefixIcon: Icon(Icons.search_rounded, size: 18, color: secondaryTextColor),
                             filled: true,
-                            fillColor: Colors.white,
+                            fillColor: AppColors.surface,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -494,14 +432,14 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                             padding: const EdgeInsets.all(12),
                             child: Center(
                               child: Text(
-                                'No available interns found',
-                                style: TextStyle(fontSize: 13, color: secondaryTextColor),
+                                _internSearchController.text.isEmpty ? 'Every intern is already in this cohort' : 'No interns match that search',
+                                style: AppTypography.caption.copyWith(color: secondaryTextColor),
                               ),
                             ),
                           )
                         else
                           ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 180),
+                            constraints: const BoxConstraints(maxHeight: 200),
                             child: ListView.separated(
                               shrinkWrap: true,
                               itemCount: _internOptions.length,
@@ -513,23 +451,24 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   title: Text(
                                     opt.displayName,
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: primaryTextColor),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: primaryTextColor),
                                   ),
                                   subtitle: opt.displaySubtitle.isNotEmpty
-                                      ? Text(opt.displaySubtitle, style: TextStyle(fontSize: 11, color: secondaryTextColor))
+                                      ? Text(opt.displaySubtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.label)
                                       : null,
                                   trailing: ElevatedButton(
                                     onPressed: () => _addMember(opt.userId),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppColors.primary,
-                                      foregroundColor: AppColors.ink,
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                      minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      foregroundColor: AppColors.onPrimary,
+                                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                                      minimumSize: const Size(0, 40),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                       elevation: 0,
                                     ),
-                                    child: const Text('Add', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                                    child: const Text('Add'),
                                   ),
                                 );
                               },
@@ -545,23 +484,7 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
                     : _errorMessage != null
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 36),
-                                const SizedBox(height: 8),
-                                Text('Failed to load members', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
-                                const SizedBox(height: 4),
-                                Text(_errorMessage!, style: TextStyle(color: secondaryTextColor, fontSize: 12)),
-                                const SizedBox(height: 12),
-                                ElevatedButton(
-                                  onPressed: _fetchDetail,
-                                  child: const Text('Retry'),
-                                ),
-                              ],
-                            ),
-                          )
+                        ? LoadErrorView(title: "Couldn't load this cohort", message: _errorMessage!, onRetry: _fetchDetail, compact: true)
                         : members.isEmpty
                             ? Center(
                                 child: Padding(
@@ -576,23 +499,16 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                                       ),
                                       const SizedBox(height: 12),
                                       Text(
-                                        'No members enrolled yet',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: primaryTextColor,
-                                        ),
+                                        'No interns yet',
+                                        style: AppTypography.cardTitle.copyWith(color: primaryTextColor),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         canManage
-                                            ? 'Click "Add Member" to assign interns to this cohort.'
-                                            : 'No interns have been added to this cohort yet.',
+                                            ? 'Tap "Add intern" to add people to this cohort.'
+                                            : 'Interns appear here once they are added.',
                                         textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: secondaryTextColor,
-                                        ),
+                                        style: AppTypography.caption.copyWith(color: secondaryTextColor),
                                       ),
                                     ],
                                   ),
@@ -606,13 +522,8 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                                 itemBuilder: (context, index) {
                                   final member = members[index];
 
-                                  String joinedStr = '';
-                                  if (member.joinedAt != null && member.joinedAt!.isNotEmpty) {
-                                    final dt = DateTime.tryParse(member.joinedAt!);
-                                    if (dt != null) {
-                                      joinedStr = 'Joined ${DateFormat('MMM d, yyyy').format(dt.toLocal())}';
-                                    }
-                                  }
+                                  final joined = formatDate(member.joinedAt);
+                                  final joinedStr = joined.isEmpty ? '' : 'Added $joined';
 
                                   return Container(
                                     padding: const EdgeInsets.all(14),
@@ -624,18 +535,7 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                                     child: Row(
                                       children: [
                                         // Initials Avatar
-                                        CircleAvatar(
-                                          radius: 20,
-                                          backgroundColor: AppColors.warningSoft,
-                                          child: Text(
-                                            member.initials,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                              color: AppColors.warningInk,
-                                            ),
-                                          ),
-                                        ),
+                                        AppAvatar(fallbackText: member.displayName, size: 40),
                                         const SizedBox(width: 14),
                                         // Name, Email, Dept
                                         Expanded(
@@ -644,24 +544,24 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                                             children: [
                                               Text(
                                                 member.displayName,
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: primaryTextColor,
-                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: AppTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700, color: primaryTextColor),
                                               ),
                                               if (member.displayEmail.isNotEmpty) ...[
                                                 const SizedBox(height: 2),
                                                 Text(
                                                   member.displayEmail,
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: secondaryTextColor,
-                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: AppTypography.caption.copyWith(color: secondaryTextColor),
                                                 ),
                                               ],
                                               const SizedBox(height: 3),
-                                              Row(
+                                              Wrap(
+                                                spacing: 0,
+                                                runSpacing: 4,
+                                                crossAxisAlignment: WrapCrossAlignment.center,
                                                 children: [
                                                   if (member.department != null && member.department!.isNotEmpty) ...[
                                                     Container(
@@ -672,11 +572,7 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                                                       ),
                                                       child: Text(
                                                         member.department!,
-                                                        style: TextStyle(
-                                                          fontSize: 10,
-                                                          fontWeight: FontWeight.w600,
-                                                          color: primaryTextColor,
-                                                        ),
+                                                        style: AppTypography.label.copyWith(color: primaryTextColor),
                                                       ),
                                                     ),
                                                     const SizedBox(width: 8),
@@ -684,10 +580,7 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                                                   if (joinedStr.isNotEmpty)
                                                     Text(
                                                       joinedStr,
-                                                      style: TextStyle(
-                                                        fontSize: 11,
-                                                        color: secondaryTextColor,
-                                                      ),
+                                                      style: AppTypography.label.copyWith(color: secondaryTextColor),
                                                     ),
                                                 ],
                                               ),
@@ -698,7 +591,7 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
                                         if (canManage)
                                           IconButton(
                                             icon: const Icon(Icons.delete_outline_rounded, size: 20),
-                                            color: AppColors.danger.withValues(alpha: 0.8),
+                                            color: AppColors.dangerInk,
                                             tooltip: 'Remove from cohort',
                                             onPressed: () => _confirmRemoveMember(member),
                                           ),
@@ -712,6 +605,7 @@ class _CohortDetailModalState extends State<CohortDetailModal> {
           ),
         );
       },
+    ),
     );
   }
 }

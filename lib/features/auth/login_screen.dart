@@ -8,6 +8,7 @@ import '../../core/constants/app_spacing.dart';
 import '../../core/state/app_state_provider.dart';
 import '../dashboard/main_navigation_wrapper.dart';
 import 'forgot_password_screen.dart';
+import '../../core/constants/app_typography.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -85,17 +86,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _isLoading = false;
         if (e.isRateLimited) {
           final waitSec = e.retryAfterSeconds ?? 60;
-          _errorMessage = 'Too many attempts. Please wait before retrying.';
+          _errorMessage = 'Too many attempts. Wait a moment, then try again.';
           _startCountdown(waitSec);
         } else {
           _errorMessage = e.message;
         }
       });
-    } catch (e) {
+    } catch (e, stack) {
+      // Not a server rejection (those are ApiExceptions above): something failed after sign-in,
+      // e.g. reading the profile. Say so instead of blaming the password.
+      debugPrint('Login failed after the server accepted it: $e\n$stack');
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Invalid email or password. Please try again.';
+        _errorMessage = "Signed in, but the app couldn't load your account. Please try again.";
       });
     }
   }
@@ -135,7 +139,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Scaffold(
           extendBody: true,
           extendBodyBehindAppBar: true,
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.surface,
           body: SizedBox(
             width: size.width,
             height: size.height,
@@ -147,7 +151,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   'assets/images/login background.png',
                   width: size.width,
                   height: size.height,
-                  fit: BoxFit.fill,
+                  fit: BoxFit.cover,
                 ),
 
                 // 2. Safe Area Form Content
@@ -156,6 +160,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: SingleChildScrollView(
                       physics: const ClampingScrollPhysics(),
                       padding: const EdgeInsets.symmetric(horizontal: 26),
+                      child: AutofillGroup(
                       child: Form(
                     key: _formKey,
                     child: Column(
@@ -179,13 +184,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         // Title: Welcome Back!
                         Center(
                           child: Text(
-                            'Welcome Back!',
-                            style: TextStyle(
-                              fontSize: 27,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.ink,
-                              letterSpacing: -0.4,
-                            ),
+                            'Welcome back',
+                            style: AppTypography.headline.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink, letterSpacing: -0.4),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -193,12 +193,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         // Subtitle
                         Center(
                           child: Text(
-                            'Sign in to continue your journey',
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textSecondary,
-                            ),
+                            'Sign in to your workspace',
+                            style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                           ),
                         ),
                         const SizedBox(height: 22),
@@ -208,40 +204,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
-                              color: AppColors.danger.withValues(alpha: 0.10),
+                              color: AppColors.dangerSoft,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.danger.withValues(alpha: 0.35)),
                             ),
+                            // The wait time shows once, on the button below.
                             child: Row(
                               children: [
-                                const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 18),
+                                const Icon(Icons.error_outline_rounded, color: AppColors.dangerInk, size: 18),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     _errorMessage!,
-                                    style: const TextStyle(
-                                      color: AppColors.danger,
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                    style: AppTypography.caption.copyWith(color: AppColors.dangerInk, fontWeight: FontWeight.w600),
                                   ),
                                 ),
-                                if (_retryAfterCountdown != null)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.danger,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      '${_retryAfterCountdown}s',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  ),
                               ],
                             ),
                           ),
@@ -250,22 +226,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                         // 1. Email or Phone Label & Field
                         Text(
-                          'Email or Phone',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
-                          ),
+                          'Email',
+                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                         ),
                         const SizedBox(height: 6),
                         Container(
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.92),
+                            color: AppColors.surface.withValues(alpha: 0.92),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(color: AppColors.border, width: 1.2),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.02),
+                                color: AppColors.ink.withValues(alpha: 0.02),
                                 blurRadius: 6,
                                 offset: const Offset(0, 2),
                               ),
@@ -274,18 +246,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           child: TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
-                            style: TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.ink,
-                            ),
-                            decoration: const InputDecoration(
-                              hintText: 'Enter your email or phone',
-                              hintStyle: TextStyle(
-                                color: AppColors.textTertiary,
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w400,
-                              ),
+                            textInputAction: TextInputAction.next,
+                            autofillHints: const [AutofillHints.email, AutofillHints.username],
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            style: AppTypography.body.copyWith(fontWeight: FontWeight.w500, color: AppColors.ink),
+                            decoration: InputDecoration(
+                              hintText: 'you@company.com',
+                              hintStyle: AppTypography.caption.copyWith(color: AppColors.textTertiary, fontWeight: FontWeight.w400),
                               prefixIcon: Icon(
                                 Icons.mail_outline_rounded,
                                 color: AppColors.textTertiary,
@@ -299,7 +267,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             validator: (val) {
                               if (val == null || val.trim().isEmpty) {
-                                return 'Please enter your email or phone';
+                                return 'Enter your email';
                               }
                               return null;
                             },
@@ -310,21 +278,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         // 2. Password Label & Field
                         Text(
                           'Password',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
-                          ),
+                          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.ink),
                         ),
                         const SizedBox(height: 6),
                         Container(
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.92),
+                            color: AppColors.surface.withValues(alpha: 0.92),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(color: AppColors.border, width: 1.2),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.02),
+                                color: AppColors.ink.withValues(alpha: 0.02),
                                 blurRadius: 6,
                                 offset: const Offset(0, 2),
                               ),
@@ -333,24 +297,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           child: TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
-                            style: TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.ink,
-                            ),
+                            textInputAction: TextInputAction.done,
+                            autofillHints: const [AutofillHints.password],
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            onFieldSubmitted: (_) => _handleLogin(),
+                            style: AppTypography.body.copyWith(fontWeight: FontWeight.w500, color: AppColors.ink),
                             decoration: InputDecoration(
-                              hintText: 'Enter your password',
-                              hintStyle: const TextStyle(
-                                color: AppColors.textTertiary,
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w400,
-                              ),
+                              hintText: 'Your password',
+                              hintStyle: AppTypography.caption.copyWith(color: AppColors.textTertiary, fontWeight: FontWeight.w400),
                               prefixIcon: const Icon(
                                 Icons.lock_outline_rounded,
                                 color: AppColors.textTertiary,
                                 size: 20,
                               ),
                               suffixIcon: IconButton(
+                                tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                                 icon: Icon(
                                   _obscurePassword
                                       ? Icons.visibility_off_outlined
@@ -370,7 +332,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             validator: (val) {
                               if (val == null || val.isEmpty) {
-                                return 'Please enter your password';
+                                return 'Enter your password';
                               }
                               return null;
                             },
@@ -382,10 +344,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Remember Me Checkbox
-                            GestureDetector(
+                            // Remember Me Checkbox (the whole label is the tap target)
+                            InkWell(
                               onTap: () => setState(() => _rememberMe = !_rememberMe),
-                              child: Row(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 2),
+                                child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   SizedBox(
@@ -404,26 +369,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   const SizedBox(width: 8),
                                   Text(
                                     'Remember me',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.textSecondary,
-                                    ),
+                                    style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
                                   ),
                                 ],
                               ),
+                              ),
                             ),
 
-                            // Forgot Password Link
-                            GestureDetector(
-                              onTap: _showForgotPasswordDialog,
+                            TextButton(
+                              onPressed: _showForgotPasswordDialog,
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primaryInk,
+                                minimumSize: const Size(44, 44),
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                              ),
                               child: Text(
-                                'Forgot Password?',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.primaryInk,
-                                ),
+                                'Forgot password?',
+                                style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.primaryInk),
                               ),
                             ),
                           ],
@@ -460,13 +422,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       Text(
                                         (_retryAfterCountdown != null && _retryAfterCountdown! > 0)
                                             ? 'Retry in ${_retryAfterCountdown}s'
-                                            : 'Login',
-                                        style: TextStyle(
-                                          fontSize: 15.5,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.onPrimary,
-                                          letterSpacing: 0.2,
-                                        ),
+                                            : 'Sign in',
+                                        style: AppTypography.cardTitle.copyWith(fontWeight: FontWeight.w700, color: AppColors.onPrimary, letterSpacing: 0.2),
                                       ),
                                       const SizedBox(width: 8),
                                       const Icon(
@@ -478,9 +435,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ),
                           ),
                         ),
-                        const SizedBox(height: 30),
+                        const SizedBox(height: 14),
+                        Center(
+                          child: TextButton.icon(
+                            onPressed: () => Navigator.of(context).pushNamed('/join'),
+                            icon: const Icon(Icons.link_rounded, size: 18),
+                            label: const Text('Have an invite link? Join your team'),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
                       ],
                     ),
+                  ),
                   ),
                 ),
               ),
